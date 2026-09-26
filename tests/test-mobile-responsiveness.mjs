@@ -119,7 +119,12 @@ assert.ok(bookCard.includes('hidden sm:block'), 'Descrição longa do BookCard d
 const diagramModal = fs.readFileSync(path.resolve('src/components/Reader/DiagramFullscreenModal.tsx'), 'utf-8');
 assert.ok(diagramModal.includes('role="dialog"'), 'DiagramFullscreenModal deve ser um diálogo acessível');
 assert.ok(diagramModal.includes('handleZoomIn') && diagramModal.includes('handleZoomOut'), 'DiagramFullscreenModal deve ter controles de zoom');
+assert.ok(diagramModal.includes('handleResetZoom'), 'DiagramFullscreenModal deve ter função de ajuste/reset');
 assert.ok(diagramModal.includes('Escape'), 'DiagramFullscreenModal deve fechar ao pressionar Escape');
+assert.ok(diagramModal.includes('handlePointerDown') && diagramModal.includes('handlePointerMove'), 'DiagramFullscreenModal deve ter manipuladores de pan/drag');
+assert.ok(diagramModal.includes('fitZoom'), 'DiagramFullscreenModal deve calcular zoom adaptativo fitZoom');
+assert.ok(diagramModal.includes('var(--bg-canvas)') && diagramModal.includes('var(--bg-surface)'), 'DiagramFullscreenModal deve usar tokens de design system do Margem');
+assert.ok(diagramModal.includes('Maximize2'), 'DiagramFullscreenModal deve incluir botão de fit-to-screen com Maximize2');
 
 assert.ok(readerContent.includes('DiagramFullscreenModal'), 'ReaderContent deve importar DiagramFullscreenModal');
 assert.ok(readerContent.includes('reader-mermaid-container'), 'ReaderContent deve interceptar clique em reader-mermaid-container');
