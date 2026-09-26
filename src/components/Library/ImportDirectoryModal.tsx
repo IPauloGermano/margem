@@ -17,6 +17,7 @@ import {
   ScannedFolderBook,
   ScannedItem
 } from '../../core/types';
+import { getChapterSortKey, sortChapterFiles } from '../../core/parsers/FolderBookLoader';
 
 interface ImportDirectoryModalProps {
   isOpen: boolean;
@@ -105,7 +106,10 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
     const folderGroups = new Map<string, ScannedFileItem[]>();
     const rootFiles: ScannedFileItem[] = [];
     let rootFolderName = 'Pasta Selecionada';
+    let rootHasBookTag = false;
+    const taggedFolders = new Set<string>();
 
+    // 1. Primeira passada: rastreia marcadores .book, book.json e nomes de pasta
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       const relPath = (f as any).webkitRelativePath || f.name;
@@ -113,6 +117,54 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
       if (parts.length > 1) {
         rootFolderName = parts[0];
       }
+
+      const lowerName = f.name.toLowerCase();
+      const lowerRel = relPath.toLowerCase();
+
+      const isMarker =
+        lowerName === '.book' ||
+        lowerName === 'book' ||
+        lowerName === 'book.json' ||
+        lowerName === 'book.txt' ||
+        lowerName === '.cadernobook' ||
+        lowerName === '_book.json';
+
+      if (isMarker) {
+        if (parts.length <= 2) {
+          rootHasBookTag = true;
+        } else {
+          const subfolder = parts.slice(0, parts.length - 1).join('/');
+          taggedFolders.add(subfolder);
+        }
+      }
+
+      if (
+        lowerRel.includes('/.book/') ||
+        lowerRel.includes('/[book]/') ||
+        lowerRel.includes('.book/')
+      ) {
+        if (parts.length <= 2) {
+          rootHasBookTag = true;
+        } else {
+          const subfolder = parts.slice(0, parts.length - 1).join('/');
+          taggedFolders.add(subfolder);
+        }
+      }
+    }
+
+    if (
+      rootFolderName.toLowerCase().includes('.book') ||
+      rootFolderName.toLowerCase().includes('[book]') ||
+      rootFolderName.toLowerCase().includes('(book)')
+    ) {
+      rootHasBookTag = true;
+    }
+
+    // 2. Segunda passada: coleta os arquivos de texto suportados
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const relPath = (f as any).webkitRelativePath || f.name;
+      const parts = relPath.split('/');
 
       const ext = f.name.split('.').pop()?.toLowerCase() || '';
       if (!supported.has(ext)) continue;
@@ -141,46 +193,57 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
     const items: ScannedItem[] = [];
     const allFiles: ScannedFileItem[] = [];
 
-    // Agrupa subpastas como Livros Compostos se tiverem múltiplos capítulos
+    // Agrupa subpastas como Livros Compostos
     for (const [subfolder, chaps] of folderGroups.entries()) {
-      chaps.sort((a, b) =>
-        a.filename.localeCompare(b.filename, undefined, { numeric: true, sensitivity: 'base' })
-      );
+      const sortedChaps = sortChapterFiles(chaps);
       const subName = subfolder.split('/').pop() || 'Livro';
+      const cleanTitle = subName
+        .replace(/\.book$/i, '')
+        .replace(/^\[book\]\s*/i, '')
+        .replace(/\s*\(book\)$/i, '')
+        .replace(/[-_]/g, ' ')
+        .trim();
+
       const folderBook: ScannedFolderBook = {
         type: 'folder_book',
         folderPath: subfolder,
         folderName: subName,
-        title: subName,
+        title: cleanTitle,
         author: 'Vários Autores',
-        files: chaps,
-        totalSize: chaps.reduce((acc, c) => acc + c.size, 0)
+        files: sortedChaps,
+        totalSize: sortedChaps.reduce((acc, c) => acc + c.size, 0)
       };
       items.push(folderBook);
-      allFiles.push(...chaps);
+      allFiles.push(...sortedChaps);
     }
 
-    // Se os arquivos na raiz formarem uma sequência numerada e não houver subpastas, trata a raiz como um livro único
-    const isRootNumbered =
+    // Heurística e detecção de livro na pasta raiz
+    const sortedRoot = sortChapterFiles(rootFiles);
+    const rootChapterCount = sortedRoot.filter((f) => getChapterSortKey(f.filename).priority < 2).length;
+    const shouldGroupRoot =
       rootFiles.length >= 2 &&
-      rootFiles.every((f) => /^[0-9ivxlcdm]+[\s._-]/i.test(f.filename));
+      (rootHasBookTag || rootChapterCount >= Math.min(2, rootFiles.length) || folderGroups.size === 0);
 
-    if (isRootNumbered && folderGroups.size === 0) {
-      rootFiles.sort((a, b) =>
-        a.filename.localeCompare(b.filename, undefined, { numeric: true, sensitivity: 'base' })
-      );
-      items.push({
+    if (shouldGroupRoot && rootFiles.length > 0) {
+      const cleanRootTitle = rootFolderName
+        .replace(/\.book$/i, '')
+        .replace(/^\[book\]\s*/i, '')
+        .replace(/\s*\(book\)$/i, '')
+        .replace(/[-_]/g, ' ')
+        .trim();
+
+      items.unshift({
         type: 'folder_book',
         folderPath: rootFolderName,
         folderName: rootFolderName,
-        title: rootFolderName,
+        title: cleanRootTitle,
         author: 'Vários Autores',
-        files: rootFiles,
-        totalSize: rootFiles.reduce((acc, c) => acc + c.size, 0)
+        files: sortedRoot,
+        totalSize: sortedRoot.reduce((acc, c) => acc + c.size, 0)
       });
-      allFiles.push(...rootFiles);
+      allFiles.push(...sortedRoot);
     } else {
-      for (const f of rootFiles) {
+      for (const f of sortedRoot) {
         items.push({ type: 'single_file', file: f });
         allFiles.push(f);
       }
@@ -197,6 +260,64 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
       files: allFiles
     });
     e.target.value = '';
+  };
+
+  // Alterna dinamicamente entre livro empacotado e arquivos avulsos
+  const toggleItemMode = (itemIndex: number) => {
+    if (!scannedResult) return;
+    const item = scannedResult.items[itemIndex];
+    const newItems = [...scannedResult.items];
+
+    if (item.type === 'folder_book') {
+      const singles: ScannedItem[] = item.files.map((f) => ({
+        type: 'single_file',
+        file: f
+      }));
+      newItems.splice(itemIndex, 1, ...singles);
+    } else {
+      // Agrupa todos os avulsos correspondentes em um livro único
+      const targetFolder = item.file.relativePath.includes('/')
+        ? item.file.relativePath.split('/').slice(0, -1).join('/')
+        : scannedResult.folderPath;
+      const folderName = targetFolder.split('/').pop() || 'Livro';
+
+      const matchingSingles = newItems.filter(
+        (it) =>
+          it.type === 'single_file' &&
+          (it.file.relativePath.startsWith(`${targetFolder}/`) || !it.file.relativePath.includes('/'))
+      ) as { type: 'single_file'; file: ScannedFileItem }[];
+
+      if (matchingSingles.length > 0) {
+        const sortedFiles = sortChapterFiles(matchingSingles.map((it) => it.file));
+        const cleanTitle = folderName
+          .replace(/\.book$/i, '')
+          .replace(/^\[book\]\s*/i, '')
+          .replace(/\s*\(book\)$/i, '')
+          .replace(/[-_]/g, ' ')
+          .trim();
+
+        const folderBook: ScannedFolderBook = {
+          type: 'folder_book',
+          folderPath: targetFolder,
+          folderName,
+          title: cleanTitle,
+          author: 'Vários Autores',
+          files: sortedFiles,
+          totalSize: sortedFiles.reduce((acc, f) => acc + f.size, 0)
+        };
+
+        const remaining = newItems.filter(
+          (it) => !(it.type === 'single_file' && matchingSingles.some((m) => m.file.filePath === it.file.filePath))
+        );
+        newItems.length = 0;
+        newItems.push(folderBook, ...remaining);
+      }
+    }
+
+    setScannedResult({
+      ...scannedResult,
+      items: newItems
+    });
   };
 
   const handleConfirmImport = async () => {
@@ -386,15 +507,26 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
                     </div>
                   </div>
 
-                  <span
-                    className={`uppercase text-[10px] px-2 py-0.5 rounded font-semibold shrink-0 border ${
-                      item.type === 'folder_book'
-                        ? 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] border-[var(--accent-signal)]/30'
-                        : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-rule-subtle)]'
-                    }`}
-                  >
-                    {item.type === 'folder_book' ? 'LIVRO EM PASTA' : item.file.ext}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className={`uppercase text-[10px] px-2 py-0.5 rounded font-semibold border ${
+                        item.type === 'folder_book'
+                          ? 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] border-[var(--accent-signal)]/30'
+                          : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-rule-subtle)]'
+                      }`}
+                    >
+                      {item.type === 'folder_book' ? 'LIVRO EM PASTA' : item.file.ext}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleItemMode(idx)}
+                      className="text-[10px] font-code text-[var(--accent-signal)] hover:underline hover:text-[var(--text-primary)] cursor-pointer"
+                      title="Alternar entre livro único e arquivos avulsos"
+                    >
+                      {item.type === 'folder_book' ? 'Desmembrar' : 'Empacotar'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -6,6 +6,8 @@ export interface FileData {
   ext: string;
   size: number;
   buffer: ArrayBuffer;
+  isBookMarker?: boolean;
+  folderPath?: string;
 }
 
 declare global {

@@ -1,14 +1,40 @@
 import { defaultParserRegistry } from './ParserRegistry';
 import { Book, DocumentSection, ParsedDocument, TableOfContentsItem } from '../types';
 
+export function getChapterSortKey(filename: string): { priority: number; num: number; name: string } {
+  const lower = filename.toLowerCase();
+  // Arquivos introdutórios / visão geral / sumário / prefácio vêm primeiro
+  if (/(?:^|[_\s.-])(?:visao[_-]?geral|overview|intro(?:du[cç][aã]o)?|prefacio|sumario|readme|index|00)(?:[_\s.-]|$)/i.test(lower)) {
+    return { priority: 0, num: 0, name: lower };
+  }
+  // Extrai número mesmo com prefixos como ai-01, cap-01, part-1, 01, etc.
+  const match = lower.match(/(?:^|[_\s.-]|(?:ai|cap|ch|chapter|part|secao|modulo|aula|vol)[_\s.-]*)([0-9]+)/i);
+  if (match) {
+    return { priority: 1, num: parseInt(match[1], 10), name: lower };
+  }
+  return { priority: 2, num: 9999, name: lower };
+}
+
+export function sortChapterFiles<T extends { filename: string }>(files: T[]): T[] {
+  return [...files].sort((a, b) => {
+    const keyA = getChapterSortKey(a.filename);
+    const keyB = getChapterSortKey(b.filename);
+    if (keyA.priority !== keyB.priority) return keyA.priority - keyB.priority;
+    if (keyA.num !== keyB.num) return keyA.num - keyB.num;
+    return a.filename.localeCompare(b.filename, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
 export async function loadFolderBook(
   book: Book,
   readBufferFn: (filePath: string, filename: string) => Promise<ArrayBuffer | null>
 ): Promise<ParsedDocument> {
-  const chapterFiles = book.chapterFiles || [];
-  if (chapterFiles.length === 0) {
+  const rawChapterFiles = book.chapterFiles || [];
+  if (rawChapterFiles.length === 0) {
     throw new Error(`A pasta do livro "${book.title}" não possui capítulos ou arquivos legíveis.`);
   }
+
+  const chapterFiles = sortChapterFiles(rawChapterFiles);
 
   const sections: DocumentSection[] = [];
   const toc: TableOfContentsItem[] = [];

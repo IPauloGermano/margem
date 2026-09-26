@@ -56,23 +56,72 @@ async function runTests() {
     await fs.writeFile(path.join(volBetaDir, 'cap-1.txt'), 'Capítulo 1 em texto.');
     await fs.writeFile(path.join(volBetaDir, 'cap-2.txt'), 'Capítulo 2 em texto.');
 
+    // 4. Livro com tag .book de 0 bytes (estilo touch .book) e prefixos customizados (ex: ai-01, ai-roadmap)
+    const aiRoadmapDir = path.join(tempDir, 'ai-engineer-roadmap');
+    await fs.mkdir(aiRoadmapDir, { recursive: true });
+    await fs.writeFile(path.join(aiRoadmapDir, '.book'), ''); // 0 bytes!
+    await fs.writeFile(path.join(aiRoadmapDir, 'ai-02-context-engineering.md'), '# Cap 2');
+    await fs.writeFile(path.join(aiRoadmapDir, 'ai-01-fundamentos.md'), '# Cap 1');
+    await fs.writeFile(path.join(aiRoadmapDir, 'ai-roadmap-visao-geral.md'), '# Visão Geral');
+
+    // 5. Livro com tag .book criada como diretório (mkdir .book)
+    const dirTagBook = path.join(tempDir, 'Manual Tecnico');
+    await fs.mkdir(path.join(dirTagBook, '.book'), { recursive: true });
+    await fs.writeFile(path.join(dirTagBook, 'guia-a.md'), '# Guia A');
+    await fs.writeFile(path.join(dirTagBook, 'guia-b.md'), '# Guia B');
+
     console.log('✓ Estrutura de pastas e arquivos de teste criada em:', tempDir);
 
     // Importa lógica de verificação
     const SUPPORTED_EXTS = new Set(['md', 'markdown', 'mdown', 'mkd', 'txt', 'epub']);
 
+    function getChapterSortKey(filename) {
+      const lower = filename.toLowerCase();
+      if (/(?:^|[_\s.-])(?:visao[_-]?geral|overview|intro(?:du[cç][aã]o)?|prefacio|sumario|readme|index|00)(?:[_\s.-]|$)/i.test(lower)) {
+        return { priority: 0, num: 0, name: lower };
+      }
+      const match = lower.match(/(?:^|[_\s.-]|(?:ai|cap|ch|chapter|part|secao|modulo|aula|vol)[_\s.-]*)([0-9]+)/i);
+      if (match) {
+        return { priority: 1, num: parseInt(match[1], 10), name: lower };
+      }
+      return { priority: 2, num: 9999, name: lower };
+    }
+
+    function sortChapterFiles(files) {
+      return [...files].sort((a, b) => {
+        const keyA = getChapterSortKey(a.filename);
+        const keyB = getChapterSortKey(b.filename);
+        if (keyA.priority !== keyB.priority) return keyA.priority - keyB.priority;
+        if (keyA.num !== keyB.num) return keyA.num - keyB.num;
+        return a.filename.localeCompare(b.filename, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+
     async function checkFolderIsBook(dir, entries) {
       const folderName = path.basename(dir);
-      const hasBookExtension = folderName.toLowerCase().endsWith('.book');
+      const lowerName = folderName.toLowerCase();
+      const lowerDir = dir.toLowerCase();
 
-      const markerEntry = entries.find(
-        (e) =>
-          e.isFile() &&
-          (e.name === '.book' ||
-            e.name === 'book.json' ||
-            e.name === '.cadernobook' ||
-            e.name === '_book.json')
-      );
+      const hasBookName =
+        lowerName.endsWith('.book') ||
+        lowerName.includes('.book') ||
+        lowerName.includes('[book]') ||
+        lowerName.includes('(book)') ||
+        lowerDir.includes('/.book/') ||
+        lowerDir.includes('/[book]/');
+
+      const markerEntry = entries.find((e) => {
+        const n = e.name.toLowerCase();
+        return (
+          n === '.book' ||
+          n === 'book' ||
+          n === 'book.json' ||
+          n === '.cadernobook' ||
+          n === '_book.json' ||
+          n === 'book.txt' ||
+          n === 'book.tag'
+        );
+      });
 
       const directFiles = [];
 
@@ -92,31 +141,34 @@ async function runTests() {
         }
       }
 
-      directFiles.sort((a, b) =>
-        a.filename.localeCompare(b.filename, undefined, { numeric: true, sensitivity: 'base' })
-      );
+      const sortedFiles = sortChapterFiles(directFiles);
 
-      const isNumberedSequence =
-        directFiles.length >= 2 &&
-        directFiles.every(
-          (f) =>
-            /^[0-9ivxlcdm]+[\s._-]/i.test(f.filename) ||
-            /^(?:cap[ií]tulo|chapter|part|se[cç][aã]o|aula)[\s._-]/i.test(f.filename)
-        );
+      const chapterCount = sortedFiles.filter(
+        (f) => getChapterSortKey(f.filename).priority < 2
+      ).length;
+      const isNumberedSequence = sortedFiles.length >= 2 && chapterCount >= Math.min(2, sortedFiles.length);
 
-      const isBook = Boolean(markerEntry || hasBookExtension || isNumberedSequence);
-      if (!isBook || directFiles.length === 0) return null;
+      const isBook = Boolean(markerEntry || hasBookName || isNumberedSequence);
+      if (!isBook || sortedFiles.length === 0) return null;
 
-      let title = hasBookExtension ? folderName.replace(/\.book$/i, '') : folderName;
+      let title = folderName
+        .replace(/\.book$/i, '')
+        .replace(/^\[book\]\s*/i, '')
+        .replace(/\s*\(book\)$/i, '')
+        .replace(/[-_]/g, ' ')
+        .trim();
       let author = 'Vários Autores';
 
-      if (markerEntry) {
+      if (markerEntry && markerEntry.isFile()) {
         const content = await fs.readFile(path.join(dir, markerEntry.name), 'utf-8');
-        try {
-          const json = JSON.parse(content.trim());
-          if (json.title) title = json.title;
-          if (json.author) author = json.author;
-        } catch {}
+        const trimmed = content.trim();
+        if (trimmed.startsWith('{')) {
+          try {
+            const json = JSON.parse(trimmed);
+            if (json.title) title = json.title;
+            if (json.author) author = json.author;
+          } catch {}
+        }
       }
 
       return {
@@ -125,7 +177,7 @@ async function runTests() {
         folderName,
         title,
         author,
-        files: directFiles
+        files: sortedFiles
       };
     }
 
@@ -192,8 +244,8 @@ async function runTests() {
     const folderBooks = scanResult.items.filter((i) => i.type === 'folder_book');
     const singleFiles = scanResult.items.filter((i) => i.type === 'single_file');
 
-    if (folderBooks.length !== 3) {
-      throw new Error(`Esperado 3 livros em pasta, obtido: ${folderBooks.length}`);
+    if (folderBooks.length !== 5) {
+      throw new Error(`Esperado 5 livros em pasta, obtido: ${folderBooks.length}`);
     }
 
     if (singleFiles.length !== 2) {
@@ -206,6 +258,20 @@ async function runTests() {
     if (livro1.files[0].filename !== '01.md' || livro1.files[1].filename !== '02.md' || livro1.files[2].filename !== '03.md') {
       throw new Error('Ordenação incorreta dos capítulos em Livro 1');
     }
+
+    // Verifica livro com tag .book de 0 bytes e ordenação inteligente (Overview primeiro!)
+    const aiBook = folderBooks.find((b) => b.folderName === 'ai-engineer-roadmap');
+    if (!aiBook) throw new Error('Livro ai-engineer-roadmap não foi reconhecido com a tag .book de 0 bytes!');
+    if (aiBook.files[0].filename !== 'ai-roadmap-visao-geral.md') {
+      throw new Error(`Visão geral deveria ser o primeiro capítulo, obtido: ${aiBook.files[0].filename}`);
+    }
+    if (aiBook.files[1].filename !== 'ai-01-fundamentos.md' || aiBook.files[2].filename !== 'ai-02-context-engineering.md') {
+      throw new Error(`Capítulos numéricos fora de ordem: ${aiBook.files.map(f => f.filename).join(', ')}`);
+    }
+
+    // Verifica livro com subdiretório .book
+    const manualBook = folderBooks.find((b) => b.folderName === 'Manual Tecnico');
+    if (!manualBook) throw new Error('Manual Tecnico não foi reconhecido com tag .book de diretório!');
 
     // Verifica metadados customizados do Volume Beta
     const volBeta = folderBooks.find((b) => b.title.includes('Volume Beta'));

@@ -64,6 +64,19 @@ export const App: React.FC = () => {
     setErrorMessage(null);
 
     try {
+      const lower = filename.toLowerCase();
+      // Se for um arquivo de tag/marcador .book:
+      if (lower === '.book' || lower.endsWith('.book') || lower === 'book') {
+        if (filePath && window.cadernoAPI?.scanDirectoryPath) {
+          const folderDir = filePath.replace(/[/\\][^/\\]+$/, '');
+          const scanRes = await window.cadernoAPI.scanDirectoryPath(folderDir);
+          if (scanRes && scanRes.items.length > 0) {
+            await handleImportResult(scanRes.folderPath, scanRes.items);
+            return;
+          }
+        }
+      }
+
       const parsed = await defaultParserRegistry.parse(buffer, filename);
       const bookId = `book-${Date.now()}-${filename.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
@@ -311,6 +324,17 @@ export const App: React.FC = () => {
       try {
         const result = await window.cadernoAPI.openFileDialog();
         if (result) {
+          // Se for o marcador .book, abre automaticamente a pasta como livro!
+          if (result.isBookMarker || result.filename === '.book' || result.ext === 'book') {
+            const folderToScan = result.folderPath || result.filePath.replace(/[/\\][^/\\]+$/, '');
+            if (window.cadernoAPI.scanDirectoryPath) {
+              const scanRes = await window.cadernoAPI.scanDirectoryPath(folderToScan);
+              if (scanRes && scanRes.items.length > 0) {
+                await handleImportResult(scanRes.folderPath, scanRes.items);
+                return;
+              }
+            }
+          }
           await processAndOpenBuffer(result.buffer, result.filename, result.filePath, result.size);
         }
       } catch (err: any) {
@@ -326,15 +350,33 @@ export const App: React.FC = () => {
     if (!files || files.length === 0) return;
     const file = files[0];
     const buffer = await file.arrayBuffer();
-    await processAndOpenBuffer(buffer, file.name, undefined, file.size);
+    await processAndOpenBuffer(buffer, file.name, (file as any).path, file.size);
     e.target.value = '';
   };
 
   const handleDropFiles = async (fileList: FileList) => {
     if (fileList.length === 0) return;
+
+    // Se estiver no Desktop e soltou uma pasta ou marcador:
+    if (window.cadernoAPI?.scanDirectoryPath) {
+      const firstFile = fileList[0];
+      const nativePath = (firstFile as any).path;
+      if (nativePath) {
+        try {
+          const scanRes = await window.cadernoAPI.scanDirectoryPath(nativePath);
+          if (scanRes && scanRes.items.length > 0) {
+            await handleImportResult(scanRes.folderPath, scanRes.items);
+            return;
+          }
+        } catch {
+          // Se não era pasta, continua para leitura normal de arquivo único
+        }
+      }
+    }
+
     const file = fileList[0];
     const buffer = await file.arrayBuffer();
-    await processAndOpenBuffer(buffer, file.name, undefined, file.size);
+    await processAndOpenBuffer(buffer, file.name, (file as any).path, file.size);
   };
 
   const loadSampleContent = async (type: 'md' | 'txt' | 'epub', openAfterLoad = true) => {

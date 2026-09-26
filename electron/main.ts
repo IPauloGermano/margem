@@ -14,7 +14,7 @@ function createWindow() {
     height: 850,
     minWidth: 720,
     minHeight: 500,
-    title: 'Caderno Reader',
+    title: 'Margem',
     backgroundColor: '#1C1B19',
     frame: true,
     titleBarStyle: 'default',
@@ -66,25 +66,66 @@ export type ScannedItem = ScannedFolderBook | ScannedSingleFile;
 
 const SUPPORTED_EXTS = new Set(['md', 'markdown', 'mdown', 'mkd', 'txt', 'epub', 'pdf']);
 
+function getChapterSortKey(filename: string): { priority: number; num: number; name: string } {
+  const lower = filename.toLowerCase();
+  // Arquivos introdutórios / visão geral / sumário / prefácio vêm primeiro
+  if (/(?:^|[_\s.-])(?:visao[_-]?geral|overview|intro(?:du[cç][aã]o)?|prefacio|sumario|readme|index|00)(?:[_\s.-]|$)/i.test(lower)) {
+    return { priority: 0, num: 0, name: lower };
+  }
+  // Extrai número mesmo com prefixos como ai-01, cap-01, part-1, 01, etc.
+  const match = lower.match(/(?:^|[_\s.-]|(?:ai|cap|ch|chapter|part|secao|modulo|aula|vol)[_\s.-]*)([0-9]+)/i);
+  if (match) {
+    return { priority: 1, num: parseInt(match[1], 10), name: lower };
+  }
+  return { priority: 2, num: 9999, name: lower };
+}
+
+function sortChapterFiles<T extends { filename: string }>(files: T[]): T[] {
+  return [...files].sort((a, b) => {
+    const keyA = getChapterSortKey(a.filename);
+    const keyB = getChapterSortKey(b.filename);
+    if (keyA.priority !== keyB.priority) return keyA.priority - keyB.priority;
+    if (keyA.num !== keyB.num) return keyA.num - keyB.num;
+    return a.filename.localeCompare(b.filename, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
 /**
  * Verifica se um diretório é um "Livro em Pasta" (composto por múltiplos arquivos/capítulos).
  * Critérios:
- * 1. Presença do marcador .book, .cadernobook ou book.json
- * 2. Nome da pasta terminando em .book (ex: "O Guia.book/")
- * 3. Conjunto de 2 ou mais arquivos com numeração sequencial de capítulos (ex: 01.md, 02.md)
+ * 1. Presença do marcador .book, book, book.json, .cadernobook (arquivo ou diretório)
+ * 2. Nome da pasta contendo .book, [book], (book) ou terminando em .book
+ * 3. Conjunto de arquivos com estrutura de capítulos (ex: ai-01.md, 01.pdf, capitulo 1.txt)
  */
 async function checkFolderIsBook(dir: string, entries: Dirent[]): Promise<ScannedFolderBook | null> {
   const folderName = path.basename(dir);
-  const hasBookExtension = folderName.toLowerCase().endsWith('.book');
+  const lowerName = folderName.toLowerCase();
+  const lowerDir = dir.toLowerCase();
 
-  const markerEntry = entries.find(
-    (e) =>
-      e.isFile() &&
-      (e.name === '.book' ||
-        e.name === 'book.json' ||
-        e.name === '.cadernobook' ||
-        e.name === '_book.json')
-  );
+  // 1. Tag pelo nome da pasta ou caminho
+  const hasBookName =
+    lowerName.endsWith('.book') ||
+    lowerName.includes('.book') ||
+    lowerName.includes('[book]') ||
+    lowerName.includes('(book)') ||
+    lowerDir.includes('/.book/') ||
+    lowerDir.includes('/[book]/');
+
+  // 2. Tag por arquivo ou subdiretório marcador (.book, book, book.json, .cadernobook, etc.)
+  const markerEntry = entries.find((e) => {
+    const n = e.name.toLowerCase();
+    return (
+      n === '.book' ||
+      n === 'book' ||
+      n === 'book.json' ||
+      n === '.cadernobook' ||
+      n === '_book.json' ||
+      n === 'book.txt' ||
+      n === 'book.tag' ||
+      n === '.book.txt' ||
+      n === '.book.md'
+    );
+  });
 
   const directFiles: ScannedFileItem[] = [];
   let coverImage: string | undefined = undefined;
@@ -120,31 +161,32 @@ async function checkFolderIsBook(dir: string, entries: Dirent[]): Promise<Scanne
     }
   }
 
-  // Ordenação natural de capítulos (ex: 01.md, 02.md, 10.md)
-  directFiles.sort((a, b) =>
-    a.filename.localeCompare(b.filename, undefined, { numeric: true, sensitivity: 'base' })
-  );
+  // Ordenação inteligente de capítulos (Overview -> Cap 1 -> Cap 2 -> etc.)
+  const sortedFiles = sortChapterFiles(directFiles);
 
-  // Heurística de capítulos sequenciais
-  const isNumberedSequence =
-    directFiles.length >= 2 &&
-    directFiles.every(
-      (f) =>
-        /^[0-9ivxlcdm]+[\s._-]/i.test(f.filename) ||
-        /^(?:cap[ií]tulo|chapter|part|se[cç][aã]o|aula)[\s._-]/i.test(f.filename)
-    );
+  // Heurística de capítulos sequenciais: se tiver 2 ou mais arquivos e contiver termos ou numeração de capítulo
+  const chapterCandidatesCount = sortedFiles.filter(
+    (f) => getChapterSortKey(f.filename).priority < 2
+  ).length;
+  const isNumberedSequence = sortedFiles.length >= 2 && chapterCandidatesCount >= Math.min(2, sortedFiles.length);
 
-  const isBook = Boolean(markerEntry || hasBookExtension || isNumberedSequence);
-  if (!isBook || directFiles.length === 0) {
+  const isBook = Boolean(markerEntry || hasBookName || isNumberedSequence);
+  if (!isBook || sortedFiles.length === 0) {
     return null;
   }
 
-  let title = hasBookExtension ? folderName.replace(/\.book$/i, '') : folderName;
+  // Título inicial limpo do diretório
+  let title = folderName
+    .replace(/\.book$/i, '')
+    .replace(/^\[book\]\s*/i, '')
+    .replace(/\s*\(book\)$/i, '')
+    .replace(/[-_]/g, ' ')
+    .trim();
   let author = 'Vários Autores';
   let description = '';
 
   // Se houver arquivo marcador, extrai títulos e autor definidos pelo usuário
-  if (markerEntry) {
+  if (markerEntry && markerEntry.isFile()) {
     try {
       const content = await fs.readFile(path.join(dir, markerEntry.name), 'utf-8');
       const trimmed = content.trim();
@@ -153,20 +195,25 @@ async function checkFolderIsBook(dir: string, entries: Dirent[]): Promise<Scanne
         if (json.title) title = json.title;
         if (json.author) author = json.author;
         if (json.description) description = json.description;
-      } else {
+      } else if (trimmed.length > 0) {
         const titleMatch = trimmed.match(/^title:\s*(.+)$/im);
         if (titleMatch) title = titleMatch[1].trim();
         const authorMatch = trimmed.match(/^author:\s*(.+)$/im);
         if (authorMatch) author = authorMatch[1].trim();
         const descMatch = trimmed.match(/^description:\s*(.+)$/im);
         if (descMatch) description = descMatch[1].trim();
+
+        // Se o arquivo tiver apenas 1 linha de texto comum, usa como título
+        if (!titleMatch && !trimmed.includes('\n')) {
+          title = trimmed;
+        }
       }
     } catch (e) {
       console.warn('Erro ao ler marcador .book:', e);
     }
   }
 
-  const totalSize = directFiles.reduce((acc, f) => acc + f.size, 0);
+  const totalSize = sortedFiles.reduce((acc, f) => acc + f.size, 0);
 
   return {
     type: 'folder_book',
@@ -176,7 +223,7 @@ async function checkFolderIsBook(dir: string, entries: Dirent[]): Promise<Scanne
     author,
     description,
     coverImage,
-    files: directFiles,
+    files: sortedFiles,
     totalSize
   };
 }
@@ -264,11 +311,12 @@ ipcMain.handle('dialog:openFile', async () => {
     properties: ['openFile'],
     title: 'Abrir Livro ou Documento',
     filters: [
-      { name: 'Documentos Suportados', extensions: ['md', 'markdown', 'txt', 'epub', 'pdf'] },
+      { name: 'Documentos e Livros', extensions: ['md', 'markdown', 'txt', 'epub', 'pdf', 'book'] },
       { name: 'Documentos PDF (*.pdf)', extensions: ['pdf'] },
       { name: 'Markdown (*.md)', extensions: ['md', 'markdown'] },
       { name: 'EPUB E-books (*.epub)', extensions: ['epub'] },
       { name: 'Texto Puro (*.txt)', extensions: ['txt'] },
+      { name: 'Marcador de Livro (*.book)', extensions: ['book'] },
       { name: 'Todos os Arquivos', extensions: ['*'] }
     ]
   });
@@ -282,12 +330,15 @@ ipcMain.handle('dialog:openFile', async () => {
   const buffer = await fs.readFile(filePath);
   const filename = path.basename(filePath);
   const ext = path.extname(filePath).replace('.', '').toLowerCase();
+  const isBookMarker = filename === '.book' || ext === 'book';
 
   return {
     filePath,
     filename,
     ext,
     size: stat.size,
+    isBookMarker,
+    folderPath: path.dirname(filePath),
     buffer: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
   };
 });
@@ -332,9 +383,16 @@ ipcMain.handle('directory:scanPath', async (_, inputPath: string) => {
   }
   resolvedPath = path.resolve(resolvedPath);
 
-  const stat = await fs.stat(resolvedPath);
-  if (!stat.isDirectory()) {
-    throw new Error(`O caminho informado não é uma pasta: ${inputPath}`);
+  let stat = await fs.stat(resolvedPath);
+  // Se o caminho apontar diretamente para o arquivo .book ou outro arquivo dentro da pasta
+  if (stat.isFile()) {
+    const filename = path.basename(resolvedPath).toLowerCase();
+    if (filename === '.book' || filename.startsWith('.book') || filename.includes('book')) {
+      resolvedPath = path.dirname(resolvedPath);
+      stat = await fs.stat(resolvedPath);
+    } else {
+      throw new Error(`O caminho informado não é uma pasta: ${inputPath}`);
+    }
   }
 
   const entries = await fs.readdir(resolvedPath, { withFileTypes: true });
