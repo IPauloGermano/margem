@@ -1,0 +1,22 @@
+# Dependências
+node_modules/
+
+# Build outputs (rebuildável via npm run build)
+dist/
+dist-electron/
+dist-package/
+*.AppImage
+
+# Env / segredos (nunca commitar real — §6.8)
+.env
+.env.*
+!.env.example
+
+# Logs e OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Cobertura
+coverage/
