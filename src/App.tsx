@@ -4,11 +4,16 @@ import { db } from './core/storage/db';
 import { defaultParserRegistry } from './core/parsers/ParserRegistry';
 import { loadFolderBook } from './core/parsers/FolderBookLoader';
 import { Bookshelf } from './components/Library/Bookshelf';
-import { ReaderView } from './components/Reader/ReaderView';
-import { ImportDirectoryModal } from './components/Library/ImportDirectoryModal';
 import { SAMPLE_ESSAY_MD, SAMPLE_TEXT_TXT } from './core/samples';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { TitleBar } from './components/Window/TitleBar';
+
+const ReaderView = React.lazy(() =>
+  import('./components/Reader/ReaderView').then((m) => ({ default: m.ReaderView }))
+);
+const ImportDirectoryModal = React.lazy(() =>
+  import('./components/Library/ImportDirectoryModal').then((m) => ({ default: m.ImportDirectoryModal }))
+);
 
 export const App: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
@@ -56,8 +61,8 @@ export const App: React.FC = () => {
   // Escuta atalho global 'shortcut:find' do Electron e despacha evento DOM 'app:find'
   useEffect(() => {
     if (!window.cadernoAPI?.onFindShortcut) return;
-    const cleanup = window.cadernoAPI.onFindShortcut(() => {
-      window.dispatchEvent(new CustomEvent('app:find'));
+    const cleanup = window.cadernoAPI.onFindShortcut((detail) => {
+      window.dispatchEvent(new CustomEvent('app:find', { detail }));
     });
     return () => {
       cleanup?.();
@@ -599,20 +604,29 @@ export const App: React.FC = () => {
       {/* Renderização Condicional: Leitor ou Estante */}
       <div className={isDesktop ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : ''}>
         {activeBook && parsedDoc ? (
-          <ReaderView
-            book={activeBook}
-            document={parsedDoc}
-            preferences={preferences}
-            onUpdatePreferences={handleUpdatePreferences}
-            onBackToBookshelf={() => {
-              setActiveBook(null);
-              setParsedDoc(null);
-            }}
-            onUpdateBook={(updated) => {
-              setActiveBook(updated);
-              setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
-            }}
-          />
+          <React.Suspense
+            fallback={
+              <div className="flex-1 flex flex-col items-center justify-center space-y-3 bg-[var(--bg-canvas)] text-[var(--text-muted)]">
+                <Loader2 className="w-6 h-6 text-[var(--accent-signal)] animate-spin" />
+                <span className="font-editorial text-sm">Carregando livro...</span>
+              </div>
+            }
+          >
+            <ReaderView
+              book={activeBook}
+              document={parsedDoc}
+              preferences={preferences}
+              onUpdatePreferences={handleUpdatePreferences}
+              onBackToBookshelf={() => {
+                setActiveBook(null);
+                setParsedDoc(null);
+              }}
+              onUpdateBook={(updated) => {
+                setActiveBook(updated);
+                setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+              }}
+            />
+          </React.Suspense>
         ) : (
           <div className={isDesktop ? 'flex-1 min-h-0 overflow-y-auto' : ''}>
             <Bookshelf
@@ -629,11 +643,15 @@ export const App: React.FC = () => {
       </div>
 
       {/* Modal de Importação de Pasta */}
-      <ImportDirectoryModal
-        isOpen={isFolderModalOpen}
-        onClose={() => setIsFolderModalOpen(false)}
-        onImportResult={handleImportResult}
-      />
+      {isFolderModalOpen && (
+        <React.Suspense fallback={null}>
+          <ImportDirectoryModal
+            isOpen={isFolderModalOpen}
+            onClose={() => setIsFolderModalOpen(false)}
+            onImportResult={handleImportResult}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 };

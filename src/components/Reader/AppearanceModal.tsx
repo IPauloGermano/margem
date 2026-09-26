@@ -41,7 +41,7 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="appearance-settings-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150 select-none"
     >
       <div
         className="w-full max-w-md rounded-lg border border-[var(--border-rule)] bg-[var(--bg-surface)] p-6 shadow-2xl space-y-6 text-[var(--text-primary)]"

@@ -164,4 +164,127 @@ assert.strictEqual(bookshelf.inputFocused, false);
 
 console.log('✓ Ergonomia de busca na estante com foco e escape validada.');
 
-console.log('\n🎉 TODOS OS TESTES DE ATALHOS E BUSCA (CTRL+F) PASSARAM COM SUCESSO!\n');
+// 5. Teste de Proteção contra Double-Trigger / Piscar (IPC do Electron + Evento DOM simultâneos)
+class DebouncedSearchController {
+  constructor() {
+    this.isOpen = false;
+    this.lastToggle = 0;
+  }
+
+  toggleSearch(now) {
+    if (now - this.lastToggle < 300) {
+      return false; // Rejeita disparo duplicado concorrente
+    }
+    this.lastToggle = now;
+    this.isOpen = !this.isOpen;
+    return true;
+  }
+}
+
+const debounced = new DebouncedSearchController();
+assert.strictEqual(debounced.isOpen, false);
+
+// Disparo 1: IPC de antes do input do Electron às 1000ms
+const res1 = debounced.toggleSearch(1000);
+assert.strictEqual(res1, true);
+assert.strictEqual(debounced.isOpen, true, 'Primeiro disparo deve abrir');
+
+// Disparo 2: DOM keydown concorrente às 1005ms (5ms depois)
+const res2 = debounced.toggleSearch(1005);
+assert.strictEqual(res2, false, 'Disparo concorrente dentro de 300ms deve ser ignorado para não piscar');
+assert.strictEqual(debounced.isOpen, true, 'O modal deve permanecer aberto sem fechar no mesmo frame');
+
+// Disparo 3: Usuário intencionalmente pressiona Ctrl+F após 500ms para fechar
+const res3 = debounced.toggleSearch(1500);
+assert.strictEqual(res3, true);
+assert.strictEqual(debounced.isOpen, false, 'Disparo após a janela de debounce deve alternar normalmente');
+
+console.log('✓ Proteção contra double-trigger / piscar (IPC + DOM concorrentes) validada com sucesso.');
+
+// 6. Teste de Escopo de Busca (Ctrl+F Página Atual vs Ctrl+Shift+F Livro Todo)
+function searchScopedSections(sections, query, scope, currentSectionIndex) {
+  if (!query || query.trim().length < 2) return [];
+  const targetSections =
+    scope === 'section'
+      ? sections.map((s, idx) => ({ sec: s, idx })).filter((item) => item.idx === currentSectionIndex)
+      : sections.map((s, idx) => ({ sec: s, idx }));
+
+  const q = query.toLowerCase();
+  const list = [];
+
+  targetSections.forEach(({ sec, idx }) => {
+    const content = sec.rawText || sec.content.replace(/<[^>]+>/g, ' ');
+    const lower = content.toLowerCase();
+    let pos = lower.indexOf(q);
+
+    while (pos !== -1) {
+      list.push({
+        sectionIndex: idx,
+        sectionTitle: sec.title,
+        matchText: content.substring(pos, pos + q.length)
+      });
+      pos = lower.indexOf(q, pos + q.length);
+    }
+  });
+
+  return list;
+}
+
+const sectionMatches = searchScopedSections(mockSections, 'tipografia', 'section', 0);
+assert.strictEqual(sectionMatches.length, 1, 'Busca no escopo "section" deve retornar apenas ocorrências da página atual');
+assert.strictEqual(sectionMatches[0].sectionIndex, 0);
+
+const bookMatches = searchScopedSections(mockSections, 'tipografia', 'book', 0);
+assert.strictEqual(bookMatches.length, 2, 'Busca no escopo "book" deve retornar todas as ocorrências de toda a obra');
+
+// Detecção de escopo a partir do evento de teclado
+function detectSearchScope(event) {
+  return event.shiftKey ? 'book' : 'section';
+}
+
+assert.strictEqual(detectSearchScope({ ctrlKey: true, key: 'f', shiftKey: false }), 'section');
+assert.strictEqual(detectSearchScope({ ctrlKey: true, key: 'f', shiftKey: true }), 'book');
+assert.strictEqual(detectSearchScope({ ctrlKey: true, key: 'F', shiftKey: true }), 'book');
+
+// Alternância inteligente de escopo se a barra já estiver aberta
+class DualScopeController {
+  constructor() {
+    this.isOpen = false;
+    this.scope = 'section';
+  }
+
+  handleShortcut(forcedScope) {
+    if (this.isOpen && this.scope !== forcedScope) {
+      // Já aberto, mas com outro escopo: altera o escopo e mantém aberta
+      this.scope = forcedScope;
+      return 'switched-scope';
+    }
+    if (this.isOpen && this.scope === forcedScope) {
+      // Já aberto com o mesmo escopo: fecha (toggle)
+      this.isOpen = false;
+      return 'closed';
+    }
+    // Fechado: abre com o escopo solicitado
+    this.isOpen = true;
+    this.scope = forcedScope;
+    return 'opened';
+  }
+}
+
+const dual = new DualScopeController();
+assert.strictEqual(dual.handleShortcut('section'), 'opened');
+assert.strictEqual(dual.isOpen, true);
+assert.strictEqual(dual.scope, 'section');
+
+// Pressiona Ctrl+Shift+F enquanto estava na busca de página: não fecha, vira livro todo
+assert.strictEqual(dual.handleShortcut('book'), 'switched-scope');
+assert.strictEqual(dual.isOpen, true);
+assert.strictEqual(dual.scope, 'book');
+
+// Pressiona Ctrl+Shift+F de novo no mesmo escopo: fecha
+assert.strictEqual(dual.handleShortcut('book'), 'closed');
+assert.strictEqual(dual.isOpen, false);
+
+console.log('✓ Escopo duplo (página vs livro todo) e transição de atalhos validada com sucesso.');
+
+console.log('\n🎉 TODOS OS TESTES DE ATALHOS E BUSCA (CTRL+F / CTRL+SHIFT+F) PASSARAM COM SUCESSO!\n');

@@ -14,7 +14,8 @@ export const ShortcutsHelpModal: React.FC<ShortcutsHelpModalProps> = ({ isOpen, 
     { key: 'K / Shift+Espaço / PageUp', desc: 'Rolar página para cima' },
     { key: '[ ou Seta Esquerda', desc: 'Capítulo / Seção anterior' },
     { key: '] ou Seta Direita', desc: 'Próximo Capítulo / Seção' },
-    { key: 'Ctrl + F', desc: 'Abrir busca dentro do livro' },
+    { key: 'Ctrl + F', desc: 'Buscar na página / seção atual' },
+    { key: 'Ctrl + Shift + F', desc: 'Buscar em todo o livro' },
     { key: 'Ctrl + B', desc: 'Alternar Sumário / Barra lateral' },
     { key: 'Ctrl + ,', desc: 'Ajustes de Aparência e Tipografia' },
     { key: 'Ctrl + D', desc: 'Criar Marcador na posição atual' },
@@ -28,7 +29,7 @@ export const ShortcutsHelpModal: React.FC<ShortcutsHelpModalProps> = ({ isOpen, 
       role="dialog"
       aria-modal="true"
       aria-labelledby="shortcuts-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150 select-none"
     >
       <div
         className="w-full max-w-lg rounded-lg border border-[var(--border-rule)] bg-[var(--bg-surface)] p-6 shadow-2xl space-y-5 text-[var(--text-primary)]"

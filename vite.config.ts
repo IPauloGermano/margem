@@ -11,6 +11,26 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('pdfjs-dist')) {
+            return 'vendor-pdf';
+          }
+          if (id.includes('jszip')) {
+            return 'vendor-epub';
+          }
+          if (id.includes('marked') || id.includes('dompurify')) {
+            return 'vendor-parser-utils';
+          }
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'vendor-react';
+          }
+        }
+      }
+    }
+  },
   server: {
     host: '127.0.0.1',
     port: Number(process.env.PORT ?? 5173),

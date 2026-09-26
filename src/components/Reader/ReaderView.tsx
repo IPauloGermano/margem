@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Book,
   Bookmark,
@@ -15,7 +15,7 @@ import { ReaderSidebar } from './ReaderSidebar';
 import { ReaderContent } from './ReaderContent';
 import { ReaderFooter } from './ReaderFooter';
 import { AppearanceModal } from './AppearanceModal';
-import { SearchModal } from './SearchModal';
+import { SearchModal, SearchMatchItem } from './SearchModal';
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
 
 interface ReaderViewProps {
@@ -48,9 +48,64 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeMatchGlobalIndex, setActiveMatchGlobalIndex] = useState(0);
 
   const sections = document.sections;
+  const [searchScope, setSearchScope] = useState<'section' | 'book'>('section');
   const currentSection: DocumentSection | undefined = sections[currentSectionIndex];
+
+  // Computa as correspondências da obra ou da página ativa conforme o escopo selecionado
+  const allSearchMatches = useMemo<SearchMatchItem[]>(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) return [];
+    const q = searchQuery.toLowerCase();
+    const list: SearchMatchItem[] = [];
+
+    const targetSections =
+      searchScope === 'section'
+        ? sections
+            .map((s, idx) => ({ sec: s, secIdx: idx }))
+            .filter((item) => item.secIdx === currentSectionIndex)
+        : sections.map((s, idx) => ({ sec: s, secIdx: idx }));
+
+    targetSections.forEach(({ sec, secIdx }) => {
+      const raw = sec.rawText || sec.content.replace(/<[^>]+>/g, ' ');
+      const cleanContent = raw.replace(/[*#_`>]/g, ' ').replace(/\s+/g, ' ');
+      const lower = cleanContent.toLowerCase();
+      let pos = lower.indexOf(q);
+      let localIdx = 0;
+
+      while (pos !== -1 && list.length < 200) {
+        const start = Math.max(0, pos - 45);
+        const end = Math.min(cleanContent.length, pos + q.length + 45);
+        const surrounding = cleanContent.substring(start, end).trim();
+
+        list.push({
+          globalIndex: list.length,
+          sectionIndex: secIdx,
+          sectionTitle: sec.title,
+          charIndex: pos,
+          matchText: cleanContent.substring(pos, pos + q.length),
+          surroundingContext: surrounding,
+          localIndex: localIdx
+        });
+
+        localIdx++;
+        pos = lower.indexOf(q, pos + q.length);
+      }
+    });
+
+    return list;
+  }, [sections, searchQuery, searchScope, currentSectionIndex]);
+
+  // Se a lista de resultados mudar e o índice atual ficar fora dos limites, reseta para 0
+  useEffect(() => {
+    if (activeMatchGlobalIndex >= allSearchMatches.length) {
+      setActiveMatchGlobalIndex(0);
+    }
+  }, [allSearchMatches.length, activeMatchGlobalIndex]);
+
+  const currentMatch = allSearchMatches[activeMatchGlobalIndex];
 
   // Carrega marcadores e grifos ao abrir o livro
   useEffect(() => {
@@ -181,6 +236,68 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     setIsSidebarOpen(false);
   };
 
+  const handleSelectMatch = (globalIdx: number) => {
+    if (globalIdx >= 0 && globalIdx < allSearchMatches.length) {
+      setActiveMatchGlobalIndex(globalIdx);
+      const match = allSearchMatches[globalIdx];
+      if (match.sectionIndex !== currentSectionIndex) {
+        handleSelectSection(match.sectionIndex);
+      }
+    }
+  };
+
+  const handleNextMatch = () => {
+    if (allSearchMatches.length === 0) return;
+    const nextIdx = (activeMatchGlobalIndex + 1) % allSearchMatches.length;
+    handleSelectMatch(nextIdx);
+  };
+
+  const handlePrevMatch = () => {
+    if (allSearchMatches.length === 0) return;
+    const prevIdx = (activeMatchGlobalIndex - 1 + allSearchMatches.length) % allSearchMatches.length;
+    handleSelectMatch(prevIdx);
+  };
+
+  const lastSearchToggleRef = useRef(0);
+
+  const handleToggleSearch = useCallback((forcedScope?: 'section' | 'book') => {
+    const now = Date.now();
+    // Previne múltiplos disparos consecutivos em menos de 300ms (ex: IPC do Electron + keydown DOM)
+    if (now - lastSearchToggleRef.current < 300) {
+      return;
+    }
+    lastSearchToggleRef.current = now;
+
+    if (forcedScope) {
+      setSearchScope(forcedScope);
+      setIsSearchOpen((prev) => {
+        // Se a busca já estiver aberta mas com escopo diferente, mantemos aberta com o novo escopo
+        if (prev && searchScope !== forcedScope) {
+          return true;
+        }
+        if (prev) {
+          setSearchQuery('');
+          return false;
+        }
+        return true;
+      });
+      return;
+    }
+
+    setIsSearchOpen((prev) => {
+      if (prev) {
+        setSearchQuery('');
+      }
+      return !prev;
+    });
+  }, [searchScope]);
+
+  const handleCloseSearch = useCallback(() => {
+    lastSearchToggleRef.current = Date.now();
+    setIsSearchOpen(false);
+    setSearchQuery('');
+  }, []);
+
   // Keyboard Shortcuts Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -189,14 +306,18 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       if (isCtrlF) {
         e.preventDefault();
         e.stopPropagation();
-        setIsSearchOpen((prev) => !prev);
+        const targetScope: 'section' | 'book' = e.shiftKey ? 'book' : 'section';
+        handleToggleSearch(targetScope);
         return;
       }
 
       // Escape: fecha modais ou retorna à estante
       if (e.key === 'Escape') {
         if (isAppearanceOpen) setIsAppearanceOpen(false);
-        else if (isSearchOpen) setIsSearchOpen(false);
+        else if (isSearchOpen) {
+          setIsSearchOpen(false);
+          setSearchQuery('');
+        }
         else if (isShortcutsOpen) setIsShortcutsOpen(false);
         else if (isSidebarOpen) setIsSidebarOpen(false);
         else onBackToBookshelf();
@@ -251,8 +372,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       }
     };
 
-    const handleFindEvent = () => {
-      setIsSearchOpen((prev) => !prev);
+    const handleFindEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ scope?: 'section' | 'book' }>;
+      handleToggleSearch(customEvent.detail?.scope);
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -269,11 +391,12 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     onBackToBookshelf,
     currentSectionIndex,
     sections.length,
-    scrollPercentage
+    scrollPercentage,
+    handleToggleSearch
   ]);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200">
+    <div className="flex-1 min-h-0 flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200 select-none">
       {/* Top Header */}
       <ReaderHeader
         book={book}
@@ -281,7 +404,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         onBackToBookshelf={onBackToBookshelf}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         onOpenAppearance={() => setIsAppearanceOpen(true)}
-        onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenSearch={handleToggleSearch}
         onAddBookmark={handleAddBookmark}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
         isSidebarOpen={isSidebarOpen}
@@ -315,6 +438,14 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           onSelectHighlight={handleSelectHighlight}
           onDeleteHighlight={handleDeleteHighlight}
           onUpdateHighlight={handleUpdateHighlight}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          searchMatches={allSearchMatches}
+          currentSearchMatchIndex={activeMatchGlobalIndex}
+          onSelectSearchMatch={(idx) => {
+            handleSelectMatch(idx);
+            setIsSearchOpen(true);
+          }}
         />
 
         {currentSection ? (
@@ -329,12 +460,33 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             onDeleteHighlight={handleDeleteHighlight}
             initialScrollPercentage={scrollPercentage}
             targetAnchor={targetAnchor}
+            searchQuery={isSearchOpen ? searchQuery : undefined}
+            activeSearchLocalIndex={
+              isSearchOpen && currentMatch && currentMatch.sectionIndex === currentSectionIndex
+                ? currentMatch.localIndex
+                : undefined
+            }
           />
         ) : (
           <div className="flex-1 flex items-center justify-center p-8 text-xs font-code text-[var(--text-muted)]">
             Nenhuma seção encontrada neste arquivo.
           </div>
         )}
+
+        {/* Barra de Busca Flutuante no Topo do Conteúdo */}
+        <SearchModal
+          isOpen={isSearchOpen}
+          onClose={handleCloseSearch}
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          matches={allSearchMatches}
+          currentMatchIndex={activeMatchGlobalIndex}
+          onNextMatch={handleNextMatch}
+          onPrevMatch={handlePrevMatch}
+          onSelectMatch={handleSelectMatch}
+          scope={searchScope}
+          onScopeChange={setSearchScope}
+        />
       </div>
 
       {/* Bottom Footer com progresso e navegação */}
@@ -353,22 +505,12 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         onNextSection={handleNextSection}
       />
 
-      {/* Modais de Ajuste, Busca e Ajuda */}
+      {/* Modais de Ajuste e Ajuda */}
       <AppearanceModal
         isOpen={isAppearanceOpen}
         preferences={preferences}
         onUpdatePreferences={onUpdatePreferences}
         onClose={() => setIsAppearanceOpen(false)}
-      />
-
-      <SearchModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        sections={sections}
-        onSelectResult={(idx) => {
-          handleSelectSection(idx);
-          setIsSearchOpen(false);
-        }}
       />
 
       <ShortcutsHelpModal

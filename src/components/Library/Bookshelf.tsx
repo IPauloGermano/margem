@@ -112,7 +112,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200"
+      className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200 select-none"
     >
       {/* Overlay de Drag and Drop */}
       {isDragging && (

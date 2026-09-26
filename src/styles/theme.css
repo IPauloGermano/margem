@@ -74,8 +74,25 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  user-select: text;
+  -webkit-user-select: none;
+  user-select: none;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Campos de entrada, busca e edição de notas permanecem com texto selecionável e editável */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Apenas o conteúdo textual de leitura do livro é selecionável na UI/UX */
+.reader-prose,
+.reader-selectable-content,
+[data-selectable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .font-editorial {

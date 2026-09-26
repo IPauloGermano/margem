@@ -67,7 +67,7 @@ export interface CadernoAPI {
   unwatchPath: (targetPath: string) => Promise<boolean>;
   unwatchAll: () => Promise<boolean>;
   onFileChanged: (callback: (data: WatcherChangeEvent) => void) => () => void;
-  onFindShortcut?: (callback: () => void) => () => void;
+  onFindShortcut?: (callback: (data?: { scope?: 'section' | 'book' }) => void) => () => void;
 }
 
 const api: CadernoAPI = {
@@ -105,8 +105,8 @@ const api: CadernoAPI = {
       ipcRenderer.removeListener('watcher:changed', listener);
     };
   },
-  onFindShortcut: (callback: () => void) => {
-    const listener = () => callback();
+  onFindShortcut: (callback: (data?: { scope?: 'section' | 'book' }) => void) => {
+    const listener = (_: any, data?: { scope?: 'section' | 'book' }) => callback(data);
     ipcRenderer.on('shortcut:find', listener);
     return () => {
       ipcRenderer.removeListener('shortcut:find', listener);

@@ -1,22 +1,88 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, X } from 'lucide-react';
-import { DocumentSection, SearchResult } from '../../core/types';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp, List, Search, X } from 'lucide-react';
 
-interface SearchModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  sections: DocumentSection[];
-  onSelectResult: (sectionIndex: number) => void;
+export interface SearchMatchItem {
+  globalIndex: number;
+  sectionIndex: number;
+  sectionTitle: string;
+  charIndex: number;
+  matchText: string;
+  surroundingContext: string;
+  localIndex: number;
 }
 
+export type SearchScope = 'section' | 'book';
+
+export interface SearchModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  query: string;
+  onQueryChange: (text: string) => void;
+  matches: SearchMatchItem[];
+  currentMatchIndex: number;
+  onNextMatch: () => void;
+  onPrevMatch: () => void;
+  onSelectMatch: (globalIndex: number) => void;
+  scope?: SearchScope;
+  onScopeChange?: (scope: SearchScope) => void;
+}
+
+/**
+ * Renderiza o trecho com a ocorrência destacada em âmbar editorial
+ */
+export const HighlightedSnippet: React.FC<{ text: string; query: string }> = ({ text, query }) => {
+  if (!query || !query.trim()) return <span>{text}</span>;
+  const q = query.trim().toLowerCase();
+  const lower = text.toLowerCase();
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let pos = lower.indexOf(q);
+
+  while (pos !== -1) {
+    if (pos > lastIndex) {
+      parts.push(text.substring(lastIndex, pos));
+    }
+    parts.push(
+      <mark
+        key={pos}
+        className="bg-amber-400/35 text-[var(--accent-signal)] font-semibold rounded-xs px-0.5"
+      >
+        {text.substring(pos, pos + q.length)}
+      </mark>
+    );
+    lastIndex = pos + q.length;
+    pos = lower.indexOf(q, lastIndex);
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return <span>{parts}</span>;
+};
+
+/**
+ * Barra Flutuante de Busca Editorial:
+ * - Não obstrui a leitura com véus opacos
+ * - Destaca ocorrências em tempo real no documento
+ * - Navegação rápida via teclado (Enter / Shift+Enter / Esc)
+ * - Suporte a escopo duplo: Ctrl+F (página atual) e Ctrl+Shift+F (livro todo)
+ * - Painel retrátil de ocorrências com snippets limpos
+ */
 export const SearchModal: React.FC<SearchModalProps> = ({
   isOpen,
   onClose,
-  sections,
-  onSelectResult
+  query,
+  onQueryChange,
+  matches,
+  currentMatchIndex,
+  onNextMatch,
+  onPrevMatch,
+  onSelectMatch,
+  scope = 'section',
+  onScopeChange
 }) => {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isListExpanded, setIsListExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -27,47 +93,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       }, 50);
       return () => clearTimeout(timer);
     } else {
-      setQuery('');
-      setResults([]);
+      setIsListExpanded(false);
     }
-  }, [isOpen]);
+  }, [isOpen, scope]);
 
   if (!isOpen) return null;
-
-  const handleSearch = (text: string) => {
-    setQuery(text);
-    if (!text.trim() || text.length < 2) {
-      setResults([]);
-      return;
-    }
-
-    const q = text.toLowerCase();
-    const list: SearchResult[] = [];
-
-    sections.forEach((sec, idx) => {
-      const content = sec.rawText || sec.content.replace(/<[^>]+>/g, ' ');
-      const lower = content.toLowerCase();
-      let pos = lower.indexOf(q);
-
-      while (pos !== -1 && list.length < 50) {
-        const start = Math.max(0, pos - 50);
-        const end = Math.min(content.length, pos + q.length + 50);
-        const surrounding = content.substring(start, end).replace(/\s+/g, ' ');
-
-        list.push({
-          sectionIndex: idx,
-          sectionTitle: sec.title,
-          matchText: content.substring(pos, pos + q.length),
-          surroundingContext: surrounding,
-          charIndex: pos
-        });
-
-        pos = lower.indexOf(q, pos + q.length);
-      }
-    });
-
-    setResults(list);
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -81,90 +111,208 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     if (isCtrlF) {
       e.preventDefault();
       e.stopPropagation();
-      onClose();
+      if (e.shiftKey) {
+        if (scope === 'book') {
+          onClose();
+        } else {
+          onScopeChange?.('book');
+        }
+      } else {
+        if (scope === 'section') {
+          onClose();
+        } else {
+          onScopeChange?.('section');
+        }
+      }
       return;
     }
 
-    if (e.key === 'Enter' && results.length > 0) {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      onSelectResult(results[0].sectionIndex);
-      onClose();
+      if (e.shiftKey) {
+        onPrevMatch();
+      } else {
+        onNextMatch();
+      }
     }
   };
 
+  const hasQuery = query.trim().length >= 2;
+
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="search-modal-title"
-      onClick={onClose}
-      onKeyDown={handleKeyDown}
-      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150 cursor-pointer"
+      role="search"
+      aria-label="Barra de busca no documento"
+      className="absolute top-3 right-4 sm:right-8 z-30 w-84 sm:w-96 bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-rule)] shadow-2xl rounded-xl p-2 sm:p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-150 text-[var(--text-primary)] select-none"
+      onClick={(e) => e.stopPropagation()}
     >
-      <div
-        className="w-full max-w-xl rounded-lg border border-[var(--border-rule)] bg-[var(--bg-surface)] p-5 shadow-2xl space-y-4 text-[var(--text-primary)] cursor-default"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between pb-2 border-b border-[var(--border-rule-subtle)]">
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-[var(--accent-signal)]" />
-            <h2 id="search-modal-title" className="font-editorial text-lg font-medium">Buscar no Livro</h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            title="Fechar busca (Esc ou Ctrl+F)"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+      {/* Linha Principal de Controles */}
+      <div className="flex items-center gap-1.5">
+        {/* Campo de Entrada com Ícone */}
+        <div className="relative flex-1">
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--accent-signal)]" />
           <input
             ref={inputRef}
             type="text"
-            placeholder="Pesquisar passagens, palavras ou frases... (Enter para selecionar, Esc para fechar)"
+            placeholder={scope === 'section' ? "Buscar nesta página... (Enter / Esc)" : "Buscar no livro todo... (Enter / Esc)"}
             value={query}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => onQueryChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full bg-[var(--bg-canvas)] border border-[var(--border-rule)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-md pl-9 pr-4 py-2.5 text-xs font-code focus:outline-none focus:border-[var(--accent-signal)]"
+            className="w-full bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-md pl-8 pr-7 py-1.5 text-xs font-code focus:outline-none focus:border-[var(--accent-signal)] transition-colors"
           />
-        </div>
-
-        <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
-          {results.length > 0 ? (
-            results.map((r, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => {
-                  onSelectResult(r.sectionIndex);
-                  onClose();
-                }}
-                className="w-full text-left p-3 rounded-md border border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] hover:border-[var(--accent-signal)] transition-colors space-y-1 block"
-              >
-                <div className="flex items-center justify-between text-[10px] font-code">
-                  <span className="text-[var(--accent-signal)] font-medium">{r.sectionTitle}</span>
-                  <span className="text-[var(--text-muted)]">Ir para seção →</span>
-                </div>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  ...{r.surroundingContext}...
-                </p>
-              </button>
-            ))
-          ) : query.length >= 2 ? (
-            <div className="text-xs text-[var(--text-muted)] text-center py-8">
-              Nenhuma ocorrência encontrada para "{query}".
-            </div>
-          ) : (
-            <div className="text-xs text-[var(--text-muted)] text-center py-6 font-code">
-              Digite palavras-chave para encontrar correspondências instantâneas.
-            </div>
+          {query && (
+            <button
+              type="button"
+              onClick={() => onQueryChange('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5"
+              title="Limpar texto"
+            >
+              <X className="w-3 h-3" />
+            </button>
           )}
         </div>
+
+        {/* Contador de Ocorrências */}
+        <div className="font-code text-[11px] text-[var(--text-muted)] shrink-0 px-1 text-center min-w-[3.6rem]">
+          {hasQuery ? (
+            matches.length > 0 ? (
+              <span className="text-[var(--text-secondary)] font-medium">
+                <span className="text-[var(--accent-signal)]">{currentMatchIndex + 1}</span>/{matches.length}
+              </span>
+            ) : (
+              <span className="text-red-400/80">0/0</span>
+            )
+          ) : (
+            <span className="text-[var(--text-muted)] opacity-60">--</span>
+          )}
+        </div>
+
+        {/* Botões de Navegação Anterior / Próximo */}
+        <div className="flex items-center gap-0.5 shrink-0 border-l border-[var(--border-rule-subtle)] pl-1.5">
+          <button
+            type="button"
+            disabled={matches.length === 0}
+            onClick={onPrevMatch}
+            className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Ocorrência anterior (Shift+Enter)"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            disabled={matches.length === 0}
+            onClick={onNextMatch}
+            className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Próxima ocorrência (Enter)"
+          >
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Alternador da Lista de Ocorrências */}
+        <button
+          type="button"
+          disabled={matches.length === 0}
+          onClick={() => setIsListExpanded(!isListExpanded)}
+          className={`p-1 rounded text-xs transition-colors shrink-0 ${
+            isListExpanded
+              ? 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] font-medium'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
+          } disabled:opacity-30 disabled:cursor-not-allowed`}
+          title={isListExpanded ? 'Recolher lista' : (scope === 'section' ? 'Ver trechos da página' : 'Ver todos os trechos da obra')}
+        >
+          <List className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Botão Fechar */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors shrink-0"
+          title="Fechar busca (Esc)"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
       </div>
+
+      {/* Seletor de Escopo: Página Atual vs Livro Todo */}
+      <div className="flex items-center justify-between text-[10px] font-code px-1 pt-1.5 border-t border-[var(--border-rule-subtle)] text-[var(--text-muted)]">
+        <div className="flex items-center gap-1.5">
+          <span className="opacity-60 text-[9px] uppercase tracking-wider">Escopo:</span>
+          <div className="inline-flex rounded-md p-0.5 bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)]">
+            <button
+              type="button"
+              onClick={() => {
+                onScopeChange?.('section');
+                inputRef.current?.focus();
+              }}
+              className={`px-2 py-0.5 rounded text-[10px] transition-all cursor-pointer ${
+                scope === 'section'
+                  ? 'bg-[var(--accent-signal)] text-white font-semibold shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Buscar apenas na página/seção atual (Ctrl+F)"
+            >
+              Nesta Página
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onScopeChange?.('book');
+                inputRef.current?.focus();
+              }}
+              className={`px-2 py-0.5 rounded text-[10px] transition-all cursor-pointer ${
+                scope === 'book'
+                  ? 'bg-[var(--accent-signal)] text-white font-semibold shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Buscar no livro inteiro (Ctrl+Shift+F)"
+            >
+              Livro Todo
+            </button>
+          </div>
+        </div>
+
+        <span className="hidden sm:inline text-[9px] opacity-60">
+          {scope === 'section' ? 'Ctrl+Shift+F: livro todo' : 'Ctrl+F: nesta página'}
+        </span>
+      </div>
+
+      {/* Painel Retrátil de Ocorrências */}
+      {isListExpanded && matches.length > 0 && (
+        <div className="pt-2 border-t border-[var(--border-rule-subtle)] space-y-1.5 max-h-72 overflow-y-auto pr-1">
+          <div className="flex items-center justify-between text-[10px] font-code text-[var(--text-muted)] px-1 pb-1">
+            <span>{scope === 'section' ? 'OCORRÊNCIAS NESTA PÁGINA' : 'OCORRÊNCIAS NA OBRA'}</span>
+            <span className="text-[var(--accent-signal)]">{matches.length} encontrada(s)</span>
+          </div>
+
+          {matches.map((m) => {
+            const isCurrent = m.globalIndex === currentMatchIndex;
+            return (
+              <button
+                key={m.globalIndex}
+                type="button"
+                onClick={() => onSelectMatch(m.globalIndex)}
+                className={`w-full text-left p-2 rounded-md border text-xs transition-colors space-y-1 block ${
+                  isCurrent
+                    ? 'border-[var(--accent-signal)] bg-[var(--accent-signal-bg)]/25'
+                    : 'border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] hover:border-[var(--border-rule)]'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[10px] font-code">
+                  <span className={`truncate font-medium ${isCurrent ? 'text-[var(--accent-signal)]' : 'text-[var(--text-secondary)]'}`}>
+                    {m.sectionTitle}
+                  </span>
+                  <span className="text-[var(--text-muted)] shrink-0 ml-2">#{m.globalIndex + 1}</span>
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                  ...<HighlightedSnippet text={m.surroundingContext} query={query} />...
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

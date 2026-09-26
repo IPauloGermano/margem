@@ -1,4 +1,3 @@
-import JSZip from 'jszip';
 import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, TableOfContentsItem } from '../types/index.ts';
 import { sanitizeHtml } from './sanitize.ts';
@@ -15,6 +14,8 @@ export class EpubParser implements DocumentParser {
   }
 
   async parse(buffer: ArrayBuffer, filename: string): Promise<ParsedDocument> {
+    const JSZipModule = await import('jszip');
+    const JSZip = (JSZipModule as any).default || JSZipModule;
     const zip = await JSZip.loadAsync(buffer);
 
     // 1. Encontrar o container.xml

@@ -29,7 +29,7 @@ declare global {
       unwatchPath: (targetPath: string) => Promise<boolean>;
       unwatchAll: () => Promise<boolean>;
       onFileChanged: (callback: (data: { targetPath: string; changedPath: string; filename?: string; eventType: string }) => void) => () => void;
-      onFindShortcut?: (callback: () => void) => () => void;
+      onFindShortcut?: (callback: (data?: { scope?: 'section' | 'book' }) => void) => () => void;
     };
   }
 }

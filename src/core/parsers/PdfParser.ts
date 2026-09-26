@@ -1,7 +1,6 @@
 import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, SupportedFormat, TableOfContentsItem } from '../types/index.ts';
 import { sanitizeHtml } from './sanitize.ts';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   fixHyphenation,
   groupItemsIntoLines,
@@ -22,7 +21,15 @@ import {
   renderHtmlTable
 } from './pdfTableEngine.ts';
 
-async function ensureWorkerConfigured(): Promise<void> {
+let _cachedPdfJs: any = null;
+async function getPdfJsLib(): Promise<any> {
+  if (!_cachedPdfJs) {
+    _cachedPdfJs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  }
+  return _cachedPdfJs;
+}
+
+async function ensureWorkerConfigured(pdfjsLib: any): Promise<void> {
   if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
       try {
@@ -48,6 +55,7 @@ async function extractImagesFromPage(page: any, pageNum: number): Promise<string
   }
   const figures: string[] = [];
   try {
+    const pdfjsLib = await getPdfJsLib();
     const ops = await page.getOperatorList();
     const OPS = (pdfjsLib as any).OPS;
     for (let i = 0; i < ops.fnArray.length; i++) {
@@ -179,7 +187,8 @@ export class PdfParser implements DocumentParser {
 
   async parse(buffer: ArrayBuffer, filename: string): Promise<ParsedDocument> {
     try {
-      await ensureWorkerConfigured();
+      const pdfjsLib = await getPdfJsLib();
+      await ensureWorkerConfigured(pdfjsLib);
       // O PDF.js transfere a posse do ArrayBuffer para a thread do Web Worker (Transferable Objects),
       // o que desconecta (detaches) o buffer de entrada. Clonamos o buffer para que a instância
       // original continue íntegra para salvar no IndexedDB sem erros de clonagem.

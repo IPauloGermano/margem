@@ -36,6 +36,15 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 app.setName('Margem');
 app.setAppUserModelId('Margem');
 
+// Otimizações de inicialização e renderização gráfica no Linux / Wayland
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('enable-gpu-rasterization');
+  app.commandLine.appendSwitch('enable-zero-copy');
+  if (process.env.XDG_SESSION_TYPE === 'wayland') {
+    app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+  }
+}
+
 // Garante instância única (evita conflitos no LevelDB/IndexedDB e foca a janela ativa)
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -71,14 +80,14 @@ function createWindow() {
     displayInhibitor.acquire();
   });
 
-  // Fallback de segurança para garantir exibição caso ready-to-show atrase
+  // Fallback rápido para garantir exibição imediata sem congelamentos
   setTimeout(() => {
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
       mainWindow.show();
       mainWindow.focus();
       displayInhibitor.acquire();
     }
-  }, 800);
+  }, 350);
 
   // Notificações de ciclo de vida e estado da janela para o renderer
   mainWindow.on('maximize', () => {
@@ -110,11 +119,13 @@ function createWindow() {
   });
 
   // Atalhos de teclado no nível do WebContents
-  mainWindow.webContents.on('before-input-event', (_, input) => {
+  mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown') {
       const isCtrlOrCmd = input.control || input.meta;
       if (isCtrlOrCmd && input.key.toLowerCase() === 'f') {
-        mainWindow?.webContents.send('shortcut:find');
+        event.preventDefault();
+        const scope = input.shift ? 'book' : 'section';
+        mainWindow?.webContents.send('shortcut:find', { scope });
       }
     }
 

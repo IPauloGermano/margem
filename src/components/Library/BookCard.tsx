@@ -31,7 +31,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
   return (
     <article
       onClick={() => onOpen(book)}
-      className="group relative flex flex-col justify-between p-5 sm:p-6 rounded-md border border-[var(--border-rule)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] transition-all duration-200 cursor-pointer hover:border-[var(--text-muted)]"
+      className="group relative flex flex-col justify-between p-5 sm:p-6 rounded-md border border-[var(--border-rule)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] transition-all duration-200 cursor-pointer hover:border-[var(--text-muted)] select-none"
     >
       <div className="space-y-3">
         {/* Top bar com índice e badges */}

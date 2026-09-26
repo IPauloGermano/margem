@@ -14,6 +14,8 @@ interface ReaderContentProps {
   onDeleteHighlight: (highlightId: string) => void;
   initialScrollPercentage?: number;
   targetAnchor?: string;
+  searchQuery?: string;
+  activeSearchLocalIndex?: number;
 }
 
 interface ToolbarState {
@@ -34,7 +36,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   onUpdateHighlight,
   onDeleteHighlight,
   initialScrollPercentage = 0,
-  targetAnchor
+  targetAnchor,
+  searchQuery,
+  activeSearchLocalIndex
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -138,12 +142,24 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       });
     }
 
-    // Preserva a posição exata de leitura ao recarregar a seção dinamicamente
-    const el = containerRef.current;
-    if (el && lastKnownScrollTop.current > 0) {
-      el.scrollTop = lastKnownScrollTop.current;
+    // Aplicação dos destaques de busca em tempo real no corpo da leitura
+    if (searchQuery && searchQuery.trim().length >= 2) {
+      const { activeElement } = applySearchHighlightsToTree(
+        bodyRef.current!,
+        searchQuery,
+        activeSearchLocalIndex ?? 0
+      );
+      if (activeElement) {
+        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      // Preserva a posição exata de leitura ao recarregar a seção dinamicamente
+      const el = containerRef.current;
+      if (el && lastKnownScrollTop.current > 0) {
+        el.scrollTop = lastKnownScrollTop.current;
+      }
     }
-  }, [section.id, section.content, highlights]);
+  }, [section.id, section.content, highlights, searchQuery, activeSearchLocalIndex]);
 
   // Listener de Scroll para atualizar o progresso de leitura
   const handleScroll = () => {
@@ -305,7 +321,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       onMouseUp={handleMouseUp}
       tabIndex={0}
       aria-label="Conteúdo do livro"
-      className="flex-1 overflow-y-auto px-4 py-8 sm:px-8 sm:py-16 focus:outline-none transition-colors duration-200 relative"
+      className="flex-1 overflow-y-auto px-4 py-8 sm:px-8 sm:py-16 focus:outline-none transition-colors duration-200 relative select-none"
     >
       <div
         className={`mx-auto reader-prose ${fontClassMap[preferences.fontFamily]}`}
@@ -318,11 +334,11 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       >
         {/* Título do Capítulo / Seção */}
         {section.title && (
-          <header className="mb-10 pb-6 border-b border-[var(--border-rule-subtle)] text-center">
-            <h1 className="font-editorial text-3xl sm:text-4xl font-normal text-[var(--text-primary)] leading-tight">
+          <header className="mb-10 pb-6 border-b border-[var(--border-rule-subtle)] text-center select-none">
+            <h1 className="font-editorial text-3xl sm:text-4xl font-normal text-[var(--text-primary)] leading-tight select-text">
               {section.title}
             </h1>
-            <div className="font-code text-xs text-[var(--text-muted)] mt-2">
+            <div className="font-code text-xs text-[var(--text-muted)] mt-2 select-none">
               ~{section.wordCount} palavras · {Math.max(1, Math.round(section.wordCount / 200))} min de leitura
             </div>
           </header>
@@ -332,7 +348,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         <div
           ref={bodyRef}
           onClick={handleContentClick}
-          className="space-y-4"
+          className="space-y-4 select-text"
         />
       </div>
 
@@ -426,4 +442,68 @@ function applyHighlightToTree(
       break;
     }
   }
+}
+
+/**
+ * Encontra e destaca visualmente no texto todas as correspondências do termo buscado,
+ * diferenciando a ocorrência atualmente selecionada.
+ */
+function applySearchHighlightsToTree(
+  root: HTMLElement,
+  query: string,
+  activeMatchIndex: number
+): { totalCount: number; activeElement: HTMLElement | null } {
+  const q = query.trim().toLowerCase();
+  if (!q || q.length < 2) return { totalCount: 0, activeElement: null };
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  let node: Text | null;
+  while ((node = walker.nextNode() as Text | null)) {
+    const parentTag = node.parentElement?.tagName;
+    if (parentTag === 'SCRIPT' || parentTag === 'STYLE' || parentTag === 'IFRAME') {
+      continue;
+    }
+    textNodes.push(node);
+  }
+
+  let matchIndex = 0;
+  let activeElement: HTMLElement | null = null;
+
+  for (const textNode of textNodes) {
+    let currentTextNode: Text | null = textNode;
+    let text = currentTextNode.nodeValue || '';
+    let lowerText = text.toLowerCase();
+    let pos = lowerText.indexOf(q);
+
+    while (pos !== -1 && currentTextNode) {
+      const matchNode = currentTextNode.splitText(pos);
+      const remainingNode = matchNode.splitText(q.length);
+
+      const mark = document.createElement('mark');
+      const isActive = matchIndex === activeMatchIndex;
+      mark.className = `reader-search-match ${
+        isActive
+          ? 'reader-search-match-active bg-amber-400 text-stone-950 font-semibold ring-2 ring-amber-500 rounded-xs px-0.5 shadow-sm'
+          : 'bg-amber-400/35 text-inherit rounded-xs px-0.5'
+      } transition-colors`;
+      mark.dataset.searchIndex = String(matchIndex);
+
+      matchNode.parentNode?.replaceChild(mark, matchNode);
+      mark.appendChild(matchNode);
+
+      if (isActive) {
+        activeElement = mark;
+      }
+
+      matchIndex++;
+
+      currentTextNode = remainingNode;
+      text = currentTextNode.nodeValue || '';
+      lowerText = text.toLowerCase();
+      pos = lowerText.indexOf(q);
+    }
+  }
+
+  return { totalCount: matchIndex, activeElement };
 }
