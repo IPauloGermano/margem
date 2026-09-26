@@ -68,10 +68,10 @@ npm run build
 
 # 5. AppImage Linux
 npm run package:appimage
-# → dist-package/Margem-1.0.2.AppImage
+# → dist-package/Margem-1.0.3.AppImage
 
-chmod +x "dist-package/Margem-1.0.2.AppImage"
-./dist-package/Margem-1.0.2.AppImage
+chmod +x "dist-package/Margem-1.0.3.AppImage"
+./dist-package/Margem-1.0.3.AppImage
 ```
 
 | Script | O que faz |
