@@ -187,7 +187,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
               Painel do Leitor
             </span>
             <span className="text-[10px] font-code text-[var(--text-muted)] bg-[var(--bg-canvas)] px-1.5 py-0.5 rounded border border-[var(--border-rule-subtle)]">
-              {activeTab === 'toc' && 'Sumário'}
+              {activeTab === 'toc' && 'Índice'}
               {activeTab === 'highlights' && `Destaques (${highlights.length})`}
               {activeTab === 'bookmarks' && `Marcadores (${bookmarks.length})`}
               {activeTab === 'search' && 'Busca'}
@@ -209,7 +209,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
         {/* Linha das 5 Abas: Distribuição Equilibrada e Sempre Visível */}
         <div className="grid grid-cols-5 gap-1 p-1 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] font-code">
           {[
-            { id: 'toc', label: 'Sumário', icon: List, count: undefined, title: 'Sumário de Capítulos' },
+            { id: 'toc', label: 'Índice', icon: List, count: undefined, title: 'Índice e Sumário de Capítulos' },
             { id: 'highlights', label: 'Grifos', icon: Highlighter, count: highlights.length, title: `Destaques e Notas (${highlights.length})` },
             { id: 'bookmarks', label: 'Marcas', icon: Bookmark, count: bookmarks.length, title: `Marcadores Salvos (${bookmarks.length})` },
             { id: 'search', label: 'Busca', icon: Search, count: undefined, title: 'Buscar no Documento' },
@@ -223,14 +223,14 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
                 title={tab.title}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1 py-1.5 px-1 rounded transition-all text-[11px] relative ${
+                className={`flex items-center justify-center gap-1 py-1.5 px-0.5 rounded transition-all text-[11px] relative ${
                   isActive
                     ? 'bg-[var(--accent-signal)] text-black font-semibold shadow-xs'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-[10px] sm:text-[11px] truncate">{tab.label}</span>
+                <span className="text-[10px] sm:text-[11px] font-medium whitespace-nowrap">{tab.label}</span>
                 {typeof tab.count === 'number' && tab.count > 0 && (
                   <span
                     className={`text-[9px] px-1 rounded-full font-bold leading-none ${

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { DocumentSection, SearchResult } from '../../core/types';
 
@@ -17,6 +17,20 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setQuery('');
+      setResults([]);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -55,15 +69,40 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     setResults(list);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+
+    const isCtrlF = (e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'f' || e.code === 'KeyF');
+    if (isCtrlF) {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+
+    if (e.key === 'Enter' && results.length > 0) {
+      e.preventDefault();
+      onSelectResult(results[0].sectionIndex);
+      onClose();
+    }
+  };
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="search-modal-title"
-      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+      onKeyDown={handleKeyDown}
+      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150 cursor-pointer"
     >
       <div
-        className="w-full max-w-xl rounded-lg border border-[var(--border-rule)] bg-[var(--bg-surface)] p-5 shadow-2xl space-y-4 text-[var(--text-primary)]"
+        className="w-full max-w-xl rounded-lg border border-[var(--border-rule)] bg-[var(--bg-surface)] p-5 shadow-2xl space-y-4 text-[var(--text-primary)] cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-2 border-b border-[var(--border-rule-subtle)]">
@@ -75,6 +114,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             type="button"
             onClick={onClose}
             className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            title="Fechar busca (Esc ou Ctrl+F)"
           >
             <X className="w-4 h-4" />
           </button>
@@ -83,11 +123,12 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
+            ref={inputRef}
             type="text"
-            autoFocus
-            placeholder="Pesquisar passagens, palavras ou frases..."
+            placeholder="Pesquisar passagens, palavras ou frases... (Enter para selecionar, Esc para fechar)"
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="w-full bg-[var(--bg-canvas)] border border-[var(--border-rule)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-md pl-9 pr-4 py-2.5 text-xs font-code focus:outline-none focus:border-[var(--accent-signal)]"
           />
         </div>

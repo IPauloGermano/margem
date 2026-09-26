@@ -53,6 +53,17 @@ export const App: React.FC = () => {
     setPreferences((prev) => ({ ...prev, ...updated }));
   };
 
+  // Escuta atalho global 'shortcut:find' do Electron e despacha evento DOM 'app:find'
+  useEffect(() => {
+    if (!window.cadernoAPI?.onFindShortcut) return;
+    const cleanup = window.cadernoAPI.onFindShortcut(() => {
+      window.dispatchEvent(new CustomEvent('app:find'));
+    });
+    return () => {
+      cleanup?.();
+    };
+  }, []);
+
   // Sincronização Dinâmica: Monitora arquivos e pastas locais para auto-reload (VS Code / Neovim / Obsidian)
   useEffect(() => {
     if (!activeBook || !window.cadernoAPI?.watchPath) return;

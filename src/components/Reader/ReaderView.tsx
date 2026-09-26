@@ -184,11 +184,16 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   // Keyboard Shortcuts Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignora se estiver digitando em um input
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+      // Ctrl+F / Cmd+F: alterna a busca mesmo se o foco estiver em um input
+      const isCtrlF = (e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'f' || e.code === 'KeyF');
+      if (isCtrlF) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsSearchOpen((prev) => !prev);
         return;
       }
 
+      // Escape: fecha modais ou retorna à estante
       if (e.key === 'Escape') {
         if (isAppearanceOpen) setIsAppearanceOpen(false);
         else if (isSearchOpen) setIsSearchOpen(false);
@@ -198,9 +203,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         return;
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        setIsSearchOpen((prev) => !prev);
+      // Ignora demais atalhos se estiver digitando em um input ou textarea
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
         return;
       }
 
@@ -247,8 +251,16 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       }
     };
 
+    const handleFindEvent = () => {
+      setIsSearchOpen((prev) => !prev);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('app:find', handleFindEvent);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('app:find', handleFindEvent);
+    };
   }, [
     isAppearanceOpen,
     isSearchOpen,

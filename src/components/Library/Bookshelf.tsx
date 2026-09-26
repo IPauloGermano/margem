@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Book } from '../../core/types';
 import { BookCard } from './BookCard';
 import {
@@ -34,6 +34,43 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
   const [formatFilter, setFormatFilter] = useState<string>('all');
   const [folderFilter, setFolderFilter] = useState<string>('all');
   const [isDragging, setIsDragging] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const focusSearchInput = () => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCtrlF = (e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'f' || e.code === 'KeyF');
+      if (isCtrlF) {
+        e.preventDefault();
+        e.stopPropagation();
+        focusSearchInput();
+        return;
+      }
+
+      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        if (searchQuery) {
+          setSearchQuery('');
+        } else {
+          searchInputRef.current?.blur();
+        }
+      }
+    };
+
+    const handleFindEvent = () => {
+      focusSearchInput();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('app:find', handleFindEvent);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('app:find', handleFindEvent);
+    };
+  }, [searchQuery]);
 
   const availableFolders = Array.from(
     new Set(books.map((b) => b.folderName).filter(Boolean) as string[])
@@ -141,8 +178,10 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Buscar por título ou autor..."
+              placeholder="Buscar por título ou autor... (Ctrl+F)"
+              title="Buscar livros na estante (Ctrl+F)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[var(--bg-surface)] border border-[var(--border-rule)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-md pl-10 pr-4 py-2 text-xs font-code focus:outline-none focus:border-[var(--accent-signal)] transition-colors"

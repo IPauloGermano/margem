@@ -109,16 +109,24 @@ function createWindow() {
     }
   });
 
-  if (isDev) {
-    mainWindow.webContents.on('before-input-event', (_, input) => {
+  // Atalhos de teclado no nível do WebContents
+  mainWindow.webContents.on('before-input-event', (_, input) => {
+    if (input.type === 'keyDown') {
+      const isCtrlOrCmd = input.control || input.meta;
+      if (isCtrlOrCmd && input.key.toLowerCase() === 'f') {
+        mainWindow?.webContents.send('shortcut:find');
+      }
+    }
+
+    if (isDev) {
       if (input.control && input.key.toLowerCase() === 'r') {
         mainWindow?.reload();
       }
       if (input.control && input.shift && input.key.toLowerCase() === 'i') {
         mainWindow?.webContents.toggleDevTools();
       }
-    });
-  }
+    }
+  });
 
   // Intercepta e abre links externos no navegador padrão do sistema operacional
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
