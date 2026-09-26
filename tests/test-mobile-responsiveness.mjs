@@ -125,9 +125,9 @@ assert.ok(diagramModal.includes('handlePointerDown') && diagramModal.includes('h
 assert.ok(diagramModal.includes('fitZoom'), 'DiagramFullscreenModal deve calcular zoom adaptativo fitZoom');
 assert.ok(diagramModal.includes('var(--bg-canvas)') && diagramModal.includes('var(--bg-surface)'), 'DiagramFullscreenModal deve usar tokens de design system do Margem');
 assert.ok(diagramModal.includes('minZoom = fitZoom'), 'DiagramFullscreenModal deve definir zoom mínimo como fitZoom (100%)');
-assert.ok(diagramModal.includes('fitZoom * 2'), 'DiagramFullscreenModal deve definir zoom máximo como fitZoom * 2 (200%)');
+assert.ok(diagramModal.includes('isMobile ? 3 : 2'), 'DiagramFullscreenModal deve permitir zoom de até 300% no mobile e 200% no desktop');
 assert.ok(diagramModal.includes('disabled={zoom <= minZoom'), 'Botão de zoom out deve ser desativado no zoom mínimo de 100%');
-assert.ok(diagramModal.includes('disabled={zoom >= maxZoom'), 'Botão de zoom in deve ser desativado no zoom máximo de 200%');
+assert.ok(diagramModal.includes('disabled={zoom >= maxZoom'), 'Botão de zoom in deve ser desativado no zoom máximo suportado');
 
 assert.ok(readerContent.includes('DiagramFullscreenModal'), 'ReaderContent deve importar DiagramFullscreenModal');
 assert.ok(readerContent.includes('reader-mermaid-container'), 'ReaderContent deve interceptar clique em reader-mermaid-container');

@@ -67,6 +67,12 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== 'undefined'
+      ? window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches
+      : false
+  );
+
   // Referências para tracking de arrasto e gestos
   const isDraggingRef = useRef<boolean>(false);
   const dragOriginRef = useRef<{ x: number; y: number; panX: number; panY: number }>({
@@ -92,9 +98,12 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       const { clientWidth, clientHeight } = containerRef.current;
       if (clientWidth <= 0 || clientHeight <= 0) return;
 
-      const isMobile = clientWidth < 640;
-      const padX = isMobile ? 24 : 56;
-      const padY = isMobile ? 24 : 56;
+      const mobile =
+        clientWidth < 768 ||
+        (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
+      setIsMobile(mobile);
+      const padX = mobile ? 24 : 56;
+      const padY = mobile ? 24 : 56;
 
       const availWidth = Math.max(60, clientWidth - padX * 2);
       const availHeight = Math.max(60, clientHeight - padY * 2);
@@ -158,7 +167,9 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   if (!isOpen || !svgHtml) return null;
 
   const minZoom = fitZoom;
-  const maxZoom = +(fitZoom * 2).toFixed(3);
+  const maxZoomMultiplier = isMobile ? 3 : 2;
+  const maxZoom = +(fitZoom * maxZoomMultiplier).toFixed(3);
+  const maxPercent = isMobile ? 300 : 200;
 
   const handleZoomIn = () => {
     setZoom((z) => Math.min(maxZoom, +(z + fitZoom * 0.25).toFixed(3)));
@@ -329,7 +340,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   };
 
   const currentScalePct = Math.round((zoom / fitZoom) * 100);
-  const clampedScalePct = Math.min(200, Math.max(100, currentScalePct));
+  const clampedScalePct = Math.min(maxPercent, Math.max(100, currentScalePct));
 
   return (
     <div
