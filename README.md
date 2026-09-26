@@ -178,21 +178,6 @@ npm test
 
 ---
 
-## 📦 Publicar / .gitignore
-
-Ignorados (rebuildáveis): `node_modules/`, `dist/`, `dist-electron/`, `dist-package/`, `*.AppImage`, `*.tsbuildinfo`, `.vite/`, `coverage/`, `*.log`, `.env*` (exceto `.env.example`).
-
-Para subir ao GitHub:
-
-```bash
-git add .gitignore README.md docs/screenshots/ electron/ src/ tests/ package.json vite.config.ts index.html
-git status --ignored  # confirma dist/* e node_modules/ como !!
-git commit -m "docs: readme com prints + gitignore verificado"
-git push -u origin main
-```
-
----
-
 ## Licença e autoria
 
 Desenvolvido de forma independente para **Paulo Germano**, com separação estrita do repositório do site pessoal.
