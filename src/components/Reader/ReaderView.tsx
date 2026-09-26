@@ -17,6 +17,7 @@ import { ReaderFooter } from './ReaderFooter';
 import { AppearanceModal } from './AppearanceModal';
 import { SearchModal, SearchMatchItem } from './SearchModal';
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
+import 'katex/dist/katex.min.css';
 
 interface ReaderViewProps {
   book: Book;

@@ -289,7 +289,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({
             </div>
             <div>
               <h3 className="font-serif font-bold text-lg text-[var(--text-primary)]">Margem</h3>
-              <p className="text-xs text-[var(--text-muted)] font-code mt-0.5">v1.0.0 • Leitor Editorial Desktop</p>
+              <p className="text-xs text-[var(--text-muted)] font-code mt-0.5">
+                v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.1'} • Leitor Editorial Desktop
+              </p>
             </div>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-sans">
               Um ambiente de leitura focado em conforto tipográfico, arquitetura desacoplada e respeito ao texto.

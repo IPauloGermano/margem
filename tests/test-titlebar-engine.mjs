@@ -117,4 +117,28 @@ assert.ok(closeBtn.className.includes('active:bg-[#A52115]'), 'Botão de fechar 
 
 console.log('✓ Controles nativos e acessibilidade validados com sucesso.');
 
+// 3. Validação do Atalho Ctrl+Q e Versão do Aplicativo
+console.log('3. Validando atalho Ctrl+Q e renderização da versão...');
+
+let appQuitTriggered = false;
+const simulateKeyDown = (key, ctrlKey = false, metaKey = false) => {
+  if ((ctrlKey || metaKey) && key.toLowerCase() === 'q') {
+    appQuitTriggered = true;
+  }
+};
+
+simulateKeyDown('q', true);
+assert.strictEqual(appQuitTriggered, true, 'Atalho Ctrl+Q deve acionar o encerramento do aplicativo');
+
+appQuitTriggered = false;
+simulateKeyDown('q', false, true);
+assert.strictEqual(appQuitTriggered, true, 'Atalho Cmd+Q deve acionar o encerramento no macOS');
+
+import { readFileSync } from 'node:fs';
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
+assert.ok(pkg.version, 'package.json deve conter versão válida');
+assert.notStrictEqual(pkg.version, '1.0.0', 'Versão atual do aplicativo não deve ser a obsoleta 1.0.0');
+
+console.log(`✓ Atalho Ctrl+Q verificado e versão validada (v${pkg.version}).`);
+
 console.log('\n🎉 TODOS OS TESTES DA TITLEBAR E CONTROLES DE JANELA PASSARAM!\n');

@@ -62,20 +62,19 @@ function createWindow() {
     }
   });
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
-    mainWindow?.focus();
-    displayInhibitor.acquire();
-  });
-
-  // Fallback rápido para garantir exibição imediata sem congelamentos
-  setTimeout(() => {
+  const showWindow = () => {
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
       mainWindow.show();
       mainWindow.focus();
       displayInhibitor.acquire();
     }
-  }, 350);
+  };
+
+  mainWindow.once('ready-to-show', showWindow);
+  mainWindow.webContents.once('dom-ready', showWindow);
+
+  // Fallback rápido para garantir exibição imediata
+  setTimeout(showWindow, 150);
 
   // Notificações de ciclo de vida e estado da janela para o renderer
   mainWindow.on('maximize', () => {
@@ -114,6 +113,12 @@ function createWindow() {
         event.preventDefault();
         const scope = input.shift ? 'book' : 'section';
         mainWindow?.webContents.send('shortcut:find', { scope });
+      }
+
+      // Atalho global Ctrl+Q para encerrar o aplicativo
+      if (isCtrlOrCmd && input.key.toLowerCase() === 'q') {
+        event.preventDefault();
+        app.quit();
       }
     }
 

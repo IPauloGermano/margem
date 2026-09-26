@@ -32,5 +32,7 @@ declare global {
       onFindShortcut?: (callback: (data?: { scope?: 'section' | 'book' }) => void) => () => void;
     };
   }
+
+  const __APP_VERSION__: string;
 }
 

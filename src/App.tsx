@@ -20,7 +20,7 @@ export const App: React.FC = () => {
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [parsedDoc, setParsedDoc] = useState<ParsedDocument | null>(null);
   const [preferences, setPreferences] = useState<ReaderPreferences>(db.getPreferences());
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('Processando documento...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
@@ -28,24 +28,37 @@ export const App: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Inicialização: carrega livros e preferências
+  // Inicialização instantânea: renderiza a estante imediatamente e carrega livros
   useEffect(() => {
     async function init() {
       try {
         const storedBooks = await db.getBooks();
         setBooks(storedBooks);
 
-        // Se a estante estiver vazia na primeira vez, carrega uma amostra automática
+        // Se a estante estiver vazia na primeira vez, carrega amostra em segundo plano sem bloquear a UI
         if (storedBooks.length === 0) {
-          await loadSampleContent('md', false);
+          loadSampleContent('md', false);
         }
       } catch (err: any) {
         console.error('Falha ao inicializar banco de dados:', err);
-      } finally {
-        setIsLoading(false);
       }
     }
     init();
+  }, []);
+
+  // Atalho global Ctrl+Q / Cmd+Q para fechar o aplicativo
+  useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      if (isCtrlOrCmd && e.key.toLowerCase() === 'q') {
+        e.preventDefault();
+        window.cadernoAPI?.close?.();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalShortcuts);
+    };
   }, []);
 
   // Aplica o tema visual no elemento HTML raiz
