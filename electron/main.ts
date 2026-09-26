@@ -30,6 +30,10 @@ async function ensureDirGranted(dirRealPath: string): Promise<void> {
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 app.setName('Margem');
+app.setAppUserModelId('Margem');
+
+// Garante instância única (evita conflitos no LevelDB/IndexedDB e foca a janela ativa)
+const gotTheLock = app.requestSingleInstanceLock();
 
 function createWindow() {
   const windowIcon = path.join(__dirname, '../dist/icon.png');
@@ -48,6 +52,7 @@ function createWindow() {
     frame: false,
     titleBarStyle: 'hidden',
     autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -55,6 +60,19 @@ function createWindow() {
       sandbox: false
     }
   });
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+    mainWindow?.focus();
+  });
+
+  // Fallback de segurança para garantir exibição caso ready-to-show atrase
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  }, 800);
 
   // Notificações de ciclo de vida e estado da janela para o renderer
   mainWindow.on('maximize', () => {
@@ -686,18 +704,33 @@ ipcMain.handle('watcher:unwatchAll', async () => {
   return true;
 });
 
-app.whenReady().then(() => {
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+if (!gotTheLock) {
+  // Já existe uma instância do Margem aberta; encerra esta imediatamente
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // Foca e restaura a janela principal existente quando o atalho for clicado novamente
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
     }
   });
-});
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+  app.whenReady().then(() => {
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  });
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+}
+
