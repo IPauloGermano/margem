@@ -434,7 +434,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                             placeholder="Escreva sua reflexão de margem..."
                             rows={3}
                             autoFocus
-                            className="w-full text-xs font-sans p-2 rounded bg-[var(--bg-surface)] border border-[var(--border-rule)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-signal)] resize-none leading-relaxed"
+                            className="w-full text-xs font-sans p-2 rounded bg-[var(--bg-surface)] border border-[var(--border-rule)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-signal)] resize-none leading-relaxed max-h-48 overflow-y-auto break-words [overflow-wrap:anywhere]"
                           />
                           <div className="flex items-center justify-between text-[10px] font-code">
                             <span className="text-[var(--text-muted)]">{editingNoteText.length} caracteres</span>
@@ -460,36 +460,20 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                         </form>
                       ) : (
                         <>
-                          {/* Conteúdo da Nota de Margem (Protagonista quando existe) */}
+                          {/* Conteúdo da Anotação (quando existe) */}
                           {hasNote && (
-                            <div className="p-2.5 rounded-md bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] text-xs text-[var(--text-primary)] space-y-1">
-                              <div className="flex items-center gap-1 font-code text-[10px] text-[var(--accent-signal)] font-medium">
-                                <MessageSquare className="w-3 h-3" />
-                                <span>NOTA DE MARGEM</span>
-                              </div>
-                              <p className="font-sans text-xs leading-relaxed whitespace-pre-wrap select-text">
+                            <div className="p-2.5 rounded-md bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] text-xs text-[var(--text-primary)]">
+                              <p className="font-sans text-xs leading-relaxed whitespace-pre-wrap select-text max-h-48 overflow-y-auto break-words [overflow-wrap:anywhere]">
                                 {hl.note}
                               </p>
                             </div>
                           )}
 
                           {/* Citação do Livro */}
-                          <div className="flex items-start gap-1.5 text-xs font-serif text-[var(--text-secondary)] italic border-l-2 border-[var(--border-rule)] pl-2.5 py-0.5">
+                          <div className="flex items-start gap-1.5 text-xs font-serif text-[var(--text-secondary)] italic border-l-2 border-[var(--border-rule)] pl-2.5 py-0.5 break-words [overflow-wrap:anywhere]">
                             <Quote className="w-3 h-3 text-[var(--accent-signal)] shrink-0 mt-0.5 opacity-60" />
-                            <p className="leading-relaxed">"{hl.text}"</p>
+                            <p className="leading-relaxed line-clamp-3">"{hl.text}"</p>
                           </div>
-
-                          {/* Botão rápido para adicionar nota caso não tenha */}
-                          {!hasNote && onUpdateHighlight && (
-                            <button
-                              type="button"
-                              onClick={(e) => handleStartEdit(e, hl)}
-                              className="text-[10px] font-code text-[var(--text-muted)] hover:text-[var(--accent-signal)] flex items-center gap-1 transition-colors pt-0.5"
-                            >
-                              <Edit3 className="w-3 h-3" />
-                              <span>+ Adicionar reflexão</span>
-                            </button>
-                          )}
                         </>
                       )}
 
@@ -517,7 +501,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                 </p>
                 <p className="text-[11px] leading-relaxed">
                   {highlightFilter === 'notes_only'
-                    ? 'Adicione reflexões aos seus trechos selecionados usando o botão "+ Nota" na barra de grifo ou na gaveta.'
+                    ? 'Adicione reflexões aos seus trechos selecionados usando o botão de anotação na barra de grifo ou no painel.'
                     : 'Selecione qualquer trecho de texto durante a leitura para aplicar grifos coloridos ou adicionar reflexões.'}
                 </p>
               </div>
