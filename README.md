@@ -1,140 +1,198 @@
 # Margem 📖
 
-> Aplicativo desktop de leitura tipográfica para Linux (empacotado em AppImage), construído com **Electron**, **React 18**, **TypeScript**, **Tailwind CSS v4** e **Vite**, com estética visual e rigor editorial inspirados no ecossistema do **PauloGerm.dev**.
+> Leitor desktop tipográfico para Linux (AppImage) — **Electron + React 18 + TypeScript + Tailwind CSS v4 + Vite**. Estética editorial calma inspirada no ecossistema **PauloGerm.dev**.
+
+![Estante — tema Warm Charcoal](docs/screenshots/01-estante-dark.png)
+
+**MD · TXT · EPUB · PDF** · estante local · 4 temas de leitura · sumário + busca · marcadores e grifos · 100% offline.
 
 ---
 
-## 1. Visão Geral e Filosofia de Design
+## ✨ Destaques
 
-O **Margem** foi projetado para transformar a leitura de textos técnicos, anotações de estudo e livros digitais em uma experiência calma, ergonômica e focada.
-
-### Elementos Visuais e Conceitos Herdados da UI:
-1. **Paleta Warm Charcoal & E-Ink:**
-   - **Dark (Warm Charcoal & Linen):** Fundo cinza-carvão aquecido (`#1C1B19`), superfícies em camadas (`#242220`), bordas nítidas e sutis (`#3A3632`) e o tom de sinal quente (*Accent Signal* `#DE6B44`).
-   - **Light (Kindle Paperwhite / E-Ink Substrate):** Fundo papel linho suave (`#EFECE6`), superfícies acolhedoras (`#F6F3ED`) e tipografia de alto contraste sem ofuscar a retina (`#1F1D1B`).
-   - **Sepia (Linen Sepia):** Tonalidade clássica de papel de livro antigo (`#F4EFE6`).
-   - **OLED (Pitch Black):** Fundo preto absoluto (`#0A0A09`) para telas OLED e leitura no escuro.
-2. **Tipografia Editorial:**
-   - Prosa em **Source Serif 4 Variable** e **Newsreader**, com proporção de entrelinha refinada (`line-height` configurável de 1.4 a 2.2) e *measure* ajustável (550px a 950px, com o padrão de 780px).
-   - Metadados, índices (`#01`, `#02`), tags de formato e atalhos em **JetBrains Mono**.
-3. **Estante & Organização:**
-   - Visualização em cartões com status de leitura ("Lendo agora", "Lido"), tempo estimado em minutos, contagem de palavras e barra de progresso individual.
-   - Filtros instantâneos por formato (`EPUB`, `Markdown`, `Texto`) e busca em tempo real.
+- **Estante / Biblioteca** — cards com progresso, tempo estimado, contagem de palavras, filtros por formato/pasta e busca instantânea.
+- **Importação em lote** — arquivos avulsos, drag & drop, pastas inteiras (recursivo) e livros compostos por múltiplos `.md`.
+- **Leitor tipográfico** — Source Serif 4 + Newsreader + JetBrains Mono, medida 550–950px, `line-height` 1.4–2.2, alinhamento esquerda/justificado.
+- **4 temas** — Warm Charcoal (padrão), Paperwhite, Linen Sepia, Pitch Black OLED.
+- **Navegação estruturada** — TOC lateral, busca full-text com contexto, scrubber de progresso, anterior/próximo por capítulo.
+- **Grifos e notas de margem** — 3 cores, notas ancoradas, exportação Markdown.
+- **Persistência local** — IndexedDB (livros, posição, marcadores) + `localStorage` (preferências). Nada sai da máquina.
+- **Higienização XSS** — todo HTML/Markdown/EPUB/PDF passa por DOMPurify com allowlist de embeds (ver `src/core/parsers/sanitize.ts`).
 
 ---
 
-## 2. Arquitetura Modular e Extensível
+## 🖼️ Interface
 
-O projeto adota o **Registry Pattern** para suporte a documentos, garantindo que novos formatos de arquivo possam ser adicionados sem refatorar o núcleo de renderização ou o leitor:
+Todas as capturas em **1440×900, escala device** (UI real, sem mock):
 
-```text
-src/
-├── core/
-│   ├── types/               # Modelos de dados puros (Book, Section, TOC, Progress, Preferences)
-│   ├── parsers/             # Camada desacoplada de parsers
-│   │   ├── DocumentParser.ts    # Interface comum (canParse, parse)
-│   │   ├── ParserRegistry.ts    # Registro central extensível
-│   │   ├── MarkdownParser.ts    # Suporte a .md e .markdown (Frontmatter, Headings, HTML)
-│   │   ├── TextParser.ts        # Suporte a .txt (Detecção inteligente de capítulos)
-│   │   └── EpubParser.ts        # Suporte a .epub (Descompactação ZIP, OPF, Spine, NCX/NAV, imagens)
-│   └── storage/
-│       └── db.ts                # Persistência via IndexedDB + localStorage (Livros, Posição, Marcadores)
-├── components/
-│   ├── Library/             # Estante, Cards, Filtros, Drag & Drop
-│   └── Reader/              # Leitor, Header, Footer com Progresso, Sidebar com TOC/Busca, Modais
-├── electron/
-│   ├── main.ts              # Processo principal (IPC, diálogos nativos do OS, leitura de disco)
-│   └── preload.ts           # ContextBridge seguro expondo window.cadernoAPI
-└── styles/
-    └── theme.css            # Tokens de cores, fontes editoriais e classes de leitura
-```
+### Estante — Warm Charcoal
+![Estante](docs/screenshots/01-estante-dark.png)
+Busca, filtros `Todos / EPUB / Markdown / Texto`, cards `#01` com progresso e `Seção 1 de 3`.
 
-### Como Adicionar um Novo Formato (ex: PDF ou MOBI):
-Basta criar uma classe implementando `DocumentParser`:
+### Leitor — Warm Charcoal
+![Leitor dark](docs/screenshots/02-leitor-dark.png)
+Coluna editorial 780px, serifa, citação com filete terracota `#DE6B44`, header/footer mínimos.
 
-```typescript
-import { DocumentParser } from './DocumentParser';
-import { ParsedDocument } from '../types';
+### Leitor — Sumário lateral
+![Leitor sumário](docs/screenshots/03-leitor-sumario.png)
+Painel `Sumário / Destaques / Marcas / Busca / Info`, salto direto por capítulo (`Ctrl+B`).
 
-export class PdfParser implements DocumentParser {
-  readonly format = 'pdf';
-  readonly extensions = ['pdf'];
+### Leitor — Aparência & Tipografia
+![Aparência](docs/screenshots/04-leitor-aparencia.png)
+Temas, 4 famílias tipográficas, tamanho/espaçamento/largura por slider, alinhamento (`Ctrl+,`).
 
-  canParse(filename: string): boolean {
-    return filename.toLowerCase().endsWith('.pdf');
-  }
-
-  async parse(buffer: ArrayBuffer, filename: string): Promise<ParsedDocument> {
-    // Extrai texto, metadados e capítulos...
-    return { metadata, sections, toc };
-  }
-}
-
-// No ParserRegistry.ts ou na inicialização:
-defaultParserRegistry.register(new PdfParser());
-```
+### Leitor — Paperwhite (claro)
+![Leitor light](docs/screenshots/05-leitor-light.png)
+Fundo linho `#EFECE6`, texto `#1F1D1B`, mesmo ritmo vertical — ideal para dia / e-ink.
 
 ---
 
-- [x] **Suporte a Múltiplos Formatos:** Leitura completa de arquivos `.md`, `.markdown`, `.txt` e `.epub`.
-- [x] **Importação de Pastas e Caminhos Inteiros:** Adicione diretórios completos pelo seletor nativo do sistema ou digitando/colando caminhos absolutos (ex: `/home/user/Livros` ou `~/Documents/Ebooks`). O leitor varre recursivamente e indexa todos os documentos suportados em lote.
-- [x] **Abertura Local & Diálogos Nativos:** Diálogo nativo do sistema via Electron (`dialog.showOpenDialog`) e suporte a Drag & Drop direto na estante.
-- [x] **Filtros por Coleção/Pasta:** Filtre rapidamente sua estante por pasta de origem ou formato de arquivo.
-- [x] **Estante / Biblioteca Completa:** Persistência em IndexedDB com capas, progresso percentual, contagem de palavras e ordenação pelos lidos mais recentemente.
-- [x] **Controle Tipográfico Preciso:** Ajuste em tempo real de tamanho de fonte (14px–28px), espaçamento de linha (1.4–2.2), largura da coluna (550px–950px), alinhamento (esquerda/justificado) e família de fontes (Serif, Sans, Mono, Alta Legibilidade).
-- [x] **4 Temas de Leitura:** Warm Charcoal, Kindle Paperwhite, Linen Sepia e Pitch Black OLED.
-- [x] **Sumário (TOC) & Navegação Estruturada:** Painel lateral sanfonado com saltos diretos entre capítulos e seções.
-- [x] **Busca de Texto Integrada:** Pesquisa textual completa em todos os capítulos do livro com trechos contextuais e navegação direta para o resultado.
-- [x] **Barra de Progresso e Scrubber:** Indicador sutil de rolagem, percentual de conclusão e salto rápido de leitura.
-- [x] **Salvamento Automático:** Posição de rolagem e capítulo atual gravados automaticamente por livro.
-- [x] **Marcadores e Anotações:** Criação de marcadores na posição exata da leitura (`Ctrl+D`) com data, percentual e trecho citado.
-- [x] **Atalhos de Teclado:**
-  - `J` / `Espaço`: Rolar para baixo
-  - `K` / `Shift+Espaço`: Rolar para cima
-  - `[` / `]`: Capítulo anterior / próximo
-  - `Ctrl + F`: Buscar no texto
-  - `Ctrl + B`: Abrir/fechar sumário lateral
-  - `Ctrl + ,`: Ajustes de aparência e tema
-  - `Ctrl + D`: Criar marcador
-  - `?`: Guia de atalhos
-  - `Esc`: Fechar modais / Voltar à estante
+## 🚀 Como executar
 
----
+Pré-requisitos: **Node.js 20+** ou **Bun 1.2+**.
 
-## 4. Como Executar e Empacotar
-
-### Pré-requisitos
-- Node.js 20+ ou Bun 1.2+
-
-### Modo Desenvolvimento
 ```bash
-cd /home/user/Documents/projects/caderno-reader
+# 1. Instalar
+npm install
 
-# Rodar a interface web com Vite
+# 2. Dev web (Vite)
 npm run dev
-```
+# → http://127.0.0.1:5173/
 
-### Build do Projeto
-```bash
-# Compila o frontend e os scripts do Electron
+# 3. Dev desktop (Vite + Electron)
+npm run dev:desktop
+
+# 4. Build completo (tsc + vite + electron)
 npm run build
-```
 
-### Gerar AppImage para Linux
-```bash
+# 5. AppImage Linux
 npm run package:appimage
-```
+# → dist-package/Margem-1.0.0.AppImage
 
-O binário executável será gerado em:
-`dist-package/Margem-1.0.0.AppImage`
-
-Para executá-lo diretamente no Linux:
-```bash
 chmod +x "dist-package/Margem-1.0.0.AppImage"
 ./dist-package/Margem-1.0.0.AppImage
 ```
 
+| Script | O que faz |
+|---|---|
+| `npm run dev` | Vite puro (prints acima foram gerados aqui) |
+| `npm run dev:desktop` | `scripts/dev-desktop.mjs` — Vite + Electron lado a lado |
+| `npm run build` | `tsc && vite build && scripts/build-electron.mjs` |
+| `npm run package:appimage` | build + `electron-builder --linux AppImage` |
+| `npm test` | 16 suítes Node (parsers, XSS, PDF, links, file-watcher, titlebar) |
+
 ---
 
-## 5. Licença e Autoria
-Desenvolvido de forma independente para **Paulo Germano**, mantendo separação estrita em relação ao repositório do site pessoal.
+## 📚 Formatos
+
+| Formato | Extensões | Engine |
+|---|---|---|
+| Markdown | `.md`, `.markdown` | `MarkdownParser.ts` — frontmatter, headings, code, DOMPurify |
+| Texto | `.txt` | `TextParser.ts` — detecção de `CAPÍTULO` |
+| EPUB | `.epub` | `EpubParser.ts` — JSZip + OPF/Spine/NCX-NAV + imagens |
+| PDF | `.pdf` | `PdfParser.ts` + `pdf*Engine.ts` — layout, tabelas, math, colunas |
+| Pasta | diretório / `.book` | `FolderBookLoader.ts` — varredura recursiva, livro composto |
+
+> Amostra embutida: `A Arte da Leitura Tipográfica` (`src/core/samples.ts`) — usada nos prints e no primeiro boot.
+
+---
+
+## ⌨️ Atalhos
+
+| Tecla | Ação |
+|---|---|
+| `J` / `Espaço` | Rolar para baixo |
+| `K` / `Shift+Espaço` | Rolar para cima |
+| `[` / `]` | Capítulo anterior / próximo |
+| `Ctrl+F` | Buscar no texto |
+| `Ctrl+B` | Sumário lateral |
+| `Ctrl+,` | Aparência & tipografia |
+| `Ctrl+D` | Criar marcador |
+| `?` | Guia de atalhos |
+| `Esc` | Fechar modal / voltar à estante |
+
+---
+
+## 🎨 Temas
+
+| Tema | Canvas | Surface | Texto | Accent |
+|---|---|---|---|---|
+| Warm Charcoal (dark) | `#1C1B19` | `#242220` | `#E8E3DA` | `#DE6B44` |
+| Paperwhite (light) | `#EFECE6` | `#F6F3ED` | `#1F1D1B` | `#B34420` |
+| Linen Sepia | `#F4EFE6` | `#EAE3D6` | `#2B2620` | `#9E4522` |
+| Pitch Black OLED | `#0A0A09` | `#141412` | `#EDE8DE` | `#E06D44` |
+
+Tokens em `src/styles/theme.css`. Troca via `data-theme` no `<html>` + `localStorage`.
+
+---
+
+## 🏗️ Arquitetura
+
+Registry Pattern — novo formato = 1 classe, sem tocar o leitor:
+
+```text
+src/
+├── core/types/          # Book, Section, TOC, Progress, Preferences
+├── core/parsers/        # DocumentParser, ParserRegistry, Markdown/Text/Epub/Pdf
+├── core/storage/db.ts   # IndexedDB + localStorage
+├── components/Library/  # Bookshelf, BookCard, ImportDirectoryModal
+├── components/Reader/   # ReaderView, Header/Footer, Sidebar, Modais, Highlights
+├── components/Window/   # TitleBar (desktop)
+└── styles/theme.css     # tokens + .reader-prose
+```
+
+```typescript
+import { DocumentParser } from './DocumentParser';
+
+export class PdfParser implements DocumentParser {
+  readonly format = 'pdf';
+  readonly extensions = ['pdf'];
+  canParse(f: string) { return f.toLowerCase().endsWith('.pdf'); }
+  async parse(buf: ArrayBuffer, filename: string) { /* … */ }
+}
+
+// registrar:
+defaultParserRegistry.register(new PdfParser());
+```
+
+Entradas: `electron/main.ts`, `electron/preload.ts` (contextBridge `window.cadernoAPI`), `src/main.tsx`, `src/App.tsx`.
+
+---
+
+## 🔒 Segurança
+
+- `MarkdownParser.ts` + `sanitize.ts`: DOMPurify + allowlist (YouTube/embeds), sem `eval`, sem `innerHTML` cru.
+- `electron/preload.ts`: só expõe `window.cadernoAPI` via contextBridge; `main.ts` valida paths (`pathScope.ts`).
+- Sem rede: parsers e storage 100% locais; PDFs com `pdf.worker.min.mjs` vendored em `public/`.
+
+---
+
+## 🧪 Verificação
+
+```bash
+npm run build
+npm test
+```
+
+`npm test` roda 16 arquivos em `tests/` (`test-folder-books`, `test-xss-sanitize`, `test-pdf-*`, `test-link-engine`, `test-youtube-links`, `test-titlebar-engine`, `test-file-watcher`, etc.) — sem framework, `node --experimental-strip-types` + asserts.
+
+---
+
+## 📦 Publicar / .gitignore
+
+Ignorados (rebuildáveis): `node_modules/`, `dist/`, `dist-electron/`, `dist-package/`, `*.AppImage`, `*.tsbuildinfo`, `.vite/`, `coverage/`, `*.log`, `.env*` (exceto `.env.example`).
+
+Para subir ao GitHub:
+
+```bash
+git add .gitignore README.md docs/screenshots/ electron/ src/ tests/ package.json vite.config.ts index.html
+git status --ignored  # confirma dist/* e node_modules/ como !!
+git commit -m "docs: readme com prints + gitignore verificado"
+git push -u origin main
+```
+
+---
+
+## Licença e autoria
+
+Desenvolvido de forma independente para **Paulo Germano**, com separação estrita do repositório do site pessoal.

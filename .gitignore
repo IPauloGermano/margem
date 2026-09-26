@@ -1,22 +1,50 @@
 # Dependências
 node_modules/
+.pnp
+.pnp.*
 
 # Build outputs (rebuildável via npm run build)
 dist/
 dist-electron/
 dist-package/
+dist-ssr/
 *.AppImage
+*.snap
+*.deb
+*.dmg
+*.exe
+
+# Vite / TS cache
+.vite/
+*.tsbuildinfo
+*.local
 
 # Env / segredos (nunca commitar real — §6.8)
 .env
 .env.*
 !.env.example
 
-# Logs e OS
+# Logs e debug
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# OS e editores
 .DS_Store
 Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
 
-# Cobertura
+# Cobertura e cache de testes
 coverage/
+.nyc_output/
+.cache/
+
+# Ferramentas locais (nunca commitar)
+.playwright-mcp/
