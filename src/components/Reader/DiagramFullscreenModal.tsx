@@ -157,18 +157,21 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
   if (!isOpen || !svgHtml) return null;
 
+  const minZoom = fitZoom;
+  const maxZoom = +(fitZoom * 2).toFixed(3);
+
   const handleZoomIn = () => {
-    setZoom((z) => Math.min(5, +(z * 1.25).toFixed(2)));
+    setZoom((z) => Math.min(maxZoom, +(z + fitZoom * 0.25).toFixed(3)));
   };
 
   const handleZoomOut = () => {
     setZoom((z) => {
-      const next = +(z / 1.25).toFixed(2);
-      if (next <= fitZoom * 1.05) {
+      const next = +(z - fitZoom * 0.25).toFixed(3);
+      if (next <= minZoom + 0.001) {
         setPan({ x: 0, y: 0 });
-        return fitZoom;
+        return minZoom;
       }
-      return Math.max(0.05, next);
+      return Math.max(minZoom, next);
     });
   };
 
@@ -179,11 +182,10 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
   const handleToggleZoom = () => {
     if (hasDraggedRef.current) return;
-    if (zoom > fitZoom * 1.25) {
+    if (zoom > minZoom + 0.01) {
       handleResetZoom();
     } else {
-      const targetZoom = Math.min(4, Math.max(1.5, +(fitZoom * 2).toFixed(2)));
-      setZoom(targetZoom);
+      setZoom(maxZoom);
     }
   };
 
@@ -274,7 +276,13 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
       const factor = newDist / touchDistRef.current;
       if (Math.abs(factor - 1) > 0.02) {
-        setZoom((z) => Math.min(5, Math.max(0.05, +(z * factor).toFixed(3))));
+        setZoom((z) => {
+          const next = Math.min(maxZoom, Math.max(minZoom, +(z * factor).toFixed(3)));
+          if (next <= minZoom + 0.001) {
+            setPan({ x: 0, y: 0 });
+          }
+          return next;
+        });
         touchDistRef.current = newDist;
       }
     }
@@ -296,9 +304,17 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
     }
 
     const direction = e.deltaY < 0 ? 1 : -1;
-    const factor = e.ctrlKey || e.metaKey ? 1.06 : 1.15;
-    const nextZoom = direction > 0 ? zoom * factor : zoom / factor;
-    setZoom(Math.min(5, Math.max(0.05, +nextZoom.toFixed(3))));
+    const factor = e.ctrlKey || e.metaKey ? 1.05 : 1.12;
+    setZoom((z) => {
+      const next =
+        direction > 0
+          ? Math.min(maxZoom, +(z * factor).toFixed(3))
+          : Math.max(minZoom, +(z / factor).toFixed(3));
+      if (next <= minZoom + 0.001) {
+        setPan({ x: 0, y: 0 });
+      }
+      return next;
+    });
   };
 
   const handleCopyCode = async () => {
@@ -313,6 +329,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   };
 
   const currentScalePct = Math.round((zoom / fitZoom) * 100);
+  const clampedScalePct = Math.min(200, Math.max(100, currentScalePct));
 
   return (
     <div
@@ -338,7 +355,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
           <button
             type="button"
             onClick={handleZoomOut}
-            disabled={zoom <= 0.05}
+            disabled={zoom <= minZoom + 0.001}
             className="p-1.5 min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
             title="Diminuir Zoom (-)"
             aria-label="Diminuir Zoom"
@@ -350,16 +367,16 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
             type="button"
             onClick={handleResetZoom}
             className="px-2 sm:px-2.5 py-1 min-h-[32px] sm:min-h-[36px] flex items-center justify-center rounded-full font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer tabular-nums"
-            title="Ajustar à tela (0)"
-            aria-label="Ajustar à tela"
+            title="Ajustar ao padrão 100% (0)"
+            aria-label="Ajustar ao padrão 100%"
           >
-            {currentScalePct}%
+            {clampedScalePct}%
           </button>
 
           <button
             type="button"
             onClick={handleZoomIn}
-            disabled={zoom >= 5}
+            disabled={zoom >= maxZoom - 0.001}
             className="p-1.5 min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
             title="Aumentar Zoom (+)"
             aria-label="Aumentar Zoom"
