@@ -294,6 +294,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           highlights={highlights}
           onSelectHighlight={handleSelectHighlight}
           onDeleteHighlight={handleDeleteHighlight}
+          onUpdateHighlight={handleUpdateHighlight}
         />
 
         {currentSection ? (

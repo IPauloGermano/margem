@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '../../core/types';
 import { HighlightToolbar } from './HighlightToolbar';
+import { NotePopover } from './NotePopover';
 
 interface ReaderContentProps {
   section: DocumentSection;
@@ -39,6 +40,13 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   const isRestoringScroll = useRef(false);
 
   const [toolbarState, setToolbarState] = useState<ToolbarState | null>(null);
+  const [activeNotePopover, setActiveNotePopover] = useState<{
+    position: { top: number; left: number };
+    highlight: Highlight;
+  } | null>(null);
+
+  const hoverTimerRef = useRef<any>(null);
+  const leaveTimerRef = useRef<any>(null);
 
   // Mapeamento de famílias de fonte
   const fontClassMap = {
@@ -75,6 +83,48 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
   }, [section.id, targetAnchor]);
 
+  const handleHighlightHover = (hl: Highlight, rect: DOMRect, isEnter: boolean) => {
+    if (toolbarState?.isOpen) return;
+
+    if (isEnter) {
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+      hoverTimerRef.current = setTimeout(() => {
+        setActiveNotePopover({
+          position: { top: rect.top, left: rect.left + rect.width / 2 },
+          highlight: hl
+        });
+      }, 140);
+    } else {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+      leaveTimerRef.current = setTimeout(() => {
+        setActiveNotePopover(null);
+      }, 250);
+    }
+  };
+
+  const handleHighlightClick = (clickedHl: Highlight, rect: DOMRect) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+
+    if (clickedHl.note) {
+      setActiveNotePopover({
+        position: { top: rect.top, left: rect.left + rect.width / 2 },
+        highlight: clickedHl
+      });
+      setToolbarState(null);
+    } else {
+      setActiveNotePopover(null);
+      setToolbarState({
+        isOpen: true,
+        position: { top: rect.top, left: rect.left + rect.width / 2 },
+        selectedText: clickedHl.text,
+        highlightId: clickedHl.id,
+        activeColor: clickedHl.color,
+        existingNote: undefined
+      });
+    }
+  };
+
   // Aplicação dos grifos no DOM
   useEffect(() => {
     if (!bodyRef.current) return;
@@ -86,16 +136,12 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     if (sectionHighlights.length === 0) return;
 
     sectionHighlights.forEach((hl) => {
-      applyHighlightToTree(bodyRef.current!, hl, (clickedHl, rect) => {
-        setToolbarState({
-          isOpen: true,
-          position: { top: rect.top, left: rect.left + rect.width / 2 },
-          selectedText: clickedHl.text,
-          highlightId: clickedHl.id,
-          activeColor: clickedHl.color,
-          existingNote: clickedHl.note
-        });
-      });
+      applyHighlightToTree(
+        bodyRef.current!,
+        hl,
+        handleHighlightClick,
+        handleHighlightHover
+      );
     });
   }, [section.id, section.content, highlights]);
 
@@ -216,7 +262,46 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         />
       </div>
 
-      {/* Floating Toolbar para Seleção de Texto */}
+      {/* Popover de Visualização e Ações da Nota de Margem */}
+      {activeNotePopover && !toolbarState?.isOpen && (
+        <NotePopover
+          position={activeNotePopover.position}
+          highlight={activeNotePopover.highlight}
+          onEdit={(hl) => {
+            const pos = activeNotePopover.position;
+            setActiveNotePopover(null);
+            setToolbarState({
+              isOpen: true,
+              position: pos,
+              selectedText: hl.text,
+              highlightId: hl.id,
+              activeColor: hl.color,
+              existingNote: hl.note
+            });
+          }}
+          onDeleteNote={(hlId) => {
+            const existing = highlights.find((h) => h.id === hlId);
+            if (existing) {
+              onUpdateHighlight({
+                ...existing,
+                note: undefined
+              });
+            }
+            setActiveNotePopover(null);
+          }}
+          onClose={() => setActiveNotePopover(null)}
+          onMouseEnter={() => {
+            if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+          }}
+          onMouseLeave={() => {
+            leaveTimerRef.current = setTimeout(() => {
+              setActiveNotePopover(null);
+            }, 250);
+          }}
+        />
+      )}
+
+      {/* Floating Toolbar para Seleção de Texto e Edição */}
       {toolbarState?.isOpen && (
         <HighlightToolbar
           position={toolbarState.position}
@@ -238,7 +323,8 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 function applyHighlightToTree(
   root: HTMLElement,
   hl: Highlight,
-  onHighlightClick: (hl: Highlight, rect: DOMRect) => void
+  onHighlightClick: (hl: Highlight, rect: DOMRect) => void,
+  onHighlightHover: (hl: Highlight, rect: DOMRect, isEnter: boolean) => void
 ) {
   const target = hl.text.trim();
   if (!target) return;
@@ -259,7 +345,14 @@ function applyHighlightToTree(
       mark.dataset.highlightId = hl.id;
       if (hl.note) {
         mark.dataset.hasNote = 'true';
-        mark.title = `Nota: ${hl.note}`;
+        mark.addEventListener('mouseenter', () => {
+          const rect = mark.getBoundingClientRect();
+          onHighlightHover(hl, rect, true);
+        });
+        mark.addEventListener('mouseleave', () => {
+          const rect = mark.getBoundingClientRect();
+          onHighlightHover(hl, rect, false);
+        });
       }
 
       mark.addEventListener('click', (e) => {
