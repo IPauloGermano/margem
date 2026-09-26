@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '../../core/types';
+import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 
@@ -38,6 +39,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const isRestoringScroll = useRef(false);
+  const lastKnownScrollTop = useRef<number>(0);
 
   const [toolbarState, setToolbarState] = useState<ToolbarState | null>(null);
   const [activeNotePopover, setActiveNotePopover] = useState<{
@@ -113,15 +115,21 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     bodyRef.current.innerHTML = section.content;
 
     const sectionHighlights = highlights.filter((h) => h.sectionId === section.id);
-    if (sectionHighlights.length === 0) return;
+    if (sectionHighlights.length > 0) {
+      sectionHighlights.forEach((hl) => {
+        applyHighlightToTree(
+          bodyRef.current!,
+          hl,
+          handleHighlightClick
+        );
+      });
+    }
 
-    sectionHighlights.forEach((hl) => {
-      applyHighlightToTree(
-        bodyRef.current!,
-        hl,
-        handleHighlightClick
-      );
-    });
+    // Preserva a posição exata de leitura ao recarregar a seção dinamicamente
+    const el = containerRef.current;
+    if (el && lastKnownScrollTop.current > 0) {
+      el.scrollTop = lastKnownScrollTop.current;
+    }
   }, [section.id, section.content, highlights]);
 
   // Listener de Scroll para atualizar o progresso de leitura
@@ -129,6 +137,8 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     if (isRestoringScroll.current) return;
     const el = containerRef.current;
     if (!el) return;
+
+    lastKnownScrollTop.current = el.scrollTop;
 
     if (activeNotePopover) {
       setActiveNotePopover(null);
@@ -212,6 +222,69 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
   };
 
+  const handleContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+
+    // 1. Interceptação de clique no botão de reprodução inline do YouTube
+    const playInlineBtn = target.closest('[data-action="play-inline"]');
+    if (playInlineBtn) {
+      e.preventDefault();
+      const card = target.closest('.reader-yt-card') as HTMLElement;
+      if (card) {
+        const embedUrl = card.getAttribute('data-embed-url');
+        if (embedUrl && isAllowedEmbedUrl(embedUrl)) {
+          const videoContainer = card.firstElementChild as HTMLElement;
+          if (videoContainer) {
+            // Constrói o iframe via DOM (nunca via innerHTML): mesmo um valor
+            // inesperado aqui não é parseado como HTML.
+            videoContainer.textContent = '';
+            const iframe = document.createElement('iframe');
+            iframe.src = `${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`;
+            iframe.className = 'w-full h-full border-0';
+            iframe.setAttribute(
+              'allow',
+              'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
+            );
+            iframe.setAttribute('allowfullscreen', '');
+            iframe.title = 'Vídeo do YouTube';
+            videoContainer.appendChild(iframe);
+          }
+        }
+      }
+      return;
+    }
+
+    // 2. Interceptação de links gerais (âncoras internas e links externos)
+    const anchor = target.closest('a') as HTMLAnchorElement | null;
+    if (anchor && anchor.getAttribute('href')) {
+      const href = anchor.getAttribute('href')!;
+
+      // Âncora interna do documento (ex: #pdf-page-2 ou #heading-1)
+      if (href.startsWith('#')) {
+        e.preventDefault();
+        const anchorId = href.slice(1);
+        const targetElement =
+          containerRef.current?.querySelector(`#${CSS.escape(anchorId)}`) ||
+          containerRef.current?.querySelector(`[name="${CSS.escape(anchorId)}"]`);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth' });
+        }
+        return;
+      }
+
+      // Link externo (YouTube, arXiv, GitHub, etc.)
+      if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:')) {
+        e.preventDefault();
+        if (window.cadernoAPI?.openExternal) {
+          window.cadernoAPI.openExternal(href);
+        } else {
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
+        return;
+      }
+    }
+  };
+
   return (
     <main
       ref={containerRef}
@@ -245,6 +318,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         {/* Corpo Renderizado com Destaques Dinâmicos */}
         <div
           ref={bodyRef}
+          onClick={handleContentClick}
           className="space-y-4"
         />
       </div>
