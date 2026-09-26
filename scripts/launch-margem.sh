@@ -10,13 +10,13 @@ if [ -x "$DIR/dist-package/linux-unpacked/caderno-reader" ]; then
 fi
 
 # Fallback 1: executa o AppImage do repositório
-if [ -f "$DIR/dist-package/Margem-1.0.0.AppImage" ]; then
-  exec "$DIR/dist-package/Margem-1.0.0.AppImage" "$@"
+if [ -f "$DIR/dist-package/Margem-1.0.1.AppImage" ]; then
+  exec "$DIR/dist-package/Margem-1.0.1.AppImage" "$@"
 fi
 
 # Fallback 2: executa o AppImage em ~/Applications
-if [ -f "$HOME/Applications/Margem-1.0.0.AppImage" ]; then
-  exec "$HOME/Applications/Margem-1.0.0.AppImage" "$@"
+if [ -f "$HOME/Applications/Margem-1.0.1.AppImage" ]; then
+  exec "$HOME/Applications/Margem-1.0.1.AppImage" "$@"
 fi
 
 echo "Erro: Nenhum executável do Margem encontrado." >&2
