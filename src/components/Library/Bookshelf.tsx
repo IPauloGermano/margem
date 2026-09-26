@@ -96,7 +96,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <span className="font-code text-xs text-[var(--accent-signal)] tracking-widest uppercase font-semibold">
-                Caderno de Leitura · Desktop
+                Margem · Desktop
               </span>
               <h1 className="font-editorial text-4xl sm:text-5xl font-normal text-[var(--text-primary)] tracking-tight mt-1">
                 Na Estante

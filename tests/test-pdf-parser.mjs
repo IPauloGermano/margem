@@ -27,7 +27,7 @@ ET
 BT
 /F2 12 Tf
 72 660 Td
-(Este e o primeiro paragrafo demonstrando o reflow tipografico do Caderno Reader.) Tj
+(Este e o primeiro paragrafo demonstrando o reflow tipografico do Margem.) Tj
 ET
 BT
 /F2 12 Tf
@@ -72,7 +72,7 @@ startxref
     throw new Error('Texto do cabeçalho ausente no conteúdo extraído.');
   }
 
-  if (!firstSection.rawText.includes('reflow tipografico do Caderno Reader')) {
+  if (!firstSection.rawText.includes('reflow tipografico do Margem')) {
     throw new Error('Texto do corpo ausente no conteúdo extraído.');
   }
 

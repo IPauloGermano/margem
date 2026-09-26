@@ -44,7 +44,7 @@
   },
   "build": {
     "appId": "dev.paulogerm.caderno-reader",
-    "productName": "Caderno Reader",
+    "productName": "Margem",
     "directories": {
       "output": "dist-package"
     },

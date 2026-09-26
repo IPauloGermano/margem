@@ -47,7 +47,7 @@ export function generateMarkdownExport(book: Book, highlights: Highlight[]): str
   lines.push(`total_highlights: ${highlights.length}`);
   lines.push('tags:');
   lines.push('  - leitura');
-  lines.push('  - caderno-reader');
+  lines.push('  - margem');
   lines.push('  - zettelkasten');
   lines.push('---');
   lines.push('');
@@ -58,7 +58,7 @@ export function generateMarkdownExport(book: Book, highlights: Highlight[]): str
   lines.push(`> **Autor:** ${book.author || 'Autor desconhecido'}`);
   lines.push(`> **Progresso da Leitura:** ${Math.round(book.progress?.scrollPercentage || 0)}%`);
   lines.push(`> **Total de Destaques:** ${highlights.length}`);
-  lines.push(`> **Exportado em:** ${formattedDate} às ${formattedTime} via *Caderno Reader*`);
+  lines.push(`> **Exportado em:** ${formattedDate} às ${formattedTime} via *Margem*`);
   lines.push('');
   lines.push('---');
   lines.push('');

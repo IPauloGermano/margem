@@ -1,4 +1,4 @@
-# Caderno Reader 📖
+# Margem 📖
 
 > Aplicativo desktop de leitura tipográfica para Linux (empacotado em AppImage), construído com **Electron**, **React 18**, **TypeScript**, **Tailwind CSS v4** e **Vite**, com estética visual e rigor editorial inspirados no ecossistema do **PauloGerm.dev**.
 
@@ -6,7 +6,7 @@
 
 ## 1. Visão Geral e Filosofia de Design
 
-O **Caderno Reader** foi projetado para transformar a leitura de textos técnicos, anotações de estudo e livros digitais em uma experiência calma, ergonômica e focada.
+O **Margem** foi projetado para transformar a leitura de textos técnicos, anotações de estudo e livros digitais em uma experiência calma, ergonômica e focada.
 
 ### Elementos Visuais e Conceitos Herdados da UI:
 1. **Paleta Warm Charcoal & E-Ink:**
@@ -126,12 +126,12 @@ npm run package:appimage
 ```
 
 O binário executável será gerado em:
-`dist-package/Caderno Reader-1.0.0.AppImage`
+`dist-package/Margem-1.0.0.AppImage`
 
 Para executá-lo diretamente no Linux:
 ```bash
-chmod +x "dist-package/Caderno Reader-1.0.0.AppImage"
-./dist-package/Caderno\ Reader-1.0.0.AppImage
+chmod +x "dist-package/Margem-1.0.0.AppImage"
+./dist-package/Margem-1.0.0.AppImage
 ```
 
 ---
