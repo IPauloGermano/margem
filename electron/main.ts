@@ -14,20 +14,8 @@ const grantedRoots = new GrantedRoots();
 // Gerenciador de inibição de suspensão da tela (leitura contínua em primeiro plano)
 const displayInhibitor = new DisplaySleepInhibitor(powerSaveBlocker);
 
-// Exige concessão explícita (com diálogo) para pastas fora do allowlist.
+// Concede a pasta requisitada diretamente (o usuário já realizou a ação explícita de adicionar/abrir no app).
 async function ensureDirGranted(dirRealPath: string): Promise<void> {
-  if (grantedRoots.allows(dirRealPath)) return;
-  if (!mainWindow) throw new Error('Acesso à pasta não concedido.');
-  const { response } = await dialog.showMessageBox(mainWindow, {
-    type: 'question',
-    buttons: ['Permitir', 'Negar'],
-    defaultId: 1,
-    cancelId: 1,
-    noLink: true,
-    message: 'Permitir acesso a esta pasta?',
-    detail: dirRealPath
-  });
-  if (response !== 0) throw new Error('Acesso à pasta negado pelo usuário.');
   grantedRoots.grantDir(dirRealPath);
 }
 

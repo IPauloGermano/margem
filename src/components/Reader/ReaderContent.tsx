@@ -158,6 +158,46 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       });
     }
 
+    // Renderização dinâmica dos diagramas Mermaid
+    const mermaidContainers = bodyRef.current.querySelectorAll<HTMLElement>('.reader-mermaid-container');
+    if (mermaidContainers.length > 0) {
+      import('mermaid')
+        .then(({ default: mermaid }) => {
+          const isDarkTheme = preferences.theme === 'dark' || preferences.theme === 'oled';
+          const mermaidTheme = isDarkTheme ? 'dark' : (preferences.theme === 'sepia' ? 'neutral' : 'default');
+
+          mermaid.initialize({
+            startOnLoad: false,
+            securityLevel: 'strict',
+            theme: mermaidTheme,
+            fontFamily: preferences.fontFamily === 'mono' ? 'monospace' : 'inherit'
+          });
+
+          mermaidContainers.forEach(async (container, idx) => {
+            const rawCodeEncoded = container.getAttribute('data-mermaid');
+            const target = container.querySelector<HTMLElement>('.mermaid-target');
+            if (!rawCodeEncoded || !target) return;
+
+            try {
+              const rawCode = decodeURIComponent(rawCodeEncoded);
+              const uniqueId = `mermaid-svg-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`;
+              const { svg } = await mermaid.render(uniqueId, rawCode);
+              target.innerHTML = svg;
+            } catch (err: any) {
+              console.warn('Erro ao renderizar diagrama Mermaid:', err);
+              const fallback = container.querySelector<HTMLElement>('.mermaid-fallback');
+              if (fallback) {
+                fallback.classList.remove('hidden');
+              }
+              target.innerHTML = `<span class="text-xs text-[var(--accent-signal)] font-mono">[Diagrama com erro de sintaxe]</span>`;
+            }
+          });
+        })
+        .catch((err) => {
+          console.warn('Não foi possível carregar o motor Mermaid:', err);
+        });
+    }
+
     // Aplicação dos destaques de busca em tempo real no corpo da leitura
     if (searchQuery && searchQuery.trim().length >= 2) {
       const { activeElement } = applySearchHighlightsToTree(
@@ -175,7 +215,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         el.scrollTop = lastKnownScrollTop.current;
       }
     }
-  }, [section.id, section.content, highlights, searchQuery, activeSearchLocalIndex]);
+  }, [section.id, section.content, highlights, searchQuery, activeSearchLocalIndex, preferences.theme, preferences.fontFamily]);
 
   // Listener de Scroll para atualizar o progresso de leitura
   const handleScroll = () => {

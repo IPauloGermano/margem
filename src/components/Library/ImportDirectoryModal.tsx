@@ -53,7 +53,8 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
           if (res.items.length === 0) {
             setError(`Nenhum documento ou livro encontrado na pasta "${res.folderPath}".`);
           } else {
-            setScannedResult(res);
+            await onImportResult(res.folderPath, res.items);
+            onClose();
           }
         }
       } catch (err: any) {

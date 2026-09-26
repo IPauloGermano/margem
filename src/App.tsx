@@ -444,6 +444,30 @@ export const App: React.FC = () => {
     e.target.value = '';
   };
 
+  // Abre a pasta diretamente sem telas ou diálogos de confirmação intermediários
+  const handleOpenFolder = async () => {
+    if (window.cadernoAPI?.openDirectoryDialog) {
+      try {
+        setIsLoading(true);
+        setLoadingMessage('Selecionando pasta...');
+        const res = await window.cadernoAPI.openDirectoryDialog();
+        if (res) {
+          if (res.items.length === 0) {
+            setErrorMessage(`Nenhum documento ou livro encontrado na pasta "${res.folderPath}".`);
+          } else {
+            await handleImportResult(res.folderPath, res.items);
+          }
+        }
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Erro ao selecionar pasta.');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setIsFolderModalOpen(true);
+    }
+  };
+
   const handleDropFiles = async (fileList: FileList) => {
     if (fileList.length === 0) return;
 
@@ -543,7 +567,7 @@ export const App: React.FC = () => {
         <TitleBar
           activeBook={activeBook}
           onOpenFile={handleOpenFile}
-          onOpenFolderModal={() => setIsFolderModalOpen(true)}
+          onOpenFolderModal={handleOpenFolder}
         />
       )}
 
@@ -633,7 +657,7 @@ export const App: React.FC = () => {
               books={books}
               onOpenBook={handleOpenBook}
               onOpenFile={handleOpenFile}
-              onOpenFolderModal={() => setIsFolderModalOpen(true)}
+              onOpenFolderModal={handleOpenFolder}
               onDeleteBook={handleDeleteBook}
               onDropFiles={handleDropFiles}
               onLoadSample={loadSampleContent}

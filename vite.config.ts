@@ -24,6 +24,12 @@ export default defineConfig({
           if (id.includes('marked') || id.includes('dompurify')) {
             return 'vendor-parser-utils';
           }
+          if (id.includes('katex')) {
+            return 'vendor-katex';
+          }
+          if (id.includes('mermaid')) {
+            return 'vendor-mermaid';
+          }
           if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
             return 'vendor-react';
           }

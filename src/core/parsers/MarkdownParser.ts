@@ -1,8 +1,70 @@
 import { Marked } from 'marked';
+import katex from 'katex';
 import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, TableOfContentsItem } from '../types/index.ts';
 import { sanitizeHtml } from './sanitize.ts';
 import { transformContentMediaLinks } from '../media/linkEngine.ts';
+
+function extractAndRenderMath(markdown: string): { processedMarkdown: string; mathMap: Map<string, string> } {
+  const mathMap = new Map<string, string>();
+  let blockCounter = 0;
+  let inlineCounter = 0;
+
+  // 1. Math em Bloco: $$ ... $$
+  let processed = markdown.replace(/\$\$([\s\S]+?)\$\$/g, (_, rawFormula) => {
+    const trimmed = rawFormula.trim();
+    if (!trimmed) return '';
+    try {
+      const rendered = katex.renderToString(trimmed, {
+        displayMode: true,
+        throwOnError: false,
+        output: 'htmlAndMathml'
+      });
+      const placeholder = `@@MATH_BLOCK_${blockCounter++}@@`;
+      mathMap.set(
+        placeholder,
+        `<div class="reader-math-block my-5 py-3 px-4 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border-rule-subtle)] overflow-x-auto flex justify-center text-center select-text">${rendered}</div>`
+      );
+      return `\n\n${placeholder}\n\n`;
+    } catch {
+      return `\n\n$$\n${trimmed}\n$$\n\n`;
+    }
+  });
+
+  // 2. Math Inline: $ ... $ (sem quebra de linha, sem escapar com \$)
+  processed = processed.replace(/(?<!\\)\$([^\$\n]+?)(?<!\\)\$/g, (match, rawFormula) => {
+    // Evita falsos positivos com valores monetários (ex: $10, $ 50, $1.500)
+    if (/^\s*\d+[\d,.]*\s*$/.test(rawFormula)) {
+      return match;
+    }
+    const trimmed = rawFormula.trim();
+    if (!trimmed) return match;
+    try {
+      const rendered = katex.renderToString(trimmed, {
+        displayMode: false,
+        throwOnError: false,
+        output: 'htmlAndMathml'
+      });
+      const placeholder = `@@MATH_INLINE_${inlineCounter++}@@`;
+      mathMap.set(
+        placeholder,
+        `<span class="reader-math-inline select-text">${rendered}</span>`
+      );
+      return placeholder;
+    } catch {
+      return match;
+    }
+  });
+
+  return { processedMarkdown: processed, mathMap };
+}
+
+function restoreMathPlaceholders(html: string, mathMap: Map<string, string>): string {
+  if (mathMap.size === 0) return html;
+  return html.replace(/@@MATH_(?:BLOCK|INLINE)_\d+@@/g, (token) => {
+    return mathMap.get(token) || token;
+  });
+}
 
 export class MarkdownParser implements DocumentParser {
   readonly format = 'md';
@@ -94,7 +156,10 @@ export class MarkdownParser implements DocumentParser {
             });
           }
 
-          // Renderiza markdown injetando id="${slug}" em cada <hN>
+          // Preprocessa expressões matemáticas antes do Marked
+          const { processedMarkdown, mathMap } = extractAndRenderMath(part);
+
+          // Renderiza markdown injetando id="${slug}" em cada <hN> e interceptando ```mermaid
           let renderHeadingIdx = 0;
           const markedInstance = new Marked();
           markedInstance.use({
@@ -104,12 +169,21 @@ export class MarkdownParser implements DocumentParser {
                 const cleanRaw = text.replace(/[*_`]/g, '').trim();
                 const slug = slugifyHeading(cleanRaw, idx, renderHeadingIdx++);
                 return `<h${depth} id="${slug}">${parsedText}</h${depth}>\n`;
+              },
+              code({ text, lang }) {
+                if (lang === 'mermaid') {
+                  const cleanText = text.trim();
+                  const encoded = encodeURIComponent(cleanText);
+                  return `<div class="reader-mermaid-container my-6 p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] overflow-x-auto flex flex-col items-center justify-center text-center select-none" data-mermaid="${encoded}"><div class="mermaid-target w-full flex justify-center"><span class="text-xs font-mono text-[var(--text-muted)] animate-pulse">Carregando diagrama...</span></div><pre class="mermaid-fallback hidden font-mono text-xs text-[var(--text-muted)]">${cleanText}</pre></div>\n`;
+                }
+                return `<pre><code class="language-${lang || 'text'}">${text}</code></pre>\n`;
               }
             }
           });
 
-          const rawHtml = String(await markedInstance.parse(part));
-          const html = transformContentMediaLinks(sanitizeHtml(rawHtml));
+          const rawHtml = String(await markedInstance.parse(processedMarkdown));
+          const withMath = restoreMathPlaceholders(rawHtml, mathMap);
+          const html = transformContentMediaLinks(sanitizeHtml(withMath));
           const words = part.trim().split(/\s+/).length;
 
           return {
@@ -141,6 +215,9 @@ export class MarkdownParser implements DocumentParser {
         });
       }
 
+      // Preprocessa expressões matemáticas antes do Marked
+      const { processedMarkdown, mathMap } = extractAndRenderMath(body);
+
       let renderHeadingIdx = 0;
       const markedInstance = new Marked();
       markedInstance.use({
@@ -150,12 +227,21 @@ export class MarkdownParser implements DocumentParser {
             const cleanRaw = text.replace(/[*_`]/g, '').trim();
             const slug = slugifyHeading(cleanRaw, 0, renderHeadingIdx++);
             return `<h${depth} id="${slug}">${parsedText}</h${depth}>\n`;
+          },
+          code({ text, lang }) {
+            if (lang === 'mermaid') {
+              const cleanText = text.trim();
+              const encoded = encodeURIComponent(cleanText);
+              return `<div class="reader-mermaid-container my-6 p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] overflow-x-auto flex flex-col items-center justify-center text-center select-none" data-mermaid="${encoded}"><div class="mermaid-target w-full flex justify-center"><span class="text-xs font-mono text-[var(--text-muted)] animate-pulse">Carregando diagrama...</span></div><pre class="mermaid-fallback hidden font-mono text-xs text-[var(--text-muted)]">${cleanText}</pre></div>\n`;
+            }
+            return `<pre><code class="language-${lang || 'text'}">${text}</code></pre>\n`;
           }
         }
       });
 
-      const rawHtml = String(await markedInstance.parse(body));
-      const html = transformContentMediaLinks(sanitizeHtml(rawHtml));
+      const rawHtml = String(await markedInstance.parse(processedMarkdown));
+      const withMath = restoreMathPlaceholders(rawHtml, mathMap);
+      const html = transformContentMediaLinks(sanitizeHtml(withMath));
       const words = body.trim().split(/\s+/).length;
       sections = [
         {

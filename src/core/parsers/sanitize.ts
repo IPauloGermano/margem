@@ -19,8 +19,29 @@ export function isAllowedEmbedUrl(url: unknown): boolean {
 // Sanitização central de HTML não confiável (Markdown cru, capítulos EPUB, reflow PDF).
 // Único ponto de configuração; parsers chamam, ReaderContent consome já limpo.
 const SANITIZE_CONFIG = {
-  USE_PROFILES: { html: true, svg: true },
-  ADD_TAGS: ['iframe', 'button'],
+  USE_PROFILES: { html: true, svg: true, mathMl: true },
+  ADD_TAGS: [
+    'iframe',
+    'button',
+    'math',
+    'semantics',
+    'mrow',
+    'mi',
+    'mo',
+    'mn',
+    'msup',
+    'msub',
+    'mfrac',
+    'mover',
+    'munder',
+    'msubsup',
+    'msqrt',
+    'mroot',
+    'mtable',
+    'mtr',
+    'mtd',
+    'annotation'
+  ],
   ADD_ATTR: [
     'allowfullscreen',
     'frameborder',
@@ -29,8 +50,12 @@ const SANITIZE_CONFIG = {
     'data-embed-url',
     'data-action',
     'data-page',
+    'data-mermaid',
     'target',
-    'rel'
+    'rel',
+    'aria-hidden',
+    'viewBox',
+    'xmlns'
   ],
   FORBID_TAGS: [
     'style',
