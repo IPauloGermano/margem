@@ -1,28 +1,62 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, Copy, Edit3, Quote, Trash2, X } from 'lucide-react';
 import { Highlight, HighlightColor } from '../../core/types';
 
 interface NotePopoverProps {
-  position: { top: number; left: number };
+  position: { top: number; bottom?: number; left: number };
   highlight: Highlight;
   onEdit: (highlight: Highlight) => void;
   onDeleteNote: (highlightId: string) => void;
   onClose: () => void;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
 }
+
+const calculatePopoverCoords = (
+  position: { top: number; bottom?: number; left: number },
+  width: number,
+  estimatedHeight: number
+) => {
+  const MIN_TOP = 68;
+  const MAX_BOTTOM = window.innerHeight - 68;
+  const SAFE_GAP = 8;
+
+  const targetTop = position.top;
+  const targetBottom = position.bottom ?? (position.top + 24);
+
+  const spaceAbove = targetTop - MIN_TOP;
+  const spaceBelow = MAX_BOTTOM - targetBottom;
+
+  let top: number;
+  if (spaceAbove >= estimatedHeight + SAFE_GAP) {
+    top = targetTop - estimatedHeight - SAFE_GAP;
+  } else if (spaceBelow >= estimatedHeight + SAFE_GAP) {
+    top = targetBottom + SAFE_GAP;
+  } else {
+    top = spaceBelow >= spaceAbove ? targetBottom + SAFE_GAP : targetTop - estimatedHeight - SAFE_GAP;
+  }
+
+  top = Math.max(MIN_TOP, Math.min(MAX_BOTTOM - estimatedHeight, top));
+
+  let left = position.left - width / 2;
+  left = Math.max(16, Math.min(window.innerWidth - width - 16, left));
+
+  return { top: Math.round(top), left: Math.round(left) };
+};
 
 export const NotePopover: React.FC<NotePopoverProps> = ({
   position,
   highlight,
   onEdit,
   onDeleteNote,
-  onClose,
-  onMouseEnter,
-  onMouseLeave
+  onClose
 }) => {
   const [copied, setCopied] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const popoverWidth = 340;
+
+  // Coordenadas calculadas de forma síncrona logo na inicialização para evitar pulos de layout
+  const [coords, setCoords] = useState<{ top: number; left: number }>(() =>
+    calculatePopoverCoords(position, popoverWidth, 220)
+  );
 
   const colorDotClasses: Record<HighlightColor, string> = {
     amber: 'bg-amber-500',
@@ -36,7 +70,15 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
     muted: 'Cinza'
   };
 
-  // Fecha ao pressionar Escape ou clicar fora
+  // Ajuste fino baseado na altura real renderizada sem trocar de lado bruscamente
+  useLayoutEffect(() => {
+    if (!popoverRef.current) return;
+    const rect = popoverRef.current.getBoundingClientRect();
+    const refined = calculatePopoverCoords(position, popoverWidth, rect.height);
+    setCoords(refined);
+  }, [position.top, position.bottom, position.left, highlight.id, highlight.note]);
+
+  // Fecha ao pressionar Escape ou clicar fora (com proteção contra cliques de toggle na própria marcação)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -45,16 +87,21 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
     };
 
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        onClose();
+      if (popoverRef.current && popoverRef.current.contains(e.target as Node)) {
+        return;
       }
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest(`[data-highlight-id="${highlight.id}"]`)) {
+        return;
+      }
+      onClose();
     };
 
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('touchstart', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
-    }, 50);
+    }, 100);
 
     return () => {
       clearTimeout(timer);
@@ -62,7 +109,7 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose]);
+  }, [onClose, highlight.id]);
 
   const handleCopy = async () => {
     const textToCopy = `> "${highlight.text}"\n\n**Nota de Margem:** ${highlight.note || ''}`;
@@ -75,29 +122,19 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
     }
   };
 
-  // Ajusta posicionamento na tela (garante que caiba na viewport)
-  const popoverWidth = 340;
-  const left = Math.max(16, Math.min(window.innerWidth - popoverWidth - 16, position.left - popoverWidth / 2));
-  const isNearTop = position.top < 180;
-  const top = isNearTop ? position.top + 30 : position.top - 12;
-  const transform = isNearTop ? 'none' : 'translateY(-100%)';
-
   return (
     <div
       ref={popoverRef}
       role="dialog"
       aria-label="Nota de Margem"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
       style={{
         position: 'fixed',
-        top: `${top}px`,
-        left: `${left}px`,
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
         width: `${popoverWidth}px`,
-        transform,
         zIndex: 55
       }}
-      className="animate-in fade-in zoom-in-95 duration-150 rounded-xl border border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl p-3.5 text-[var(--text-primary)] select-none backdrop-blur-md space-y-2.5 max-w-[calc(100vw-32px)] box-border"
+      className="animate-in fade-in zoom-in-95 duration-100 rounded-xl border border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl p-3.5 text-[var(--text-primary)] select-none backdrop-blur-md space-y-2.5 max-w-[calc(100vw-32px)] box-border"
     >
       {/* Top Header do Card de Nota */}
       <div className="flex items-center justify-between border-b border-[var(--border-rule-subtle)] pb-2 text-[11px] font-code">
@@ -163,7 +200,7 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
       </div>
 
       {/* Corpo da Nota do Usuário */}
-      <div className="bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] rounded-md p-2.5 text-xs text-[var(--text-primary)] leading-relaxed font-sans whitespace-pre-wrap selection:bg-[var(--accent-signal)]/30 max-h-52 overflow-y-auto break-words [overflow-wrap:anywhere]">
+      <div className="bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] rounded-lg p-2.5 text-xs text-[var(--text-primary)] leading-relaxed font-sans whitespace-pre-wrap selection:bg-[var(--accent-signal)]/30 max-h-36 overflow-y-auto break-words [overflow-wrap:anywhere] [scrollbar-width:thin] [scrollbar-color:var(--border-rule)_transparent]">
         {highlight.note || <span className="italic text-[var(--text-muted)]">Sem anotação escrita.</span>}
       </div>
 

@@ -17,7 +17,7 @@ interface ReaderContentProps {
 
 interface ToolbarState {
   isOpen: boolean;
-  position: { top: number; left: number };
+  position: { top: number; bottom?: number; left: number };
   selectedText: string;
   highlightId?: string;
   activeColor: HighlightColor;
@@ -41,12 +41,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
   const [toolbarState, setToolbarState] = useState<ToolbarState | null>(null);
   const [activeNotePopover, setActiveNotePopover] = useState<{
-    position: { top: number; left: number };
+    position: { top: number; bottom?: number; left: number };
     highlight: Highlight;
   } | null>(null);
-
-  const hoverTimerRef = useRef<any>(null);
-  const leaveTimerRef = useRef<any>(null);
 
   // Mapeamento de famílias de fonte
   const fontClassMap = {
@@ -83,32 +80,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
   }, [section.id, targetAnchor]);
 
-  const handleHighlightHover = (hl: Highlight, rect: DOMRect, isEnter: boolean) => {
-    if (toolbarState?.isOpen) return;
-
-    if (isEnter) {
-      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-      hoverTimerRef.current = setTimeout(() => {
-        setActiveNotePopover({
-          position: { top: rect.top, left: rect.left + rect.width / 2 },
-          highlight: hl
-        });
-      }, 140);
-    } else {
-      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-      leaveTimerRef.current = setTimeout(() => {
-        setActiveNotePopover(null);
-      }, 250);
-    }
-  };
-
   const handleHighlightClick = (clickedHl: Highlight, rect: DOMRect) => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-
     if (clickedHl.note) {
+      // Toggle: se clicar no mesmo destaque já aberto, fecha
+      if (activeNotePopover?.highlight.id === clickedHl.id) {
+        setActiveNotePopover(null);
+        return;
+      }
       setActiveNotePopover({
-        position: { top: rect.top, left: rect.left + rect.width / 2 },
+        position: { top: rect.top, bottom: rect.bottom, left: rect.left + rect.width / 2 },
         highlight: clickedHl
       });
       setToolbarState(null);
@@ -116,7 +96,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       setActiveNotePopover(null);
       setToolbarState({
         isOpen: true,
-        position: { top: rect.top, left: rect.left + rect.width / 2 },
+        position: { top: rect.top, bottom: rect.bottom, left: rect.left + rect.width / 2 },
         selectedText: clickedHl.text,
         highlightId: clickedHl.id,
         activeColor: clickedHl.color,
@@ -139,8 +119,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       applyHighlightToTree(
         bodyRef.current!,
         hl,
-        handleHighlightClick,
-        handleHighlightHover
+        handleHighlightClick
       );
     });
   }, [section.id, section.content, highlights]);
@@ -150,6 +129,13 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     if (isRestoringScroll.current) return;
     const el = containerRef.current;
     if (!el) return;
+
+    if (activeNotePopover) {
+      setActiveNotePopover(null);
+    }
+    if (toolbarState) {
+      setToolbarState(null);
+    }
 
     const scrollHeight = el.scrollHeight - el.clientHeight;
     if (scrollHeight <= 0) {
@@ -183,6 +169,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         isOpen: true,
         position: {
           top: rect.top,
+          bottom: rect.bottom,
           left: rect.left + rect.width / 2
         },
         selectedText: text,
@@ -290,14 +277,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
             setActiveNotePopover(null);
           }}
           onClose={() => setActiveNotePopover(null)}
-          onMouseEnter={() => {
-            if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-          }}
-          onMouseLeave={() => {
-            leaveTimerRef.current = setTimeout(() => {
-              setActiveNotePopover(null);
-            }, 250);
-          }}
         />
       )}
 
@@ -323,8 +302,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 function applyHighlightToTree(
   root: HTMLElement,
   hl: Highlight,
-  onHighlightClick: (hl: Highlight, rect: DOMRect) => void,
-  onHighlightHover: (hl: Highlight, rect: DOMRect, isEnter: boolean) => void
+  onHighlightClick: (hl: Highlight, rect: DOMRect) => void
 ) {
   const target = hl.text.trim();
   if (!target) return;
@@ -345,14 +323,9 @@ function applyHighlightToTree(
       mark.dataset.highlightId = hl.id;
       if (hl.note) {
         mark.dataset.hasNote = 'true';
-        mark.addEventListener('mouseenter', () => {
-          const rect = mark.getBoundingClientRect();
-          onHighlightHover(hl, rect, true);
-        });
-        mark.addEventListener('mouseleave', () => {
-          const rect = mark.getBoundingClientRect();
-          onHighlightHover(hl, rect, false);
-        });
+        mark.title = 'Nota de reflexão · Clique para abrir';
+      } else {
+        mark.title = 'Trecho grifado · Clique para gerenciar';
       }
 
       mark.addEventListener('click', (e) => {

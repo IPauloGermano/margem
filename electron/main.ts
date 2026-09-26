@@ -8,6 +8,8 @@ let mainWindow: BrowserWindow | null = null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
+app.setName('Margem');
+
 function createWindow() {
   const windowIcon = path.join(__dirname, '../dist/icon.png');
 

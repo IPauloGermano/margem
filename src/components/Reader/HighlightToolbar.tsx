@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, Copy, MessageSquare, Quote, Trash2, X } from 'lucide-react';
 import { HighlightColor } from '../../core/types';
 
 interface HighlightToolbarProps {
-  position: { top: number; left: number };
+  position: { top: number; bottom?: number; left: number };
   selectedText: string;
   existingNote?: string;
   activeColor?: HighlightColor;
@@ -27,6 +27,52 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
   const [copied, setCopied] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const toolbarWidth = isNoteInputOpen ? 360 : onRemoveHighlight ? 280 : 240;
+
+  const calculateToolbarCoords = (
+    pos: { top: number; bottom?: number; left: number },
+    width: number,
+    estimatedHeight: number
+  ) => {
+    const MIN_TOP = 68;
+    const MAX_BOTTOM = window.innerHeight - 68;
+    const SAFE_GAP = 8;
+
+    const targetTop = pos.top;
+    const targetBottom = pos.bottom ?? (pos.top + 24);
+
+    const spaceAbove = targetTop - MIN_TOP;
+    const spaceBelow = MAX_BOTTOM - targetBottom;
+
+    let finalTop: number;
+    if (spaceAbove >= estimatedHeight + SAFE_GAP) {
+      finalTop = targetTop - estimatedHeight - SAFE_GAP;
+    } else if (spaceBelow >= estimatedHeight + SAFE_GAP) {
+      finalTop = targetBottom + SAFE_GAP;
+    } else {
+      finalTop = spaceBelow >= spaceAbove ? targetBottom + SAFE_GAP : targetTop - estimatedHeight - SAFE_GAP;
+    }
+
+    finalTop = Math.max(MIN_TOP, Math.min(MAX_BOTTOM - estimatedHeight, finalTop));
+
+    let finalLeft = pos.left - width / 2;
+    finalLeft = Math.max(16, Math.min(window.innerWidth - width - 16, finalLeft));
+
+    return { top: Math.round(finalTop), left: Math.round(finalLeft) };
+  };
+
+  const [coords, setCoords] = useState<{ top: number; left: number }>(() =>
+    calculateToolbarCoords(position, toolbarWidth, isNoteInputOpen ? 240 : 54)
+  );
+
+  // Posicionamento inteligente baseado na altura real renderizada da toolbar
+  useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const refined = calculateToolbarCoords(position, toolbarWidth, rect.height);
+    setCoords(refined);
+  }, [position.top, position.bottom, position.left, isNoteInputOpen, onRemoveHighlight, toolbarWidth]);
 
   useEffect(() => {
     if (isNoteInputOpen) {
@@ -110,14 +156,6 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
     }
   };
 
-  // Garante posicionamento inteligente na tela com margens seguras da viewport
-  const toolbarWidth = isNoteInputOpen ? 360 : onRemoveHighlight ? 280 : 240;
-  const halfWidth = toolbarWidth / 2;
-  const left = Math.max(halfWidth + 16, Math.min(window.innerWidth - halfWidth - 16, position.left));
-  const isNearTop = position.top < 220;
-  const top = isNearTop ? position.top + 30 : position.top - 12;
-  const transform = isNearTop ? 'translateX(-50%)' : 'translate(-50%, -100%)';
-
   return (
     <div
       ref={containerRef}
@@ -125,10 +163,9 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
       aria-label="Opções de Destaque e Anotação"
       style={{
         position: 'fixed',
-        top: `${top}px`,
-        left: `${left}px`,
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
         width: `${toolbarWidth}px`,
-        transform,
         zIndex: 60
       }}
       className="animate-in fade-in zoom-in-95 duration-150 shadow-2xl rounded-2xl border border-[var(--border-rule)] bg-[var(--bg-surface)] p-2 text-[var(--text-primary)] font-sans select-none backdrop-blur-md transition-all max-w-[calc(100vw-32px)] box-border"
