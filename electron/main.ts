@@ -1,10 +1,31 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
-import { Dirent } from 'fs';
+import { Dirent, watch, FSWatcher } from 'fs';
 import os from 'os';
+import { GrantedRoots, MAX_READ_BYTES, assertSafePathString, realpathSafe } from './pathScope';
 
 let mainWindow: BrowserWindow | null = null;
+
+// Pastas que o usuário concedeu nesta sessão (diálogos ou confirmações).
+const grantedRoots = new GrantedRoots();
+
+// Exige concessão explícita (com diálogo) para pastas fora do allowlist.
+async function ensureDirGranted(dirRealPath: string): Promise<void> {
+  if (grantedRoots.allows(dirRealPath)) return;
+  if (!mainWindow) throw new Error('Acesso à pasta não concedido.');
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    buttons: ['Permitir', 'Negar'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+    message: 'Permitir acesso a esta pasta?',
+    detail: dirRealPath
+  });
+  if (response !== 0) throw new Error('Acesso à pasta negado pelo usuário.');
+  grantedRoots.grantDir(dirRealPath);
+}
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
@@ -12,6 +33,9 @@ app.setName('Margem');
 
 function createWindow() {
   const windowIcon = path.join(__dirname, '../dist/icon.png');
+
+  // Remove o menu nativo padrão do Electron (elimina 'File Edit View Window Help')
+  Menu.setApplicationMenu(null);
 
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -21,13 +45,59 @@ function createWindow() {
     title: 'Margem',
     icon: windowIcon,
     backgroundColor: '#1C1B19',
-    frame: true,
-    titleBarStyle: 'default',
+    frame: false,
+    titleBarStyle: 'hidden',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
+    }
+  });
+
+  // Notificações de ciclo de vida e estado da janela para o renderer
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window:maximizedChange', true);
+  });
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window:maximizedChange', false);
+  });
+
+  mainWindow.on('focus', () => {
+    mainWindow?.webContents.send('window:focusChange', true);
+  });
+
+  mainWindow.on('blur', () => {
+    mainWindow?.webContents.send('window:focusChange', false);
+  });
+
+  if (isDev) {
+    mainWindow.webContents.on('before-input-event', (_, input) => {
+      if (input.control && input.key.toLowerCase() === 'r') {
+        mainWindow?.reload();
+      }
+      if (input.control && input.shift && input.key.toLowerCase() === 'i') {
+        mainWindow?.webContents.toggleDevTools();
+      }
+    });
+  }
+
+  // Intercepta e abre links externos no navegador padrão do sistema operacional
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const appUrl = isDev && process.env.VITE_DEV_SERVER_URL ? process.env.VITE_DEV_SERVER_URL : '';
+    const isInternal = appUrl ? url.startsWith(appUrl) : url.startsWith('file://');
+    if (!isInternal && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:'))) {
+      event.preventDefault();
+      shell.openExternal(url);
     }
   });
 
@@ -38,6 +108,7 @@ function createWindow() {
   }
 
   mainWindow.on('closed', () => {
+    stopAllWatchers();
     mainWindow = null;
   });
 }
@@ -331,6 +402,7 @@ ipcMain.handle('dialog:openFile', async () => {
   }
 
   const filePath = result.filePaths[0];
+  grantedRoots.grantFile(await realpathSafe(filePath));
   const stat = await fs.stat(filePath);
   const buffer = await fs.readFile(filePath);
   const filename = path.basename(filePath);
@@ -360,6 +432,7 @@ ipcMain.handle('dialog:openDirectory', async () => {
   }
 
   const folderPath = result.filePaths[0];
+  grantedRoots.grantDir(await realpathSafe(folderPath));
   const entries = await fs.readdir(folderPath, { withFileTypes: true });
 
   // Se a pasta selecionada for ela mesma um livro composto (.book ou capítulos diretos):
@@ -382,11 +455,13 @@ ipcMain.handle('dialog:openDirectory', async () => {
 });
 
 ipcMain.handle('directory:scanPath', async (_, inputPath: string) => {
-  let resolvedPath = inputPath.trim();
-  if (resolvedPath.startsWith('~')) {
-    resolvedPath = path.join(os.homedir(), resolvedPath.slice(1));
+  const cleaned = assertSafePathString(inputPath);
+  let pre = cleaned;
+  if (pre.startsWith('~')) {
+    pre = path.join(os.homedir(), pre.slice(1));
   }
-  resolvedPath = path.resolve(resolvedPath);
+  let resolvedPath = await realpathSafe(pre);
+  await ensureDirGranted(resolvedPath);
 
   let stat = await fs.stat(resolvedPath);
   // Se o caminho apontar diretamente para o arquivo .book ou outro arquivo dentro da pasta
@@ -421,13 +496,17 @@ ipcMain.handle('directory:scanPath', async (_, inputPath: string) => {
 
 ipcMain.handle('file:readByPath', async (_, filePath: string) => {
   try {
-    const stat = await fs.stat(filePath);
-    const buffer = await fs.readFile(filePath);
-    const filename = path.basename(filePath);
-    const ext = path.extname(filePath).replace('.', '').toLowerCase();
+    const realPath = await realpathSafe(assertSafePathString(filePath));
+    const stat = await fs.stat(realPath);
+    if (!stat.isFile()) throw new Error('O caminho não é um arquivo.');
+    if (stat.size > MAX_READ_BYTES) throw new Error('Arquivo excede o limite de leitura.');
+    await ensureDirGranted(path.dirname(realPath));
+    const buffer = await fs.readFile(realPath);
+    const filename = path.basename(realPath);
+    const ext = path.extname(realPath).replace('.', '').toLowerCase();
 
     return {
-      filePath,
+      filePath: realPath,
       filename,
       ext,
       size: stat.size,
@@ -437,6 +516,174 @@ ipcMain.handle('file:readByPath', async (_, filePath: string) => {
     console.error('Error reading file by path:', err);
     throw new Error(`Falha ao ler arquivo: ${err.message}`);
   }
+});
+
+ipcMain.handle('shell:openExternal', async (_, url: string) => {
+  if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:'))) {
+    await shell.openExternal(url);
+    return true;
+  }
+  return false;
+});
+
+// Handlers de controle da janela desktop customizada
+ipcMain.handle('window:minimize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  win?.minimize();
+});
+
+ipcMain.handle('window:toggleMaximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+    return win.isMaximized();
+  }
+  return false;
+});
+
+ipcMain.handle('window:close', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  win?.close();
+});
+
+ipcMain.handle('window:isMaximized', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return win?.isMaximized() ?? false;
+});
+
+// =========================================================================
+// 3. Sincronização Dinâmica de Pastas e Arquivos (Folder Watcher / Auto-Reload)
+// =========================================================================
+const activeWatchers = new Map<string, FSWatcher>();
+const watcherDebounceTimers = new Map<string, NodeJS.Timeout>();
+
+function handleWatchedFileChange(rootWatchedPath: string, targetPath: string, eventType: string, filename?: string) {
+  const fullChangedPath = filename ? path.join(targetPath, filename) : targetPath;
+  const debounceKey = `${rootWatchedPath}:${fullChangedPath}`;
+
+  const existingTimer = watcherDebounceTimers.get(debounceKey);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+
+  // Debounce de 180ms para agregar múltiplos salvamentos atômicos de editores externos (VS Code, Neovim, Obsidian)
+  const timer = setTimeout(() => {
+    watcherDebounceTimers.delete(debounceKey);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('watcher:changed', {
+        targetPath: rootWatchedPath,
+        changedPath: fullChangedPath,
+        filename: filename || path.basename(fullChangedPath),
+        eventType
+      });
+    }
+  }, 180);
+
+  watcherDebounceTimers.set(debounceKey, timer);
+}
+
+async function addWatchersRecursive(rootWatchedPath: string, currentPath: string) {
+  try {
+    const watcher = watch(currentPath, (eventType, filename) => {
+      handleWatchedFileChange(rootWatchedPath, currentPath, eventType, filename || undefined);
+    });
+    watcher.on('error', (err) => {
+      console.warn(`Aviso no watcher de ${currentPath}:`, err);
+    });
+    activeWatchers.set(currentPath, watcher);
+
+    const entries = await fs.readdir(currentPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+        await addWatchersRecursive(rootWatchedPath, path.join(currentPath, entry.name));
+      }
+    }
+  } catch (err) {
+    // Diretórios sem permissão de leitura são ignorados com segurança
+  }
+}
+
+async function startWatchingPath(targetPath: string): Promise<boolean> {
+  const normalized = path.resolve(targetPath);
+  stopWatchingPath(normalized);
+
+  try {
+    const stat = await fs.stat(normalized);
+    if (stat.isDirectory()) {
+      await addWatchersRecursive(normalized, normalized);
+      return true;
+    } else if (stat.isFile()) {
+      const watcher = watch(normalized, (eventType) => {
+        handleWatchedFileChange(normalized, normalized, eventType);
+      });
+      watcher.on('error', (err) => {
+        console.warn(`Aviso no watcher de ${normalized}:`, err);
+      });
+      activeWatchers.set(normalized, watcher);
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error(`Erro ao iniciar watcher em ${targetPath}:`, err);
+    return false;
+  }
+}
+
+function stopWatchingPath(targetPath: string) {
+  const normalized = path.resolve(targetPath);
+  for (const [watchedPath, watcher] of activeWatchers.entries()) {
+    if (watchedPath === normalized || watchedPath.startsWith(normalized + path.sep)) {
+      try {
+        watcher.close();
+      } catch (e) {
+        // ignore
+      }
+      activeWatchers.delete(watchedPath);
+    }
+  }
+
+  for (const [key, timer] of watcherDebounceTimers.entries()) {
+    if (key.startsWith(normalized)) {
+      clearTimeout(timer);
+      watcherDebounceTimers.delete(key);
+    }
+  }
+}
+
+function stopAllWatchers() {
+  for (const watcher of activeWatchers.values()) {
+    try {
+      watcher.close();
+    } catch (e) {
+      // ignore
+    }
+  }
+  activeWatchers.clear();
+
+  for (const timer of watcherDebounceTimers.values()) {
+    clearTimeout(timer);
+  }
+  watcherDebounceTimers.clear();
+}
+
+ipcMain.handle('watcher:watch', async (_, targetPath: string) => {
+  if (!targetPath) return false;
+  return await startWatchingPath(targetPath);
+});
+
+ipcMain.handle('watcher:unwatch', async (_, targetPath: string) => {
+  if (!targetPath) return false;
+  stopWatchingPath(targetPath);
+  return true;
+});
+
+ipcMain.handle('watcher:unwatchAll', async () => {
+  stopAllWatchers();
+  return true;
 });
 
 app.whenReady().then(() => {
