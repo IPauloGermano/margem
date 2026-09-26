@@ -36,9 +36,14 @@ async function start() {
   });
   await server.listen();
 
+  // Nunca assume porta fixa: usa a porta real obtida do servidor (Vite
+  // incrementa automaticamente quando a preferida está ocupada).
   const address = server.httpServer?.address();
-  const port = typeof address === 'object' && address ? address.port : 5173;
-  const url = `http://localhost:${port}`;
+  if (typeof address !== 'object' || address === null) {
+    await server.close();
+    throw new Error('Vite não obteve endereço local após listen(). Abortando antes de abrir o Electron.');
+  }
+  const url = `http://127.0.0.1:${address.port}`;
   console.log(`Vite rodando em ${url}. Abrindo janela Desktop do Electron...`);
 
   const electronBinary = path.join(root, 'node_modules/.bin/electron');
@@ -52,10 +57,17 @@ async function start() {
     stdio: 'inherit'
   });
 
-  electronProcess.on('close', () => {
-    server.close();
-    process.exit(0);
+  electronProcess.on('error', (err) => {
+    console.error('Falha ao iniciar o Electron:', err);
+    server.close().finally(() => process.exit(1));
   });
+
+  electronProcess.on('close', () => {
+    server.close().finally(() => process.exit(0));
+  });
+
+  process.on('SIGINT', () => electronProcess.kill('SIGINT'));
+  process.on('SIGTERM', () => electronProcess.kill('SIGTERM'));
 }
 
 start().catch((err) => {

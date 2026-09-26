@@ -2,6 +2,7 @@ import { marked } from 'marked';
 import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, TableOfContentsItem } from '../types/index.ts';
 import { sanitizeHtml } from './sanitize.ts';
+import { transformContentMediaLinks } from '../media/linkEngine.ts';
 
 export class MarkdownParser implements DocumentParser {
   readonly format = 'md';
@@ -83,7 +84,7 @@ export class MarkdownParser implements DocumentParser {
         parts.filter((p) => p.trim().length > 0).map(async (part, idx) => {
           const partTitleMatch = part.match(/^#\s+(.+)$/m);
           const partTitle = partTitleMatch ? partTitleMatch[1].trim() : `Seção ${idx + 1}`;
-          const html = sanitizeHtml(String(await marked.parse(part)));
+          const html = transformContentMediaLinks(sanitizeHtml(String(await marked.parse(part))));
           const words = part.trim().split(/\s+/).length;
 
           return {
@@ -97,7 +98,7 @@ export class MarkdownParser implements DocumentParser {
       );
     } else {
       // Seção única contínua
-      const html = sanitizeHtml(String(await marked.parse(body)));
+      const html = transformContentMediaLinks(sanitizeHtml(String(await marked.parse(body))));
       const words = body.trim().split(/\s+/).length;
       sections = [
         {

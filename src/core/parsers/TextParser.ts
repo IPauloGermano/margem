@@ -1,5 +1,6 @@
-import { DocumentParser } from './DocumentParser';
-import { DocumentSection, ParsedDocument, TableOfContentsItem } from '../types';
+import type { DocumentParser } from './DocumentParser.ts';
+import type { DocumentSection, ParsedDocument, TableOfContentsItem } from '../types/index.ts';
+import { autolinkText, transformContentMediaLinks } from '../media/linkEngine.ts';
 
 export class TextParser implements DocumentParser {
   readonly format = 'txt';
@@ -111,14 +112,16 @@ export class TextParser implements DocumentParser {
 
   private textToHtml(raw: string): string {
     const paragraphs = raw.split(/\r?\n\s*\r?\n/);
-    return paragraphs
+    const html = paragraphs
       .map((p) => {
         const trimmed = p.trim();
         if (!trimmed) return '';
         const escaped = this.escapeHtml(trimmed).replace(/\r?\n/g, '<br/>');
-        return `<p>${escaped}</p>`;
+        const linked = autolinkText(escaped);
+        return `<p>${linked}</p>`;
       })
       .filter(Boolean)
       .join('\n');
+    return transformContentMediaLinks(html);
   }
 }

@@ -8,6 +8,7 @@ import { ReaderView } from './components/Reader/ReaderView';
 import { ImportDirectoryModal } from './components/Library/ImportDirectoryModal';
 import { SAMPLE_ESSAY_MD, SAMPLE_TEXT_TXT } from './core/samples';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { TitleBar } from './components/Window/TitleBar';
 
 export const App: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
@@ -51,6 +52,78 @@ export const App: React.FC = () => {
   const handleUpdatePreferences = (updated: Partial<ReaderPreferences>) => {
     setPreferences((prev) => ({ ...prev, ...updated }));
   };
+
+  // Sincronização Dinâmica: Monitora arquivos e pastas locais para auto-reload (VS Code / Neovim / Obsidian)
+  useEffect(() => {
+    if (!activeBook || !window.cadernoAPI?.watchPath) return;
+
+    const pathToWatch = activeBook.isFolderBook || activeBook.format === 'folder'
+      ? activeBook.folderPath
+      : activeBook.filePath;
+
+    if (!pathToWatch) return;
+
+    window.cadernoAPI.watchPath(pathToWatch);
+
+    const cleanupWatcher = window.cadernoAPI.onFileChanged(async ({ targetPath, changedPath }) => {
+      console.log(`[Auto-Reload] Modificação detectada em ${changedPath || targetPath}`);
+
+      try {
+        // 1. Caso Livro Composto / Pasta
+        if (activeBook.isFolderBook || activeBook.format === 'folder') {
+          const readBufferFn = async (fPath: string): Promise<ArrayBuffer | null> => {
+            if (window.cadernoAPI?.readFileByPath && fPath) {
+              try {
+                const res = await window.cadernoAPI.readFileByPath(fPath);
+                return res.buffer;
+              } catch (e) {
+                console.warn(`Falha ao reler ${fPath}:`, e);
+              }
+            }
+            return (await db.getCachedFileBuffer(`${activeBook.id}:${fPath}`)) || null;
+          };
+
+          const updatedParsed = await loadFolderBook(activeBook, readBufferFn);
+          activeBook.wordCount = updatedParsed.metadata.wordCount;
+          activeBook.estimatedMinutes = updatedParsed.metadata.estimatedMinutes;
+          activeBook.progress.totalSections = updatedParsed.sections.length;
+          await db.saveBook(activeBook);
+
+          setParsedDoc(updatedParsed);
+          setActiveBook({ ...activeBook });
+          setNotification('Pasta sincronizada com as alterações no disco');
+          setTimeout(() => setNotification(null), 2500);
+          return;
+        }
+
+        // 2. Caso Arquivo Único (.md, .txt, etc.)
+        if (activeBook.filePath && window.cadernoAPI?.readFileByPath) {
+          const fileData = await window.cadernoAPI.readFileByPath(activeBook.filePath);
+          if (!fileData || !fileData.buffer) return;
+
+          const filename = fileData.filename || activeBook.title;
+          const updatedParsed = await defaultParserRegistry.parse(fileData.buffer, filename, activeBook.format);
+
+          activeBook.wordCount = updatedParsed.metadata.wordCount;
+          activeBook.estimatedMinutes = updatedParsed.metadata.estimatedMinutes;
+          activeBook.progress.totalSections = updatedParsed.sections.length;
+          await db.saveBook(activeBook, fileData.buffer);
+
+          setParsedDoc(updatedParsed);
+          setActiveBook({ ...activeBook });
+          setNotification('Arquivo atualizado externamente');
+          setTimeout(() => setNotification(null), 2500);
+        }
+      } catch (err) {
+        console.warn('[Auto-Reload] Falha ao recarregar documento:', err);
+      }
+    });
+
+    return () => {
+      cleanupWatcher?.();
+      window.cadernoAPI?.unwatchAll?.();
+    };
+  }, [activeBook?.id, activeBook?.filePath, activeBook?.folderPath]);
 
   // Processa um arquivo individual (buffer + nome)
   const processAndOpenBuffer = async (
@@ -443,8 +516,21 @@ export const App: React.FC = () => {
     }
   };
 
+  const isDesktop = Boolean(
+    typeof window !== 'undefined' &&
+    (window.cadernoAPI?.isDesktop || window.location.search.includes('desktop'))
+  );
+
   return (
-    <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)]">
+    <div className={`bg-[var(--bg-canvas)] text-[var(--text-primary)] ${isDesktop ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen'}`}>
+      {isDesktop && (
+        <TitleBar
+          activeBook={activeBook}
+          onOpenFile={handleOpenFile}
+          onOpenFolderModal={() => setIsFolderModalOpen(true)}
+        />
+      )}
+
       <input
         type="file"
         ref={fileInputRef}
@@ -455,7 +541,7 @@ export const App: React.FC = () => {
 
       {/* Notificação Positiva */}
       {notification && (
-        <div className="fixed top-4 right-4 z-50 max-w-md bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 p-4 rounded-md shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
+        <div className="fixed top-12 right-4 z-50 max-w-md bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 p-4 rounded-md shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
           <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
           <div className="text-xs space-y-1">
             <p className="font-semibold font-code">Sucesso</p>
@@ -473,7 +559,7 @@ export const App: React.FC = () => {
 
       {/* Alerta de Erro */}
       {errorMessage && (
-        <div className="fixed top-4 right-4 z-50 max-w-md bg-red-950/90 border border-red-500/50 text-red-200 p-4 rounded-md shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
+        <div className="fixed top-12 right-4 z-50 max-w-md bg-red-950/90 border border-red-500/50 text-red-200 p-4 rounded-md shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
           <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
           <div className="text-xs space-y-1">
             <p className="font-semibold font-code">Aviso</p>
@@ -500,32 +586,36 @@ export const App: React.FC = () => {
       )}
 
       {/* Renderização Condicional: Leitor ou Estante */}
-      {activeBook && parsedDoc ? (
-        <ReaderView
-          book={activeBook}
-          document={parsedDoc}
-          preferences={preferences}
-          onUpdatePreferences={handleUpdatePreferences}
-          onBackToBookshelf={() => {
-            setActiveBook(null);
-            setParsedDoc(null);
-          }}
-          onUpdateBook={(updated) => {
-            setActiveBook(updated);
-            setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
-          }}
-        />
-      ) : (
-        <Bookshelf
-          books={books}
-          onOpenBook={handleOpenBook}
-          onOpenFile={handleOpenFile}
-          onOpenFolderModal={() => setIsFolderModalOpen(true)}
-          onDeleteBook={handleDeleteBook}
-          onDropFiles={handleDropFiles}
-          onLoadSample={loadSampleContent}
-        />
-      )}
+      <div className={isDesktop ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : ''}>
+        {activeBook && parsedDoc ? (
+          <ReaderView
+            book={activeBook}
+            document={parsedDoc}
+            preferences={preferences}
+            onUpdatePreferences={handleUpdatePreferences}
+            onBackToBookshelf={() => {
+              setActiveBook(null);
+              setParsedDoc(null);
+            }}
+            onUpdateBook={(updated) => {
+              setActiveBook(updated);
+              setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+            }}
+          />
+        ) : (
+          <div className={isDesktop ? 'flex-1 min-h-0 overflow-y-auto' : ''}>
+            <Bookshelf
+              books={books}
+              onOpenBook={handleOpenBook}
+              onOpenFile={handleOpenFile}
+              onOpenFolderModal={() => setIsFolderModalOpen(true)}
+              onDeleteBook={handleDeleteBook}
+              onDropFiles={handleDropFiles}
+              onLoadSample={loadSampleContent}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Modal de Importação de Pasta */}
       <ImportDirectoryModal

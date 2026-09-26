@@ -12,6 +12,7 @@ import {
   detectDisplayEquation,
   formatMathBlock
 } from './pdfMathEngine.ts';
+import { autolinkText, transformContentMediaLinks } from '../media/linkEngine.ts';
 
 export type SemanticType = 'heading' | 'bullet_list' | 'numbered_list' | 'code' | 'math' | 'paragraph';
 
@@ -114,7 +115,9 @@ export function formatSemanticBlocks(lines: InputLine[], medianFontSize: number)
     if (currentParagraphLines.length === 0) return;
     const fullText = currentParagraphLines.join(' ').trim();
     if (fullText) {
-      htmlBlocks.push(`<p>${fullText}</p>`);
+      const linked = autolinkText(fullText);
+      const withMedia = transformContentMediaLinks(`<p>${linked}</p>`);
+      htmlBlocks.push(withMedia);
     }
     currentParagraphLines = [];
   };

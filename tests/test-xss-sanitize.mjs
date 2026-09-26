@@ -66,6 +66,18 @@ const epubHtml = epubDoc.sections.map((s) => s.content).join('\n');
 check('EpubParser sem script/onload', !/<script/i.test(epubHtml) && !/onload/i.test(epubHtml));
 check('EpubParser preserva título e corpo', epubHtml.includes('Capitulo') && epubHtml.includes('Corpo'));
 
+// 6. sanitizeHtml: permite iframe seguro de YouTube (nocookie/embed)
+const sSafeIframe = sanitizeHtml('<iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" allowfullscreen></iframe>');
+check('Iframe seguro de YouTube preservado', sSafeIframe.includes('<iframe') && sSafeIframe.includes('youtube-nocookie.com/embed/dQw4w9WgXcQ'), `=> ${sSafeIframe}`);
+
+// 7. sanitizeHtml: remove iframe malicioso de origem externa não autorizada
+const sEvilIframe = sanitizeHtml('<iframe src="https://evil.com/phishing"></iframe>');
+check('Iframe malicioso não autorizado é removido', !sEvilIframe.includes('<iframe') && !sEvilIframe.includes('evil.com'), `=> ${sEvilIframe}`);
+
+// 8. sanitizeHtml: adiciona target="_blank" e rel="noopener noreferrer" em links externos
+const sLink = sanitizeHtml('<a href="https://youtube.com/watch?v=123">Link</a>');
+check('Link externo recebe target="_blank" e rel seguro', sLink.includes('target="_blank"') && sLink.includes('rel="noopener noreferrer"'), `=> ${sLink}`);
+
 if (failures > 0) {
   console.error(`\n❌ ${failures} asserção(ões) falharam.`);
   process.exit(1);

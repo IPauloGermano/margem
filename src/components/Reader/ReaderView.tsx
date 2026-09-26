@@ -261,7 +261,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   ]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200">
+    <div className="flex-1 min-h-0 flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200">
       {/* Top Header */}
       <ReaderHeader
         book={book}
