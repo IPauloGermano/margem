@@ -200,6 +200,105 @@ body {
   font-weight: 600;
 }
 
+/* Listas estruturadas */
+.reader-prose ul {
+  list-style-type: disc;
+  margin-top: 0.8em;
+  margin-bottom: 1.2em;
+  padding-left: 1.6em;
+}
+
+.reader-prose ol {
+  list-style-type: decimal;
+  margin-top: 0.8em;
+  margin-bottom: 1.2em;
+  padding-left: 1.6em;
+}
+
+.reader-prose li {
+  margin-bottom: 0.4em;
+  line-height: 1.6;
+}
+
+/* Notação científica e sobrescritos/subscritos sem desalinhar a linha de base */
+.reader-prose sup,
+.reader-prose sub {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+.reader-prose sup {
+  top: -0.5em;
+}
+
+.reader-prose sub {
+  bottom: -0.25em;
+}
+
+/* Figuras e ilustrações extraídas de PDFs */
+.reader-prose figure {
+  margin: 2em 0;
+  text-align: center;
+}
+
+.reader-prose figcaption {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  margin-top: 0.5em;
+  font-style: italic;
+}
+
+/* Fórmulas e equações matemáticas */
+.reader-math-block {
+  margin: 1.8em 0;
+  padding: 0.85em 1.2em;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-rule-subtle);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-serif);
+  font-size: 1.05em;
+  overflow-x: auto;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.reader-math-block .math-content {
+  flex: 1;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.reader-math-block .math-num {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--text-muted);
+  margin-left: 1rem;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* Marcadores editoriais de página do PDF */
+.pdf-page-break {
+  margin: 2.8em 0 1.8em 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  user-select: none;
+  opacity: 0.75;
+}
+
+.pdf-page-anchor {
+  scroll-margin-top: 5rem;
+}
+
 /* Highlights / Grifos Tipográficos */
 .reader-highlight {
   cursor: pointer;

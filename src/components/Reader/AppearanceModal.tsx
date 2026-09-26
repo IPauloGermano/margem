@@ -169,8 +169,8 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
             </div>
             <input
               type="range"
-              min={550}
-              max={950}
+              min={500}
+              max={1200}
               step={20}
               value={preferences.columnWidth}
               onChange={(e) => onUpdatePreferences({ columnWidth: Number(e.target.value) })}

@@ -1,6 +1,25 @@
 import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, SupportedFormat, TableOfContentsItem } from '../types/index.ts';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import {
+  fixHyphenation,
+  groupItemsIntoLines,
+  assembleLineText,
+  type PdfTextItem
+} from './pdfTextEngine.ts';
+import {
+  detectPageColumns,
+  partitionPageItems
+} from './pdfLayoutEngine.ts';
+import {
+  detectSemanticType,
+  formatSemanticBlocks
+} from './pdfSemanticEngine.ts';
+import {
+  groupItemsIntoTableRows,
+  detectTableCandidates,
+  renderHtmlTable
+} from './pdfTableEngine.ts';
 
 async function ensureWorkerConfigured(): Promise<void> {
   if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
@@ -17,6 +36,135 @@ async function ensureWorkerConfigured(): Promise<void> {
       }
     }
   }
+}
+
+/**
+ * Extrai figuras/imagens rasterizadas da página para embutir na leitura editorial
+ */
+async function extractImagesFromPage(page: any, pageNum: number): Promise<string[]> {
+  if (typeof document === 'undefined' || typeof window === 'undefined') {
+    return [];
+  }
+  const figures: string[] = [];
+  try {
+    const ops = await page.getOperatorList();
+    const OPS = (pdfjsLib as any).OPS;
+    for (let i = 0; i < ops.fnArray.length; i++) {
+      const fn = ops.fnArray[i];
+      if (OPS && (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject || fn === OPS.paintImageMaskXObject)) {
+        const imgName = ops.argsArray[i][0];
+        const imgObj = await new Promise<any>((resolve) => {
+          const timer = setTimeout(() => resolve(null), 500);
+          try {
+            if (page.objs && typeof page.objs.get === 'function') {
+              page.objs.get(imgName, (obj: any) => {
+                clearTimeout(timer);
+                resolve(obj);
+              });
+            } else {
+              clearTimeout(timer);
+              resolve(null);
+            }
+          } catch {
+            clearTimeout(timer);
+            resolve(null);
+          }
+        });
+
+        if (imgObj && imgObj.width >= 60 && imgObj.height >= 60) {
+          console.warn('[PDF_IMG_DEBUG]', {
+            width: imgObj.width,
+            height: imgObj.height,
+            kind: imgObj.kind,
+            hasData: !!imgObj.data,
+            dataLen: imgObj.data?.length,
+            hasBitmap: !!imgObj.bitmap,
+            constructor: imgObj.constructor?.name
+          });
+
+          const canvas = document.createElement('canvas');
+          canvas.width = imgObj.width;
+          canvas.height = imgObj.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Fundo branco sólido por padrão para imagens técnicas
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (typeof ImageBitmap !== 'undefined' && imgObj instanceof ImageBitmap) {
+              ctx.drawImage(imgObj, 0, 0);
+            } else if (imgObj.bitmap) {
+              ctx.drawImage(imgObj.bitmap, 0, 0);
+            } else if (typeof HTMLImageElement !== 'undefined' && imgObj instanceof HTMLImageElement) {
+              ctx.drawImage(imgObj, 0, 0);
+            } else {
+              const imgData = ctx.createImageData(imgObj.width, imgObj.height);
+            if (imgObj.kind === 2 && imgObj.data) {
+              // RGB 24bpp -> RGBA 32bpp
+              for (let src = 0, dst = 0; src < imgObj.data.length; src += 3, dst += 4) {
+                imgData.data[dst] = imgObj.data[src];
+                imgData.data[dst + 1] = imgObj.data[src + 1];
+                imgData.data[dst + 2] = imgObj.data[src + 2];
+                imgData.data[dst + 3] = 255;
+              }
+            } else if (imgObj.kind === 3 && imgObj.data) {
+              // RGBA 32bpp: compõe canal alpha sobre fundo branco sólido
+              for (let i = 0; i < imgObj.data.length; i += 4) {
+                const a = imgObj.data[i + 3];
+                if (a === 255) {
+                  imgData.data[i] = imgObj.data[i];
+                  imgData.data[i + 1] = imgObj.data[i + 1];
+                  imgData.data[i + 2] = imgObj.data[i + 2];
+                  imgData.data[i + 3] = 255;
+                } else if (a === 0) {
+                  imgData.data[i] = 255;
+                  imgData.data[i + 1] = 255;
+                  imgData.data[i + 2] = 255;
+                  imgData.data[i + 3] = 255;
+                } else {
+                  const alpha = a / 255;
+                  const inv = 1 - alpha;
+                  imgData.data[i] = Math.round(imgObj.data[i] * alpha + 255 * inv);
+                  imgData.data[i + 1] = Math.round(imgObj.data[i + 1] * alpha + 255 * inv);
+                  imgData.data[i + 2] = Math.round(imgObj.data[i + 2] * alpha + 255 * inv);
+                  imgData.data[i + 3] = 255;
+                }
+              }
+            } else if (imgObj.kind === 1 && imgObj.data) {
+              // Grayscale 1bpp / 8bpp
+              for (let src = 0, dst = 0; src < imgObj.data.length; src++, dst += 4) {
+                const val = imgObj.data[src];
+                imgData.data[dst] = val;
+                imgData.data[dst + 1] = val;
+                imgData.data[dst + 2] = val;
+                imgData.data[dst + 3] = 255;
+              }
+              } else if (imgObj.data) {
+                if (imgObj.data.length === imgObj.width * imgObj.height * 3) {
+                  for (let src = 0, dst = 0; src < imgObj.data.length; src += 3, dst += 4) {
+                    imgData.data[dst] = imgObj.data[src];
+                    imgData.data[dst + 1] = imgObj.data[src + 1];
+                    imgData.data[dst + 2] = imgObj.data[src + 2];
+                    imgData.data[dst + 3] = 255;
+                  }
+                } else if (imgObj.data.length === imgObj.width * imgObj.height * 4) {
+                  imgData.data.set(imgObj.data);
+                }
+              }
+              ctx.putImageData(imgData, 0, 0);
+            }
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+            figures.push(
+              `<figure class="my-6 text-center"><img src="${dataUrl}" class="max-w-full h-auto mx-auto rounded-lg shadow-md border border-[var(--border-rule-subtle)] bg-white p-2" alt="Figura da Página ${pageNum}" /></figure>`
+            );
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // Falha silenciosa em extração de imagem não bloqueia o fluxo de texto
+  }
+  return figures;
 }
 
 export class PdfParser implements DocumentParser {
@@ -71,8 +219,7 @@ export class PdfParser implements DocumentParser {
 
       for (let p = 1; p <= numPages; p++) {
         const page = await pdf.getPage(p);
-        const textContent = await page.getTextContent();
-        const { html, rawText, words, headings } = this.reflowPageText(textContent, p);
+        const { html, rawText, words, headings } = await this.reflowPageText(page, p);
 
         pageSections.push({
           pageNum: p,
@@ -110,7 +257,19 @@ export class PdfParser implements DocumentParser {
             ? `Página ${startPage}`
             : `Páginas ${startPage}–${endPage}`;
 
-          const combinedHtml = currentSectionPages.map((p) => p.html).join('\n<hr class="my-8 border-rule-subtle"/>\n');
+          const combinedHtml = currentSectionPages
+            .map((p, pIdx) => {
+              const pageAnchor = `<div id="pdf-page-${p.pageNum}" class="pdf-page-anchor" data-page="${p.pageNum}"></div>`;
+              const pageBreak = pIdx > 0
+                ? `<div class="pdf-page-break my-10 flex items-center justify-center gap-4 text-xs font-mono text-[var(--text-muted)] select-none opacity-60" aria-label="Início da página ${p.pageNum}">
+                     <span class="h-px bg-[var(--border-rule-subtle)] flex-1"></span>
+                     <span class="px-2.5 py-0.5 rounded border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)]">pág. ${p.pageNum}</span>
+                     <span class="h-px bg-[var(--border-rule-subtle)] flex-1"></span>
+                   </div>`
+                : '';
+              return `${pageBreak}\n${pageAnchor}\n${p.html}`;
+            })
+            .join('\n\n');
           const combinedRaw = currentSectionPages.map((p) => p.rawText).join('\n\n');
           const secWords = currentSectionPages.reduce((acc, p) => acc + p.words, 0);
 
@@ -127,10 +286,11 @@ export class PdfParser implements DocumentParser {
             id: `toc-${secId}`,
             title: sectionTitle,
             level: 1,
-            sectionIndex
+            sectionIndex,
+            anchor: `pdf-page-${startPage}`
           });
 
-          // Adiciona subtítulos detectados no sumário
+          // Adiciona subtítulos detectados no sumário com âncora direta
           currentSectionPages.forEach((p) => {
             p.headings.forEach((h, hIdx) => {
               if (h !== sectionTitle) {
@@ -138,7 +298,8 @@ export class PdfParser implements DocumentParser {
                   id: `toc-${secId}-sub-${p.pageNum}-${hIdx}`,
                   title: h,
                   level: 2,
-                  sectionIndex
+                  sectionIndex,
+                  anchor: `pdf-page-${p.pageNum}`
                 });
               }
             });
@@ -181,17 +342,36 @@ export class PdfParser implements DocumentParser {
   }
 
   /**
-   * Transforma os fragmentos posicionados de texto em parágrafos e cabeçalhos fluídos (Reflow)
+   * Transforma os fragmentos posicionados de texto em parágrafos, cabeçalhos, listas e figuras (Reflow)
    */
-  private reflowPageText(
-    textContent: any,
+  private async reflowPageText(
+    page: any,
     pageNum: number
-  ): { html: string; rawText: string; words: number; headings: string[] } {
-    const rawItems = (textContent.items || []).filter((item: any) => item && typeof item.str === 'string');
+  ): Promise<{ html: string; rawText: string; words: number; headings: string[] }> {
+    const textContent = await page.getTextContent();
+    const viewport = page.getViewport({ scale: 1 });
+    const styles = (textContent as any).styles || {};
+    const rawItems: PdfTextItem[] = (textContent.items || [])
+      .filter((item: any) => item && typeof item.str === 'string')
+      .map((item: any) => {
+        const resolvedFontName = (item.fontName && styles[item.fontName]?.fontFamily)
+          ? styles[item.fontName].fontFamily
+          : item.fontName;
+        return {
+          ...item,
+          fontName: resolvedFontName
+        };
+      });
+
+    // Extrai imagens rasterizadas da página
+    const figureHtmls = await extractImagesFromPage(page, pageNum);
 
     if (rawItems.length === 0) {
+      const emptyHtml = figureHtmls.length > 0
+        ? figureHtmls.join('\n')
+        : `<p class="italic text-[var(--text-muted)] text-center">[Página ${pageNum}: Conteúdo visual / sem texto selecionável]</p>`;
       return {
-        html: `<p class="italic text-[var(--text-muted)] text-center">[Página ${pageNum}: Conteúdo visual / sem texto selecionável]</p>`,
+        html: emptyHtml,
         rawText: '',
         words: 0,
         headings: []
@@ -200,104 +380,95 @@ export class PdfParser implements DocumentParser {
 
     // Calcula tamanho típico (mediana) das fontes para identificar títulos
     const fontSizes = rawItems
-      .map((it: any) => Math.abs(it.transform?.[0] || it.transform?.[3] || 12))
-      .filter((s: number) => s > 0)
-      .sort((a: number, b: number) => a - b);
-
+      .map((it) => Math.abs(it.transform?.[0] || it.transform?.[3] || 12))
+      .filter((s) => s > 0)
+      .sort((a, b) => a - b);
     const medianFontSize = fontSizes.length > 0 ? fontSizes[Math.floor(fontSizes.length / 2)] : 12;
 
-    // Agrupa itens em linhas com base na coordenada Y
-    interface LineGroup {
-      y: number;
-      fontSize: number;
-      items: { x: number; str: string; fontSize: number }[];
-    }
+    // Detecta e isola tabelas na página
+    const pageTableRows = groupItemsIntoTableRows(rawItems);
+    const pageTables = detectTableCandidates(pageTableRows);
 
-    const lines: LineGroup[] = [];
+    const tableRanges = pageTables.map((t) => ({
+      minY: Math.min(...t.rows.map((r) => r.y)) - 2,
+      maxY: Math.max(...t.rows.map((r) => r.y)) + 12,
+      table: t
+    }));
 
-    for (const item of rawItems) {
-      const str = item.str.trim();
-      if (!str) continue;
-
-      const transform = item.transform || [12, 0, 0, 12, 0, 0];
-      const fontSize = Math.abs(transform[0] || transform[3] || 12);
-      const x = transform[4] || 0;
-      const y = transform[5] || 0;
-
-      // Procura linha existente com Y aproximado (margem de 3px)
-      let line = lines.find((l) => Math.abs(l.y - y) <= 3.5);
-      if (!line) {
-        line = { y, fontSize, items: [] };
-        lines.push(line);
-      }
-      line.items.push({ x, str, fontSize });
-    }
-
-    // Ordena linhas de cima para baixo (no PDF o Y cresce de baixo para cima)
-    lines.sort((a, b) => b.y - a.y);
-
-    const htmlBlocks: string[] = [];
-    const rawLines: string[] = [];
-    const headings: string[] = [];
-    let currentParagraph: string[] = [];
-
-    const flushParagraph = () => {
-      if (currentParagraph.length === 0) return;
-      let text = currentParagraph.join(' ').trim();
-      // Desfaz hifenização em final de linha (ex: "desenvolvi- mento" -> "desenvolvimento")
-      text = text.replace(/(\w+)-\s+(\w+)/g, '$1$2');
-      if (text) {
-        htmlBlocks.push(`<p>${escapeHtml(text)}</p>`);
-        rawLines.push(text);
-      }
-      currentParagraph = [];
+    const isTableItem = (it: PdfTextItem) => {
+      const y = it.transform[5] || 0;
+      return tableRanges.some((r) => y >= r.minY && y <= r.maxY);
     };
 
-    let prevY = lines[0]?.y || 0;
-    const standardLineHeight = medianFontSize * 1.35;
+    const nonTableItems = rawItems.filter((it) => !isTableItem(it));
 
-    for (const line of lines) {
-      // Ordena palavras da esquerda para a direita
-      line.items.sort((a, b) => a.x - b.x);
-      const lineText = line.items.map((i) => i.str).join(' ').trim();
-      if (!lineText) continue;
+    // Detecta diagrama de colunas e particiona os blocos em ordem natural de leitura
+    const layout = detectPageColumns(nonTableItems, viewport);
+    const blocks = partitionPageItems(nonTableItems, viewport, layout);
 
-      // Ignora numeração isolada de rodapé no topo ou fundo da página
-      if (/^(?:p[aá]g(?:ina)?\.?\s*)?\d+(?:\s*(?:de|\/)\s*\d+)?$/i.test(lineText)) {
-        continue;
-      }
+    const unifiedUnits: { y: number; html: string; rawText: string }[] = [];
+    const headings: string[] = [];
 
-      const isSignificantlyBigger = line.fontSize >= medianFontSize * 1.28;
-      const isShortLine = lineText.length < 90;
-      const isHeading = isSignificantlyBigger && isShortLine;
+    for (const block of blocks) {
+      if (block.items.length === 0) continue;
+      const topY = Math.max(...block.items.map((i) => i.transform[5] || 0));
+      const lines = groupItemsIntoLines(block.items);
+      const inputLines = lines.map((l) => {
+        const text = assembleLineText(l.items, l.fontSize);
+        const fontName = l.items[0]?.fontName;
+        return {
+          text,
+          fontSize: l.fontSize,
+          fontName
+        };
+      });
 
-      const lineGap = Math.abs(prevY - line.y);
-      const isParagraphBreak = lineGap > standardLineHeight * 1.5;
-
-      if (isHeading) {
-        flushParagraph();
-        const cleanHeading = lineText.replace(/^[\d.]+\s*/, '');
-        headings.push(cleanHeading);
-        htmlBlocks.push(`<h2>${escapeHtml(lineText)}</h2>`);
-        rawLines.push(`## ${lineText}`);
-      } else {
-        if (isParagraphBreak && currentParagraph.length > 0) {
-          flushParagraph();
+      // Extrai cabeçalhos detectados para o sumário TOC
+      inputLines.forEach((l) => {
+        const classification = detectSemanticType(l.text, l.fontSize, medianFontSize, l.fontName);
+        if (classification.type === 'heading') {
+          headings.push(classification.cleanedText);
         }
-        currentParagraph.push(lineText);
-      }
+      });
 
-      prevY = line.y;
+      const formattedHtml = formatSemanticBlocks(inputLines, medianFontSize);
+      if (formattedHtml) {
+        unifiedUnits.push({
+          y: topY,
+          html: formattedHtml,
+          rawText: inputLines.map((il) => il.text.replace(/<[^>]+>/g, '')).join('\n')
+        });
+      }
     }
 
-    flushParagraph();
+    // Adiciona as tabelas renderizadas como blocos integrados
+    for (const r of tableRanges) {
+      const tableHtml = renderHtmlTable(r.table);
+      const tableRawText = r.table.rows.map((row) => row.cells.map((c) => c.text).join(' | ')).join('\n');
+      unifiedUnits.push({
+        y: r.maxY,
+        html: tableHtml,
+        rawText: tableRawText
+      });
+    }
 
-    const rawText = rawLines.join('\n\n');
-    const words = rawText.split(/\s+/).filter(Boolean).length;
+    // Ordena unidades por Y decrescente (topo para base)
+    unifiedUnits.sort((a, b) => b.y - a.y);
+
+    const blockHtmls: string[] = unifiedUnits.map((u) => u.html);
+    const blockRawTexts: string[] = unifiedUnits.map((u) => u.rawText);
+
+    // Intercala as figuras encontradas na página
+    if (figureHtmls.length > 0) {
+      blockHtmls.push(...figureHtmls);
+    }
+
+    const fullRawText = fixHyphenation(blockRawTexts.join('\n\n'));
+    const words = fullRawText.split(/\s+/).filter(Boolean).length;
 
     return {
-      html: htmlBlocks.join('\n'),
-      rawText,
+      html: blockHtmls.join('\n'),
+      rawText: fullRawText,
       words,
       headings
     };
@@ -346,11 +517,3 @@ export class PdfParser implements DocumentParser {
   }
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
