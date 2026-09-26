@@ -176,17 +176,44 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   return (
     <aside
       aria-label="Painel lateral do leitor"
-      className="fixed inset-y-0 left-0 z-40 w-80 sm:w-96 border-r border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl flex flex-col transition-transform duration-200 animate-in slide-in-from-left"
+      className="absolute md:relative inset-y-0 left-0 z-40 md:z-20 w-80 sm:w-96 border-r border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl md:shadow-none flex flex-col shrink-0 h-full animate-in slide-in-from-left duration-200"
     >
-      {/* Top Header com Abas */}
-      <div className="border-b border-[var(--border-rule)] p-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-1 font-code text-xs overflow-x-auto no-scrollbar">
+      {/* Top Header do Painel */}
+      <div className="border-b border-[var(--border-rule)] p-3 space-y-2.5 bg-[var(--bg-surface)] shrink-0">
+        {/* Linha Superior: Título do Painel e Botão Fechar */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="font-editorial text-sm font-semibold text-[var(--text-primary)]">
+              Painel do Leitor
+            </span>
+            <span className="text-[10px] font-code text-[var(--text-muted)] bg-[var(--bg-canvas)] px-1.5 py-0.5 rounded border border-[var(--border-rule-subtle)]">
+              {activeTab === 'toc' && 'Sumário'}
+              {activeTab === 'highlights' && `Destaques (${highlights.length})`}
+              {activeTab === 'bookmarks' && `Marcadores (${bookmarks.length})`}
+              {activeTab === 'search' && 'Busca'}
+              {activeTab === 'info' && 'Informações'}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] border border-transparent hover:border-[var(--border-rule-subtle)] transition-colors"
+            title="Fechar painel (Esc ou Ctrl+B)"
+            aria-label="Fechar painel lateral"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Linha das 5 Abas: Distribuição Equilibrada e Sempre Visível */}
+        <div className="grid grid-cols-5 gap-1 p-1 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] font-code">
           {[
-            { id: 'toc', label: 'Sumário', icon: List },
-            { id: 'highlights', label: `Destaques (${highlights.length})`, icon: Highlighter },
-            { id: 'bookmarks', label: `Marcas (${bookmarks.length})`, icon: Bookmark },
-            { id: 'search', label: 'Busca', icon: Search },
-            { id: 'info', label: 'Info', icon: Info }
+            { id: 'toc', label: 'Sumário', icon: List, count: undefined, title: 'Sumário de Capítulos' },
+            { id: 'highlights', label: 'Grifos', icon: Highlighter, count: highlights.length, title: `Destaques e Notas (${highlights.length})` },
+            { id: 'bookmarks', label: 'Marcas', icon: Bookmark, count: bookmarks.length, title: `Marcadores Salvos (${bookmarks.length})` },
+            { id: 'search', label: 'Busca', icon: Search, count: undefined, title: 'Buscar no Documento' },
+            { id: 'info', label: 'Info', icon: Info, count: undefined, title: 'Detalhes da Obra' }
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -195,27 +222,28 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1 px-2 py-1.5 rounded transition-colors whitespace-nowrap text-xs ${
+                title={tab.title}
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1 py-1.5 px-1 rounded transition-all text-[11px] relative ${
                   isActive
-                    ? 'bg-[var(--accent-signal)] text-black font-semibold'
+                    ? 'bg-[var(--accent-signal)] text-black font-semibold shadow-xs'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="text-[10px] sm:text-[11px] truncate">{tab.label}</span>
+                {typeof tab.count === 'number' && tab.count > 0 && (
+                  <span
+                    className={`text-[9px] px-1 rounded-full font-bold leading-none ${
+                      isActive ? 'bg-black/25 text-black' : 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)]'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors ml-1"
-          title="Fechar painel"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Conteúdo da Aba Ativa */}

@@ -32,6 +32,11 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
   onOpenShortcuts,
   isSidebarOpen
 }) => {
+  const hasDistinctSectionTitle = Boolean(
+    currentSection?.title &&
+    currentSection.title.trim().toLowerCase() !== book.title.trim().toLowerCase()
+  );
+
   return (
     <header className="h-14 border-b border-[var(--border-rule)] bg-[var(--bg-canvas)]/90 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-30 select-none">
       {/* Esquerda: Voltar e Toggle Sidebar */}
@@ -62,14 +67,14 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         </button>
       </div>
 
-      {/* Centro: Título do Livro e Seção Atual */}
+      {/* Centro: Título do Livro e Seção Atual (apenas se distinta do título do livro) */}
       <div className="flex-1 px-4 text-center truncate max-w-xl hidden md:block">
         <span className="font-editorial text-sm font-medium text-[var(--text-primary)] truncate block">
           {book.title}
         </span>
-        {currentSection && (
+        {hasDistinctSectionTitle && (
           <span className="font-code text-[11px] text-[var(--text-muted)] truncate block">
-            {currentSection.title}
+            {currentSection!.title}
           </span>
         )}
       </div>

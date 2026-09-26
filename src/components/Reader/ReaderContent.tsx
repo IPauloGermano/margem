@@ -114,6 +114,19 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     // Redefine o conteúdo original antes de aplicar os grifos
     bodyRef.current.innerHTML = section.content;
 
+    // Se o primeiro elemento for um <h1> com o mesmo título da seção,
+    // remove-o para evitar repetição logo após o cabeçalho editorial da seção.
+    if (section.title) {
+      const firstHeading = bodyRef.current.querySelector('h1');
+      if (
+        firstHeading &&
+        firstHeading === bodyRef.current.firstElementChild &&
+        firstHeading.textContent?.trim().toLowerCase() === section.title.trim().toLowerCase()
+      ) {
+        firstHeading.remove();
+      }
+    }
+
     const sectionHighlights = highlights.filter((h) => h.sectionId === section.id);
     if (sectionHighlights.length > 0) {
       sectionHighlights.forEach((hl) => {

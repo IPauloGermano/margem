@@ -277,6 +277,14 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
       {/* Área Central de Leitura com Sidebar Opcional */}
       <div className="flex-1 flex overflow-hidden relative">
+        {isSidebarOpen && (
+          <div
+            className="md:hidden fixed inset-0 z-30 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
         <ReaderSidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}

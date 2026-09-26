@@ -77,9 +77,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
     handleToggleMaximize();
   };
 
-  const titleText = activeBook
-    ? `${activeBook.title} — Margem`
-    : 'Margem — Leitor Editorial Desktop';
+  const titleText = 'Margem — Leitor Editorial Desktop';
 
   return (
     <header
@@ -217,17 +215,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({
         </div>
       </div>
 
-      {/* Seção Central: Título do Documento ou Janela */}
+      {/* Seção Central: Área de arrasto limpa no Leitor ou identificação na Estante */}
       <div className="app-drag flex-1 flex items-center justify-center px-4 overflow-hidden pointer-events-none">
-        {activeBook ? (
-          <div className="flex items-center gap-1.5 truncate text-[12px] font-serif text-[var(--text-secondary)]">
-            <span className="truncate max-w-[420px] font-medium text-[var(--text-primary)]">
-              {activeBook.title}
-            </span>
-            <span className="text-[var(--accent-signal)] opacity-80">•</span>
-            <span className="text-[var(--text-muted)] text-[11px] font-sans">Margem</span>
-          </div>
-        ) : (
+        {!activeBook && (
           <span className="font-sans text-[12px] text-[var(--text-muted)] tracking-wide truncate max-w-[480px]">
             {titleText}
           </span>

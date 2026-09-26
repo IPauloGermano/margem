@@ -1,14 +1,18 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu, powerSaveBlocker } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import { Dirent, watch, FSWatcher } from 'fs';
 import os from 'os';
 import { GrantedRoots, MAX_READ_BYTES, assertSafePathString, realpathSafe } from './pathScope';
+import { DisplaySleepInhibitor } from './powerBlocker';
 
 let mainWindow: BrowserWindow | null = null;
 
 // Pastas que o usuário concedeu nesta sessão (diálogos ou confirmações).
 const grantedRoots = new GrantedRoots();
+
+// Gerenciador de inibição de suspensão da tela (leitura contínua em primeiro plano)
+const displayInhibitor = new DisplaySleepInhibitor(powerSaveBlocker);
 
 // Exige concessão explícita (com diálogo) para pastas fora do allowlist.
 async function ensureDirGranted(dirRealPath: string): Promise<void> {
@@ -64,6 +68,7 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
     mainWindow?.focus();
+    displayInhibitor.acquire();
   });
 
   // Fallback de segurança para garantir exibição caso ready-to-show atrase
@@ -71,6 +76,7 @@ function createWindow() {
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
       mainWindow.show();
       mainWindow.focus();
+      displayInhibitor.acquire();
     }
   }, 800);
 
@@ -85,10 +91,22 @@ function createWindow() {
 
   mainWindow.on('focus', () => {
     mainWindow?.webContents.send('window:focusChange', true);
+    displayInhibitor.acquire();
   });
 
   mainWindow.on('blur', () => {
     mainWindow?.webContents.send('window:focusChange', false);
+    displayInhibitor.release();
+  });
+
+  mainWindow.on('minimize', () => {
+    displayInhibitor.release();
+  });
+
+  mainWindow.on('restore', () => {
+    if (mainWindow?.isFocused()) {
+      displayInhibitor.acquire();
+    }
   });
 
   if (isDev) {
@@ -126,6 +144,7 @@ function createWindow() {
   }
 
   mainWindow.on('closed', () => {
+    displayInhibitor.release();
     stopAllWatchers();
     mainWindow = null;
   });
@@ -714,6 +733,7 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       if (!mainWindow.isVisible()) mainWindow.show();
       mainWindow.focus();
+      displayInhibitor.acquire();
     }
   });
 
@@ -725,6 +745,10 @@ if (!gotTheLock) {
         createWindow();
       }
     });
+  });
+
+  app.on('before-quit', () => {
+    displayInhibitor.release();
   });
 
   app.on('window-all-closed', () => {
