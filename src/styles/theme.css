@@ -21,6 +21,19 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", Consolas, monospace;
 
+  /* Syntax Highlighting Editorial: Warm Charcoal */
+  --hl-keyword: #DE6B44;
+  --hl-string: #8FB986;
+  --hl-number: #E6AF68;
+  --hl-function: #E8D5B5;
+  --hl-comment: #8C857B;
+  --hl-type: #7CA89B;
+  --hl-boolean: #E6AF68;
+  --hl-operator: #A8A296;
+  --hl-property: #D9AE83;
+  --hl-tag: #DE6B44;
+  --hl-variable: #D4CEB8;
+
   /* Safe Area Insets para dispositivos móveis */
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
@@ -41,6 +54,19 @@
   --text-muted: #6A655D;
   --accent-signal: #B34420;
   --accent-signal-bg: rgba(179, 68, 32, 0.08);
+
+  /* Syntax Highlighting Editorial: Paperwhite */
+  --hl-keyword: #A63C1B;
+  --hl-string: #2E6F40;
+  --hl-number: #9E5A18;
+  --hl-function: #2B4C6F;
+  --hl-comment: #7A756D;
+  --hl-type: #1C5D5E;
+  --hl-boolean: #9E5A18;
+  --hl-operator: #58544D;
+  --hl-property: #704214;
+  --hl-tag: #A63C1B;
+  --hl-variable: #2B2620;
 }
 
 [data-theme="sepia"] {
@@ -56,6 +82,19 @@
   --text-muted: #7E7467;
   --accent-signal: #9E4522;
   --accent-signal-bg: rgba(158, 69, 34, 0.1);
+
+  /* Syntax Highlighting Editorial: Linen Sepia */
+  --hl-keyword: #9E4522;
+  --hl-string: #3F6E3B;
+  --hl-number: #8A5618;
+  --hl-function: #354E66;
+  --hl-comment: #8A7F70;
+  --hl-type: #235C57;
+  --hl-boolean: #8A5618;
+  --hl-operator: #5E564C;
+  --hl-property: #6B4210;
+  --hl-tag: #9E4522;
+  --hl-variable: #2B2620;
 }
 
 [data-theme="oled"] {
@@ -71,6 +110,19 @@
   --text-muted: #7A756B;
   --accent-signal: #E06D44;
   --accent-signal-bg: rgba(224, 109, 68, 0.15);
+
+  /* Syntax Highlighting Editorial: Pitch Black OLED */
+  --hl-keyword: #E87955;
+  --hl-string: #94C992;
+  --hl-number: #F0B875;
+  --hl-function: #F2D492;
+  --hl-comment: #7A756B;
+  --hl-type: #85C7B5;
+  --hl-boolean: #F0B875;
+  --hl-operator: #9E988D;
+  --hl-property: #E3B278;
+  --hl-tag: #E87955;
+  --hl-variable: #EDE8DE;
 }
 
 body {
@@ -185,7 +237,7 @@ textarea,
 
 .reader-prose pre {
   background-color: var(--bg-surface);
-  border: 1px solid var(--border-rule);
+  border: 1px solid var(--border-rule-subtle);
   border-radius: 6px;
   padding: 1rem;
   overflow-x: auto;
@@ -193,6 +245,7 @@ textarea,
   font-size: 0.88em;
   line-height: 1.5;
   margin: 1.5em 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .reader-prose code {
@@ -208,7 +261,52 @@ textarea,
   background-color: transparent;
   border: none;
   padding: 0;
+  white-space: pre;
 }
+
+/* Blocos de Código Editoriais Estruturados com Header e Scroll Contido */
+.reader-code-block {
+  margin: 1.6em 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-rule-subtle);
+  background-color: var(--bg-surface);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.reader-code-block pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  padding: 0.85rem 1rem !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.reader-code-block code {
+  font-family: var(--font-mono);
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: 0.88em;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+/* Classes de Syntax Highlighting Editorial */
+.hl-keyword { color: var(--hl-keyword); font-weight: 500; }
+.hl-string { color: var(--hl-string); }
+.hl-number { color: var(--hl-number); }
+.hl-function { color: var(--hl-function); }
+.hl-comment { color: var(--hl-comment); font-style: italic; opacity: 0.85; }
+.hl-type { color: var(--hl-type); }
+.hl-boolean { color: var(--hl-boolean); }
+.hl-operator { color: var(--hl-operator); }
+.hl-punctuation { color: var(--text-muted); opacity: 0.75; }
+.hl-property { color: var(--hl-property); }
+.hl-tag { color: var(--hl-tag); font-weight: 500; }
+.hl-variable { color: var(--hl-variable); }
 
 .reader-prose img {
   max-width: 100%;

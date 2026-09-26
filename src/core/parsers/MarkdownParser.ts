@@ -4,6 +4,7 @@ import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, TableOfContentsItem } from '../types/index.ts';
 import { sanitizeHtml } from './sanitize.ts';
 import { transformContentMediaLinks } from '../media/linkEngine.ts';
+import { renderHighlightedCodeBlock } from '../syntax/syntaxHighlighter.ts';
 
 function extractAndRenderMath(markdown: string): { processedMarkdown: string; mathMap: Map<string, string> } {
   const mathMap = new Map<string, string>();
@@ -176,7 +177,7 @@ export class MarkdownParser implements DocumentParser {
                   const encoded = encodeURIComponent(cleanText);
                   return `<div class="reader-mermaid-container my-6 p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] overflow-x-auto flex flex-col items-center justify-center text-center select-none" data-mermaid="${encoded}"><div class="mermaid-target w-full flex justify-center"><span class="text-xs font-mono text-[var(--text-muted)] animate-pulse">Carregando diagrama...</span></div><pre class="mermaid-fallback hidden font-mono text-xs text-[var(--text-muted)]">${cleanText}</pre></div>\n`;
                 }
-                return `<pre><code class="language-${lang || 'text'}">${text}</code></pre>\n`;
+                return renderHighlightedCodeBlock(text, lang);
               }
             }
           });
@@ -234,7 +235,7 @@ export class MarkdownParser implements DocumentParser {
               const encoded = encodeURIComponent(cleanText);
               return `<div class="reader-mermaid-container my-6 p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] overflow-x-auto flex flex-col items-center justify-center text-center select-none" data-mermaid="${encoded}"><div class="mermaid-target w-full flex justify-center"><span class="text-xs font-mono text-[var(--text-muted)] animate-pulse">Carregando diagrama...</span></div><pre class="mermaid-fallback hidden font-mono text-xs text-[var(--text-muted)]">${cleanText}</pre></div>\n`;
             }
-            return `<pre><code class="language-${lang || 'text'}">${text}</code></pre>\n`;
+            return renderHighlightedCodeBlock(text, lang);
           }
         }
       });

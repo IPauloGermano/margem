@@ -420,6 +420,27 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         return;
       }
     }
+
+    // 4. Cópia de código do bloco editorial com feedback visual
+    const copyBtn = target.closest('.reader-code-copy-btn') as HTMLElement | null;
+    if (copyBtn) {
+      e.preventDefault();
+      const codeBlock = copyBtn.closest('.reader-code-block');
+      const codeEl = codeBlock?.querySelector('pre code');
+      if (codeEl) {
+        const textToCopy = codeEl.textContent || '';
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = 'Copiado!';
+          copyBtn.classList.add('text-[var(--accent-signal)]');
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.classList.remove('text-[var(--accent-signal)]');
+          }, 2000);
+        }).catch(() => {});
+      }
+      return;
+    }
   };
 
   return (
