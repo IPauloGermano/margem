@@ -76,6 +76,21 @@ startxref
     throw new Error('Texto do corpo ausente no conteúdo extraído.');
   }
 
+  // 3. Teste de Regressão: Verifica se o buffer original NÃO foi desconectado (detached)
+  // Isso previne o erro: "Failed to execute 'put' on 'IDBObjectStore': An ArrayBuffer is detached and could not be cloned"
+  if (pdfBuffer.byteLength === 0 || pdfBuffer.detached) {
+    throw new Error('O buffer original foi desconectado (detached) durante a execução do parser.');
+  }
+  try {
+    const cloned = structuredClone(pdfBuffer);
+    if (cloned.byteLength !== pdfBuffer.byteLength) {
+      throw new Error('structuredClone resultou em tamanho divergente.');
+    }
+  } catch (err) {
+    throw new Error(`Falha ao clonar buffer pós-parse (IndexedDB clone falharia): ${err.message}`);
+  }
+  console.log('✓ Buffer original preservado íntegro para armazenamento no IndexedDB (sem detachment)');
+
   console.log(`✓ Metadados extraídos: Título="${parsed.metadata.title}", Formato="${parsed.metadata.format}"`);
   console.log(`✓ Seções geradas: ${parsed.sections.length} seção(ões) com ~${parsed.metadata.wordCount} palavras`);
   console.log(`✓ Sumário TOC gerado: ${parsed.toc.length} item(ns)`);

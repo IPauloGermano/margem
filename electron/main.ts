@@ -9,12 +9,15 @@ let mainWindow: BrowserWindow | null = null;
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 function createWindow() {
+  const windowIcon = path.join(__dirname, '../dist/icon.png');
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 850,
     minWidth: 720,
     minHeight: 500,
     title: 'Margem',
+    icon: windowIcon,
     backgroundColor: '#1C1B19',
     frame: true,
     titleBarStyle: 'default',

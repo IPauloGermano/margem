@@ -77,7 +77,8 @@ export const App: React.FC = () => {
         }
       }
 
-      const parsed = await defaultParserRegistry.parse(buffer, filename);
+      // Passa uma cópia para o parser preservando o buffer original para o IndexedDB
+      const parsed = await defaultParserRegistry.parse(buffer.slice(0), filename);
       const bookId = `book-${Date.now()}-${filename.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
       const newBook: Book = {
@@ -190,7 +191,7 @@ export const App: React.FC = () => {
 
           if (!buffer) continue;
 
-          const parsed = await defaultParserRegistry.parse(buffer, fileItem.filename, fileItem.ext);
+          const parsed = await defaultParserRegistry.parse(buffer.slice(0), fileItem.filename, fileItem.ext);
           const bookId = `book-dir-${Date.now()}-${i}-${fileItem.filename.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
           const book: Book = {

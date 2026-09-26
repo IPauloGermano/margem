@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Sombra suave do ícone -->
+    <filter id="soft-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000000" flood-opacity="0.45" />
+    </filter>
+    <filter id="page-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+
+    <!-- Gradientes editoriais -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#242220" />
+      <stop offset="100%" stop-color="#141312" />
+    </linearGradient>
+
+    <linearGradient id="page-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FAF7F2" />
+      <stop offset="100%" stop-color="#E2DDD4" />
+    </linearGradient>
+
+    <linearGradient id="accent-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E87750" />
+      <stop offset="100%" stop-color="#C85832" />
+    </linearGradient>
+  </defs>
+
+  <!-- Fundo Squircle Suave -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bg-grad)" filter="url(#soft-shadow)" stroke="#3A3632" stroke-width="2" />
+
+  <!-- Folio / Páginas do Caderno com Sombra -->
+  <g filter="url(#page-shadow)">
+    <!-- Base inferior das páginas (espessura) -->
+    <path d="M 148 116 C 148 116 190 110 256 122 C 322 110 364 116 364 116 L 364 386 C 364 386 322 380 256 392 C 190 380 148 386 148 386 Z" fill="#D6CFC4" opacity="0.6" transform="translate(0, 8)" />
+
+    <!-- Página Aberta Principal -->
+    <path d="M 144 112 C 144 112 188 106 256 118 C 324 106 368 112 368 112 L 368 380 C 368 380 324 374 256 386 C 188 374 144 380 144 380 Z" fill="url(#page-grad)" stroke="#C8C0B2" stroke-width="1.5" />
+
+    <!-- Vinco central (lombada sutil) -->
+    <line x1="256" y1="118" x2="256" y2="386" stroke="#938D80" stroke-width="1.5" stroke-opacity="0.35" />
+
+    <!-- Linhas de texto sutis simulando margens editoriais -->
+    <g opacity="0.2" stroke="#242220" stroke-width="3" stroke-linecap="round">
+      <!-- Página esquerda -->
+      <line x1="206" y1="168" x2="238" y2="168" />
+      <line x1="206" y1="196" x2="238" y2="196" />
+      <line x1="206" y1="224" x2="238" y2="224" />
+      <line x1="206" y1="252" x2="238" y2="252" />
+      <line x1="206" y1="280" x2="232" y2="280" />
+
+      <!-- Página direita -->
+      <line x1="274" y1="168" x2="338" y2="168" />
+      <line x1="274" y1="196" x2="338" y2="196" />
+      <line x1="274" y1="224" x2="338" y2="224" />
+      <line x1="274" y1="252" x2="338" y2="252" />
+      <line x1="274" y1="280" x2="318" y2="280" />
+    </g>
+
+    <!-- Fita Marcadora / Linha de Margem Sinal Terracota (#DE6B44) -->
+    <g>
+      <!-- Fita dobrada no topo -->
+      <path d="M 172 96 L 192 96 L 192 396 L 182 386 L 172 396 Z" fill="url(#accent-grad)" />
+      <!-- Sombra da fita sobre a página -->
+      <rect x="172" y="112" width="20" height="268" fill="#000000" opacity="0.08" />
+    </g>
+
+    <!-- Letra 'M' sutil em serifa no canto da página direita -->
+    <text x="328" y="362" font-family="'Source Serif 4', 'Newsreader', Georgia, serif" font-size="20" font-weight="600" fill="#242220" opacity="0.55" text-anchor="middle">M</text>
+  </g>
+</svg>

@@ -2,6 +2,23 @@ import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, SupportedFormat, TableOfContentsItem } from '../types/index.ts';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
+async function ensureWorkerConfigured(): Promise<void> {
+  if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      try {
+        const workerMod = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url');
+        if (workerMod && workerMod.default) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = workerMod.default;
+        } else {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.mjs';
+        }
+      } catch {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.mjs';
+      }
+    }
+  }
+}
+
 export class PdfParser implements DocumentParser {
   readonly format: SupportedFormat = 'pdf';
   readonly extensions: string[] = ['pdf'];
@@ -13,7 +30,12 @@ export class PdfParser implements DocumentParser {
 
   async parse(buffer: ArrayBuffer, filename: string): Promise<ParsedDocument> {
     try {
-      const data = new Uint8Array(buffer);
+      await ensureWorkerConfigured();
+      // O PDF.js transfere a posse do ArrayBuffer para a thread do Web Worker (Transferable Objects),
+      // o que desconecta (detaches) o buffer de entrada. Clonamos o buffer para que a instância
+      // original continue íntegra para salvar no IndexedDB sem erros de clonagem.
+      const bufferCopy = buffer.slice(0);
+      const data = new Uint8Array(bufferCopy);
       const loadingTask = pdfjsLib.getDocument({
         data,
         useSystemFonts: true

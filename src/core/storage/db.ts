@@ -94,8 +94,15 @@ class ReaderDatabase {
       bookStore.put(book);
 
       if (buffer) {
-        const fileStore = tx.objectStore(FILE_CACHE_STORE);
-        fileStore.put(buffer, book.id);
+        const isDetached = (buffer as any).detached || buffer.byteLength === 0;
+        if (!isDetached) {
+          try {
+            const fileStore = tx.objectStore(FILE_CACHE_STORE);
+            fileStore.put(buffer, book.id);
+          } catch (e) {
+            console.warn('Aviso: falha ao armazenar buffer no cache IndexedDB:', e);
+          }
+        }
       }
 
       tx.oncomplete = () => resolve();
@@ -158,11 +165,17 @@ class ReaderDatabase {
   }
 
   async saveCachedFileBuffer(key: string, buffer: ArrayBuffer): Promise<void> {
+    const isDetached = (buffer as any).detached || buffer.byteLength === 0;
+    if (isDetached) return;
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(FILE_CACHE_STORE, 'readwrite');
       const store = tx.objectStore(FILE_CACHE_STORE);
-      store.put(buffer, key);
+      try {
+        store.put(buffer, key);
+      } catch (e) {
+        console.warn('Aviso ao armazenar buffer em saveCachedFileBuffer:', e);
+      }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });

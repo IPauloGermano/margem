@@ -203,7 +203,7 @@ body {
 /* Highlights / Grifos Tipográficos */
 .reader-highlight {
   cursor: pointer;
-  padding: 0.1em 0.2em;
+  padding: 0.1em 0.25em;
   border-radius: 3px;
   transition: all 0.15s ease-in-out;
   text-decoration: none;
@@ -215,27 +215,59 @@ body {
 }
 
 .reader-highlight-amber {
-  background-color: rgba(217, 119, 6, 0.28);
-  border-bottom: 2px solid rgba(217, 119, 6, 0.7);
+  background-color: rgba(217, 119, 6, 0.24);
+  border-bottom: 1.5px solid rgba(217, 119, 6, 0.65);
   color: inherit;
 }
 
 .reader-highlight-sage {
-  background-color: rgba(5, 150, 105, 0.28);
-  border-bottom: 2px solid rgba(5, 150, 105, 0.7);
+  background-color: rgba(5, 150, 105, 0.24);
+  border-bottom: 1.5px solid rgba(5, 150, 105, 0.65);
   color: inherit;
 }
 
 .reader-highlight-muted {
-  background-color: rgba(120, 113, 108, 0.32);
-  border-bottom: 2px solid rgba(120, 113, 108, 0.7);
+  background-color: rgba(120, 113, 108, 0.26);
+  border-bottom: 1.5px solid rgba(120, 113, 108, 0.65);
   color: inherit;
 }
 
+/* Diferenciação sutil e editorial para palavras com notas */
+.reader-highlight[data-has-note="true"] {
+  border-bottom-style: dashed;
+  border-bottom-width: 2px;
+}
+
+.reader-highlight-amber[data-has-note="true"] {
+  border-bottom-color: rgba(217, 119, 6, 0.9);
+}
+
+.reader-highlight-sage[data-has-note="true"] {
+  border-bottom-color: rgba(5, 150, 105, 0.9);
+}
+
+.reader-highlight-muted[data-has-note="true"] {
+  border-bottom-color: rgba(120, 113, 108, 0.9);
+}
+
+/* Marcador editorial discreto (ponto em serifa / sinal terracota) ao final do trecho anotado */
 .reader-highlight[data-has-note="true"]::after {
-  content: ' 💬';
-  font-size: 0.75em;
-  vertical-align: super;
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 3px;
+  margin-right: 1px;
+  border-radius: 50%;
+  background-color: var(--accent-signal);
+  vertical-align: 0.6em;
   opacity: 0.85;
+  box-shadow: 0 0 0 1.5px var(--bg-canvas);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.reader-highlight[data-has-note="true"]:hover::after {
+  transform: scale(1.4);
+  opacity: 1;
 }
 
