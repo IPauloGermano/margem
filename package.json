@@ -1,0 +1,63 @@
+{
+  "name": "caderno-reader",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leitor desktop minimalista com estética editorial e suporte a MD, TXT, EPUB e arquitetura modular",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "dev:desktop": "node scripts/dev-desktop.mjs",
+    "desktop": "electron .",
+    "build": "tsc && vite build && node scripts/build-electron.mjs",
+    "build:web": "tsc && vite build",
+    "package:appimage": "npm run build && electron-builder --linux AppImage",
+    "test": "node tests/test-folder-books.mjs && node --experimental-strip-types tests/test-highlights-export.mjs && node --experimental-strip-types tests/test-xss-sanitize.mjs && node --experimental-strip-types tests/test-pdf-parser.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/source-serif-4": "^5.2.9",
+    "@fontsource/jetbrains-mono": "^5.2.3",
+    "@fontsource/newsreader": "^5.2.5",
+    "dompurify": "^3.4.16",
+    "jszip": "^3.10.1",
+    "lucide-react": "^1.16.0",
+    "marked": "^15.0.7",
+    "pdfjs-dist": "^6.3.289",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.9",
+    "@types/dompurify": "^3.2.0",
+    "@types/jszip": "^3.4.1",
+    "@types/node": "^22.13.9",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^34.3.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.0",
+    "jsdom": "^30.1.1",
+    "tailwindcss": "^4.0.9",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0"
+  },
+  "build": {
+    "appId": "dev.paulogerm.caderno-reader",
+    "productName": "Caderno Reader",
+    "directories": {
+      "output": "dist-package"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office",
+      "icon": "public/icon.png"
+    }
+  }
+}
