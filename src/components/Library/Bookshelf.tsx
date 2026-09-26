@@ -95,12 +95,9 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
         <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2">
-                <img src="/icon.svg" alt="Margem" className="w-4 h-4 rounded-sm shadow-xs" />
-                <span className="font-code text-xs text-[var(--accent-signal)] tracking-widest uppercase font-semibold">
-                  Margem · Desktop
-                </span>
-              </div>
+              <span className="font-code text-xs text-[var(--accent-signal)] tracking-widest uppercase font-semibold">
+                Margem · Desktop
+              </span>
               <h1 className="font-editorial text-4xl sm:text-5xl font-normal text-[var(--text-primary)] tracking-tight mt-1">
                 Na Estante
               </h1>
