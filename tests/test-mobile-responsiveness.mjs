@@ -106,4 +106,23 @@ const notePopover = fs.readFileSync(path.resolve('src/components/Reader/NotePopo
 assert.ok(notePopover.includes('max-w-[calc(100vw-24px)]'), 'NotePopover deve limitar largura a max-w-[calc(100vw-24px)]');
 console.log('✓ Modais, Popovers e Toolbar (Fatia 5) validados com sucesso.\n');
 
+// 7. Verificação de Cards Compactos e Visualizador Fullscreen de Diagramas
+console.log('7. Testando Cards Compactos e Visualizador de Diagramas em Tela Cheia...');
+const bookshelf = fs.readFileSync(path.resolve('src/components/Library/Bookshelf.tsx'), 'utf-8');
+assert.ok(bookshelf.includes('min-[340px]:grid-cols-2'), 'Bookshelf deve suportar grid de 2 colunas para mobile a partir de 340px');
+
+const bookCard = fs.readFileSync(path.resolve('src/components/Library/BookCard.tsx'), 'utf-8');
+assert.ok(bookCard.includes('p-3 sm:p-5'), 'BookCard deve usar padding compacto p-3 no mobile');
+assert.ok(bookCard.includes('h-24 sm:h-36'), 'BookCard deve usar altura de capa proporcional');
+assert.ok(bookCard.includes('hidden sm:block'), 'Descrição longa do BookCard deve ser oculta no mobile para manter cards uniformes');
+
+const diagramModal = fs.readFileSync(path.resolve('src/components/Reader/DiagramFullscreenModal.tsx'), 'utf-8');
+assert.ok(diagramModal.includes('role="dialog"'), 'DiagramFullscreenModal deve ser um diálogo acessível');
+assert.ok(diagramModal.includes('handleZoomIn') && diagramModal.includes('handleZoomOut'), 'DiagramFullscreenModal deve ter controles de zoom');
+assert.ok(diagramModal.includes('Escape'), 'DiagramFullscreenModal deve fechar ao pressionar Escape');
+
+assert.ok(readerContent.includes('DiagramFullscreenModal'), 'ReaderContent deve importar DiagramFullscreenModal');
+assert.ok(readerContent.includes('reader-mermaid-container'), 'ReaderContent deve interceptar clique em reader-mermaid-container');
+console.log('✓ Cards compactos na estante e visualizador fullscreen de diagramas validados com sucesso.\n');
+
 console.log('🎉 TODOS OS TESTES DE RESPONSIVIDADE MOBILE PASSARAM COM SUCESSO!');

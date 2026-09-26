@@ -372,6 +372,7 @@ textarea,
 
 /* Diagramas Mermaid */
 .reader-mermaid-container {
+  position: relative;
   margin: 2em 0;
   padding: 1.25em;
   background-color: var(--bg-surface);
@@ -384,11 +385,19 @@ textarea,
   justify-content: center;
   user-select: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  cursor: zoom-in;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.reader-mermaid-container:hover {
+  border-color: var(--accent-signal);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .reader-mermaid-container svg {
   max-width: 100%;
   height: auto;
+  pointer-events: none;
 }
 
 /* Marcadores editoriais de página do PDF */

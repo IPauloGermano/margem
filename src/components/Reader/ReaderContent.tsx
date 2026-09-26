@@ -3,6 +3,7 @@ import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '.
 import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
+import { DiagramFullscreenModal } from './DiagramFullscreenModal';
 
 interface ReaderContentProps {
   section: DocumentSection;
@@ -52,6 +53,10 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   const [activeNotePopover, setActiveNotePopover] = useState<{
     position: { top: number; bottom?: number; left: number };
     highlight: Highlight;
+  } | null>(null);
+  const [activeDiagram, setActiveDiagram] = useState<{
+    svgHtml: string;
+    code?: string;
   } | null>(null);
 
   // Mapeamento de famílias de fonte
@@ -183,6 +188,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
               const uniqueId = `mermaid-svg-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`;
               const { svg } = await mermaid.render(uniqueId, rawCode);
               target.innerHTML = svg;
+              container.setAttribute('title', 'Clique para ver o diagrama em tela cheia');
+              if (!container.querySelector('.mermaid-fullscreen-hint')) {
+                const hint = document.createElement('div');
+                hint.className =
+                  'mermaid-fullscreen-hint absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-code bg-[var(--bg-canvas)]/85 text-[var(--text-muted)] border border-[var(--border-rule-subtle)] shadow-xs opacity-75 group-hover:opacity-100 transition-opacity pointer-events-none select-none';
+                hint.innerHTML =
+                  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span>Tela cheia</span>';
+                container.appendChild(hint);
+              }
             } catch (err: any) {
               console.warn('Erro ao renderizar diagrama Mermaid:', err);
               const fallback = container.querySelector<HTMLElement>('.mermaid-fallback');
@@ -390,6 +404,22 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         return;
       }
     }
+
+    // 3. Interceptação de clique em diagramas Mermaid para visualização em tela cheia
+    const mermaidContainer = target.closest('.reader-mermaid-container') as HTMLElement | null;
+    if (mermaidContainer) {
+      const svgEl = mermaidContainer.querySelector('.mermaid-target svg');
+      if (svgEl) {
+        e.preventDefault();
+        const rawCodeEncoded = mermaidContainer.getAttribute('data-mermaid');
+        const rawCode = rawCodeEncoded ? decodeURIComponent(rawCodeEncoded) : '';
+        setActiveDiagram({
+          svgHtml: svgEl.outerHTML,
+          code: rawCode
+        });
+        return;
+      }
+    }
   };
 
   return (
@@ -476,6 +506,16 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           onApplyHighlight={handleApplyHighlight}
           onRemoveHighlight={toolbarState.highlightId ? handleRemoveHighlight : undefined}
           onClose={() => setToolbarState(null)}
+        />
+      )}
+
+      {/* Visualizador Fullscreen Interativo de Diagramas */}
+      {activeDiagram && (
+        <DiagramFullscreenModal
+          isOpen={Boolean(activeDiagram)}
+          svgHtml={activeDiagram.svgHtml}
+          code={activeDiagram.code}
+          onClose={() => setActiveDiagram(null)}
         />
       )}
     </main>
