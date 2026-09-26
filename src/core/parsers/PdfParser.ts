@@ -1,5 +1,6 @@
 import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, SupportedFormat, TableOfContentsItem } from '../types/index.ts';
+import { sanitizeHtml } from './sanitize.ts';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   fixHyphenation,
@@ -277,7 +278,7 @@ export class PdfParser implements DocumentParser {
           sections.push({
             id: secId,
             title: sectionTitle,
-            content: combinedHtml,
+            content: sanitizeHtml(combinedHtml),
             rawText: combinedRaw,
             wordCount: secWords
           });
