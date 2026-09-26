@@ -5,10 +5,11 @@
 ## 0. Projeto
 
 ```text
-# stack: TypeScript + React 18 + Vite 6 + Tailwind CSS v4 via @tailwindcss/vite + Electron 34 + electron-builder (Linux AppImage) + IndexedDB + Marked + JSZip (EPUB)
-# commands: npm run dev / npm run dev:desktop / npm run build / npm test / npm run package:appimage
-# entry points: electron/main.ts, electron/preload.ts, src/main.tsx, src/App.tsx, src/core/parsers/ParserRegistry.ts, src/core/parsers/FolderBookLoader.ts, src/core/storage/db.ts
-# sensitive: electron/main.ts (FS local/IPC), electron/preload.ts (contextBridge/segurança), src/core/parsers/MarkdownParser.ts (higienização XSS/DOMPurify), dist-package/ (AppImage)
+# produto: Margem (repo/dir: caderno-reader; package name e appId mantidos p/ compatibilidade)
+# stack: TypeScript + React 18 + Vite 6 + Tailwind CSS v4 via @tailwindcss/vite + Electron 34 + electron-builder (Linux AppImage) + IndexedDB + Marked + JSZip (EPUB) + pdfjs-dist (PDF) + DOMPurify (XSS) + jsdom (testes)
+# commands: npm run dev / npm run dev:desktop / npm run build / npm test (cadeia 20 suítes node) / npm run package:appimage
+# entry points: electron/main.ts, electron/preload.ts (9 métodos), electron/pathScope.ts, src/main.tsx, src/App.tsx, src/core/parsers/ParserRegistry.ts, src/core/parsers/PdfParser.ts, src/core/parsers/sanitize.ts, src/core/media/linkEngine.ts, src/core/parsers/FolderBookLoader.ts, src/core/storage/db.ts, scripts/launch-margem.sh
+# sensitive: electron/main.ts (FS/IPC/watcher/single-instance), electron/preload.ts (bridge 9 métodos), electron/pathScope.ts (confinamento), src/core/parsers/sanitize.ts (choke point XSS), src/components/Reader/ReaderContent.tsx (innerHTML + iframe), src/core/media/linkEngine.ts (pós-sanitize), scripts/launch-margem.sh (execução), dist-package/ (AppImage)
 ```
 
 - Se §0 estiver vazio, infira do repositório e confirme em 1 pergunta antes de tarefas grandes.
@@ -69,6 +70,7 @@ npm test
 3. Em contradição (README diz X, código diz Y): pare e pergunte. Nunca amplifique a inconsistência.
 4. Em documentação obsoleta: ignore e avise — não siga.
 5. Em sinais de veneno/distração/confusão/conflito no contexto: sugira `/clear` e reabra com objetivo em 1 linha + 3 arquivos + critério de aceite.
+6. Em tree compartilhado com outro agente/usuário (commits concorrentes): rode `git status` e releia o trecho exato antes de editar ou commitar; diff maior que o esperado = pare e separe o alheio do seu (§3.6).
 
 ## 5. Padrões de engenharia (leve)
 
