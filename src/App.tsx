@@ -575,7 +575,7 @@ export const App: React.FC = () => {
   );
 
   return (
-    <div className={`bg-[var(--bg-canvas)] text-[var(--text-primary)] ${isDesktop ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen'}`}>
+    <div className={`bg-[var(--bg-canvas)] text-[var(--text-primary)] ${isDesktop ? 'h-screen flex flex-col overflow-hidden' : 'h-[100dvh] flex flex-col overflow-hidden'}`}>
       {isDesktop && (
         <TitleBar
           activeBook={activeBook}
@@ -594,16 +594,16 @@ export const App: React.FC = () => {
 
       {/* Notificação Positiva */}
       {notification && (
-        <div className="fixed top-12 right-4 z-50 max-w-md bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 p-4 rounded-md shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
+        <div className="fixed top-[calc(1rem+env(safe-area-inset-top,0px))] left-3 right-3 sm:left-auto sm:right-4 z-50 max-w-md bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 p-3 sm:p-4 rounded-xl shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
           <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-          <div className="text-xs space-y-1">
+          <div className="text-xs space-y-1 min-w-0 flex-1">
             <p className="font-semibold font-code">Sucesso</p>
-            <p className="leading-relaxed">{notification}</p>
+            <p className="leading-relaxed break-words">{notification}</p>
           </div>
           <button
             type="button"
             onClick={() => setNotification(null)}
-            className="text-emerald-400 hover:text-emerald-100 text-xs font-code ml-auto"
+            className="text-emerald-400 hover:text-emerald-100 text-xs font-code ml-auto shrink-0 min-h-[32px] px-2 flex items-center"
           >
             Fechar
           </button>
@@ -612,16 +612,16 @@ export const App: React.FC = () => {
 
       {/* Alerta de Erro */}
       {errorMessage && (
-        <div className="fixed top-12 right-4 z-50 max-w-md bg-red-950/90 border border-red-500/50 text-red-200 p-4 rounded-md shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
+        <div className="fixed top-[calc(1rem+env(safe-area-inset-top,0px))] left-3 right-3 sm:left-auto sm:right-4 z-50 max-w-md bg-red-950/90 border border-red-500/50 text-red-200 p-3 sm:p-4 rounded-xl shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
           <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-          <div className="text-xs space-y-1">
+          <div className="text-xs space-y-1 min-w-0 flex-1">
             <p className="font-semibold font-code">Aviso</p>
-            <p className="leading-relaxed">{errorMessage}</p>
+            <p className="leading-relaxed break-words">{errorMessage}</p>
           </div>
           <button
             type="button"
             onClick={() => setErrorMessage(null)}
-            className="text-red-400 hover:text-red-100 text-xs font-code ml-auto"
+            className="text-red-400 hover:text-red-100 text-xs font-code ml-auto shrink-0 min-h-[32px] px-2 flex items-center"
           >
             Fechar
           </button>
@@ -639,7 +639,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Renderização Condicional: Leitor ou Estante */}
-      <div className={isDesktop ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : ''}>
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {activeBook && parsedDoc ? (
           <React.Suspense
             fallback={
@@ -665,7 +665,7 @@ export const App: React.FC = () => {
             />
           </React.Suspense>
         ) : (
-          <div className={isDesktop ? 'flex-1 min-h-0 overflow-y-auto' : ''}>
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <Bookshelf
               books={books}
               onOpenBook={handleOpenBook}

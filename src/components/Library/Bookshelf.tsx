@@ -128,55 +128,55 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
       )}
 
       {/* Header Principal */}
-      <header className="border-b border-[var(--border-rule)] px-6 py-12 sm:px-12">
+      <header className="border-b border-[var(--border-rule)] px-4 py-6 sm:px-12 sm:py-12">
         <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <span className="font-code text-xs text-[var(--accent-signal)] tracking-widest uppercase font-semibold">
-                Margem · Desktop
+                Margem · Leitor Editorial
               </span>
-              <h1 className="font-editorial text-4xl sm:text-5xl font-normal text-[var(--text-primary)] tracking-tight mt-1">
+              <h1 className="font-editorial text-2xl sm:text-4xl lg:text-5xl font-normal text-[var(--text-primary)] tracking-tight mt-1">
                 Na Estante
               </h1>
             </div>
 
             {/* Botões de Ação Primária */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
               <button
                 type="button"
                 onClick={onOpenFolderModal}
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-[var(--border-rule)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] px-4 py-2.5 font-code text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-95"
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-[var(--border-rule)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] px-4 py-2.5 min-h-[44px] font-code text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-95 cursor-pointer"
                 title="Adicionar pasta ou caminho do sistema"
               >
-                <FolderPlus className="w-4 h-4 text-[var(--accent-signal)]" />
+                <FolderPlus className="w-4 h-4 text-[var(--accent-signal)] shrink-0" />
                 <span>Adicionar Pasta</span>
               </button>
 
               <button
                 type="button"
                 onClick={onOpenFile}
-                className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--text-primary)] text-[var(--bg-canvas)] hover:opacity-90 px-4 py-2.5 font-code text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-95"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--text-primary)] text-[var(--bg-canvas)] hover:opacity-90 px-4 py-2.5 min-h-[44px] font-code text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-95 cursor-pointer"
                 title="Abrir arquivo único"
               >
-                <FolderOpen className="w-4 h-4" />
+                <FolderOpen className="w-4 h-4 shrink-0" />
                 <span>Abrir Arquivo</span>
               </button>
             </div>
           </div>
 
-          <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl leading-relaxed">
+          <p className="text-xs sm:text-base text-[var(--text-secondary)] max-w-2xl leading-relaxed">
             Leitor tipográfico focado em conforto e legibilidade. Organize suas anotações em Markdown,
-            livros em EPUB e registros de texto puro sem distrações.
+            livros em EPUB, PDFs técnicos e registros de texto puro sem distrações.
           </p>
         </div>
       </header>
 
       {/* Barra de Filtros e Busca */}
-      <nav aria-label="Filtros e busca da estante" className="border-b border-[var(--border-rule-subtle)] px-6 py-4 sm:px-12 bg-[var(--bg-surface)]/50 sticky top-0 z-20 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <nav aria-label="Filtros e busca da estante" className="border-b border-[var(--border-rule-subtle)] px-4 py-3 sm:px-12 sm:py-4 bg-[var(--bg-surface)]/70 sticky top-0 z-20 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           {/* Campo de Busca */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+          <div className="relative flex-1 max-w-md w-full">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
             <input
               ref={searchInputRef}
               type="text"
@@ -184,20 +184,20 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
               title="Buscar livros na estante (Ctrl+F)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[var(--bg-surface)] border border-[var(--border-rule)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-md pl-10 pr-4 py-2 text-xs font-code focus:outline-none focus:border-[var(--accent-signal)] transition-colors"
+              className="w-full bg-[var(--bg-surface)] border border-[var(--border-rule)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-md pl-10 pr-4 py-2.5 min-h-[44px] text-xs font-code focus:outline-none focus:border-[var(--accent-signal)] transition-colors box-border"
             />
           </div>
 
           {/* Filtros de Formato e Pastas */}
-          <div className="flex flex-wrap items-center gap-3 font-code text-xs">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 font-code text-xs w-full md:w-auto">
             {/* Filtro por Pasta (se houver pastas adicionadas) */}
             {availableFolders.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <Folder className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+              <div className="flex items-center gap-1.5 w-full sm:w-auto shrink-0">
+                <Folder className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
                 <select
                   value={folderFilter}
                   onChange={(e) => setFolderFilter(e.target.value)}
-                  className="bg-[var(--bg-surface)] border border-[var(--border-rule)] text-[var(--text-secondary)] rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-[var(--accent-signal)]"
+                  className="bg-[var(--bg-surface)] border border-[var(--border-rule)] text-[var(--text-secondary)] rounded px-2.5 py-2 min-h-[44px] sm:min-h-[38px] text-xs focus:outline-none focus:border-[var(--accent-signal)] w-full sm:w-auto"
                 >
                   <option value="all">Todas as Pastas ({availableFolders.length})</option>
                   {availableFolders.map((f) => (
@@ -209,12 +209,13 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
               </div>
             )}
 
-            {/* Filtros de Formato */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-              <span className="text-[var(--text-muted)] mr-1 hidden lg:inline">Formato:</span>
+            {/* Filtros de Formato com rolagem horizontal contida */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto [scrollbar-width:none] overscroll-x-contain">
+              <span className="text-[var(--text-muted)] mr-1 hidden lg:inline shrink-0">Formato:</span>
               {[
                 { id: 'all', label: 'Todos' },
                 { id: 'epub', label: 'EPUB' },
+                { id: 'pdf', label: 'PDF' },
                 { id: 'md', label: 'Markdown' },
                 { id: 'txt', label: 'Texto' }
               ].map((f) => (
@@ -222,9 +223,9 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
                   key={f.id}
                   type="button"
                   onClick={() => setFormatFilter(f.id)}
-                  className={`px-3 py-1.5 rounded text-xs transition-colors ${
+                  className={`px-3.5 py-1.5 min-h-[38px] sm:min-h-[36px] rounded text-xs transition-colors shrink-0 cursor-pointer whitespace-nowrap active:scale-95 ${
                     formatFilter === f.id
-                      ? 'bg-[var(--accent-signal)] text-white font-medium'
+                      ? 'bg-[var(--accent-signal)] text-white font-medium shadow-xs'
                       : 'bg-[var(--bg-surface)] border border-[var(--border-rule)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]'
                   }`}
                 >
@@ -237,9 +238,9 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
       </nav>
 
       {/* Conteúdo Principal */}
-      <main className="max-w-6xl mx-auto px-6 py-8 sm:px-12">
+      <main className="max-w-6xl mx-auto px-4 py-6 sm:px-12 sm:py-8">
         {filteredBooks.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 min-[340px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6">
             {filteredBooks.map((book, idx) => (
               <BookCard
                 key={book.id}
@@ -252,7 +253,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
           </div>
         ) : (
           /* Estado Vazio */
-          <div className="border border-dashed border-[var(--border-rule)] rounded-lg p-12 text-center max-w-2xl mx-auto my-12 bg-[var(--bg-surface)]/30 space-y-6">
+          <div className="border border-dashed border-[var(--border-rule)] rounded-lg p-6 sm:p-12 text-center max-w-2xl mx-auto my-6 sm:my-12 bg-[var(--bg-surface)]/30 space-y-6">
             <div className="w-12 h-12 rounded-full bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] flex items-center justify-center mx-auto">
               <BookOpen className="w-6 h-6" />
             </div>

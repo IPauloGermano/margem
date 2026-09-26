@@ -41,19 +41,21 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="appearance-settings-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150 select-none"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-150 select-none"
+      onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg border border-[var(--border-rule)] bg-[var(--bg-surface)] p-6 shadow-2xl space-y-6 text-[var(--text-primary)]"
+        className="w-full max-w-lg rounded-t-2xl sm:rounded-xl border-t sm:border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-2xl space-y-5 text-[var(--text-primary)] max-h-[90dvh] overflow-y-auto pb-safe pb-[calc(1.5rem+var(--sab))] box-border overscroll-y-contain animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[var(--border-rule-subtle)]">
-          <h2 id="appearance-settings-title" className="font-editorial text-xl font-medium">Aparência & Tipografia</h2>
+          <h2 id="appearance-settings-title" className="font-editorial text-lg sm:text-xl font-medium">Aparência & Tipografia</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+            className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+            aria-label="Fechar configurações de aparência"
           >
             <X className="w-4 h-4" />
           </button>
@@ -71,7 +73,7 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
                 type="button"
                 onClick={() => onUpdatePreferences({ theme: t.id })}
                 style={{ backgroundColor: t.bg, color: t.text, borderColor: t.border }}
-                className={`flex items-center justify-between p-3 rounded-md border text-xs font-code transition-all ${
+                className={`flex items-center justify-between p-2.5 sm:p-3 min-h-[44px] rounded-md border text-xs font-code transition-all cursor-pointer ${
                   preferences.theme === t.id ? 'ring-2 ring-[var(--accent-signal)] font-bold' : 'opacity-85 hover:opacity-100'
                 }`}
               >
@@ -93,7 +95,7 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
                 key={f.id}
                 type="button"
                 onClick={() => onUpdatePreferences({ fontFamily: f.id })}
-                className={`p-2.5 rounded-md border text-left text-xs transition-all ${
+                className={`p-2.5 min-h-[44px] rounded-md border text-left text-xs transition-all cursor-pointer ${
                   preferences.fontFamily === f.id
                     ? 'border-[var(--accent-signal)] bg-[var(--accent-signal-bg)] text-[var(--text-primary)] font-medium'
                     : 'border-[var(--border-rule)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]'
@@ -119,9 +121,10 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
             <button
               type="button"
               onClick={() => onUpdatePreferences({ fontSize: Math.max(14, preferences.fontSize - 1) })}
-              className="p-2 rounded border border-[var(--border-rule)] bg-[var(--bg-canvas)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)]"
+              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded border border-[var(--border-rule)] bg-[var(--bg-canvas)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] cursor-pointer active:scale-95"
+              aria-label="Diminuir tamanho da fonte"
             >
-              <Minus className="w-3.5 h-3.5" />
+              <Minus className="w-4 h-4" />
             </button>
 
             <input
@@ -131,21 +134,23 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
               step={1}
               value={preferences.fontSize}
               onChange={(e) => onUpdatePreferences({ fontSize: Number(e.target.value) })}
-              className="flex-1 accent-[var(--accent-signal)] cursor-pointer"
+              className="flex-1 accent-[var(--accent-signal)] cursor-pointer h-3 sm:h-2"
+              aria-label="Controle de tamanho de fonte"
             />
 
             <button
               type="button"
               onClick={() => onUpdatePreferences({ fontSize: Math.min(28, preferences.fontSize + 1) })}
-              className="p-2 rounded border border-[var(--border-rule)] bg-[var(--bg-canvas)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)]"
+              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded border border-[var(--border-rule)] bg-[var(--bg-canvas)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] cursor-pointer active:scale-95"
+              aria-label="Aumentar tamanho da fonte"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* 4. Altura de Linha e Largura de Coluna */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-code text-[var(--text-secondary)]">
               <span>Espaçamento</span>
@@ -158,13 +163,14 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
               step={0.05}
               value={preferences.lineHeight}
               onChange={(e) => onUpdatePreferences({ lineHeight: Number(e.target.value) })}
-              className="w-full accent-[var(--accent-signal)] cursor-pointer"
+              className="w-full accent-[var(--accent-signal)] cursor-pointer h-2"
+              aria-label="Controle de espaçamento entre linhas"
             />
           </div>
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-code text-[var(--text-secondary)]">
-              <span>Largura</span>
+              <span>Largura Máxima</span>
               <span className="tabular-nums">{preferences.columnWidth}px</span>
             </div>
             <input
@@ -174,7 +180,8 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
               step={20}
               value={preferences.columnWidth}
               onChange={(e) => onUpdatePreferences({ columnWidth: Number(e.target.value) })}
-              className="w-full accent-[var(--accent-signal)] cursor-pointer"
+              className="w-full accent-[var(--accent-signal)] cursor-pointer h-2"
+              aria-label="Controle de largura de coluna de leitura"
             />
           </div>
         </div>
@@ -186,7 +193,7 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
           </label>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { id: 'left' as ReaderTextAlign, label: 'Alinhado à esquerda', icon: AlignLeft },
+              { id: 'left' as ReaderTextAlign, label: 'À esquerda', icon: AlignLeft },
               { id: 'justify' as ReaderTextAlign, label: 'Justificado', icon: AlignJustify }
             ].map((al) => {
               const Icon = al.icon;
@@ -195,7 +202,7 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
                   key={al.id}
                   type="button"
                   onClick={() => onUpdatePreferences({ textAlign: al.id })}
-                  className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-code transition-colors ${
+                  className={`flex items-center justify-center gap-2 p-2.5 min-h-[42px] rounded-md border text-xs font-code transition-colors cursor-pointer ${
                     preferences.textAlign === al.id
                       ? 'border-[var(--accent-signal)] bg-[var(--accent-signal-bg)] text-[var(--text-primary)] font-medium'
                       : 'border-[var(--border-rule)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]'

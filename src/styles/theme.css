@@ -20,6 +20,12 @@
   --font-serif: "Source Serif 4 Variable", "Newsreader", Georgia, serif;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", Consolas, monospace;
+
+  /* Safe Area Insets para dispositivos móveis */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
 
 [data-theme="light"] {
@@ -76,7 +82,28 @@ body {
   overflow-x: hidden;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Utilitários de Safe-Area Inset (Notch, Dynamic Island, Home Bar) */
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+.pl-safe {
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+}
+.pr-safe {
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+}
+
+@media (pointer: coarse) {
+  button, [role="button"], a {
+    touch-action: manipulation;
+  }
 }
 
 /* Campos de entrada, busca e edição de notas permanecem com texto selecionável e editável */

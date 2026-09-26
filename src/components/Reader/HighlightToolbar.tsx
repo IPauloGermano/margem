@@ -35,8 +35,8 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
     width: number,
     estimatedHeight: number
   ) => {
-    const MIN_TOP = 68;
-    const MAX_BOTTOM = window.innerHeight - 68;
+    const MIN_TOP = 56;
+    const MAX_BOTTOM = typeof window !== 'undefined' ? window.innerHeight - 56 : 600;
     const SAFE_GAP = 8;
 
     const targetTop = pos.top;
@@ -56,8 +56,10 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
 
     finalTop = Math.max(MIN_TOP, Math.min(MAX_BOTTOM - estimatedHeight, finalTop));
 
-    let finalLeft = pos.left - width / 2;
-    finalLeft = Math.max(16, Math.min(window.innerWidth - width - 16, finalLeft));
+    const effectiveWidth = Math.min(width, typeof window !== 'undefined' ? window.innerWidth - 24 : width);
+    let finalLeft = pos.left - effectiveWidth / 2;
+    const maxLeft = (typeof window !== 'undefined' ? window.innerWidth : 800) - effectiveWidth - 12;
+    finalLeft = Math.max(12, Math.min(maxLeft, finalLeft));
 
     return { top: Math.round(finalTop), left: Math.round(finalLeft) };
   };
@@ -165,10 +167,10 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
         position: 'fixed',
         top: `${coords.top}px`,
         left: `${coords.left}px`,
-        width: `${toolbarWidth}px`,
+        width: typeof window !== 'undefined' ? `${Math.min(toolbarWidth, window.innerWidth - 24)}px` : `${toolbarWidth}px`,
         zIndex: 60
       }}
-      className="animate-in fade-in zoom-in-95 duration-150 shadow-2xl rounded-2xl border border-[var(--border-rule)] bg-[var(--bg-surface)] p-2 text-[var(--text-primary)] font-sans select-none backdrop-blur-md transition-all max-w-[calc(100vw-32px)] box-border"
+      className="animate-in fade-in zoom-in-95 duration-150 shadow-2xl rounded-2xl border border-[var(--border-rule)] bg-[var(--bg-surface)] p-2 text-[var(--text-primary)] font-sans select-none backdrop-blur-md transition-all max-w-[calc(100vw-24px)] box-border"
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Barra Principal de Cores e Ações Rápidas */}

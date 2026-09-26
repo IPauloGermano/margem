@@ -277,6 +277,28 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
   };
 
+  // Suporte a seleção de texto via toque em telas mobile / tablets
+  useEffect(() => {
+    let timeoutId: any;
+    const handleDocSelectionChange = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) return;
+        const text = selection.toString().trim();
+        if (text.length >= 2 && bodyRef.current && bodyRef.current.contains(selection.anchorNode)) {
+          handleMouseUp();
+        }
+      }, 250);
+    };
+
+    document.addEventListener('selectionchange', handleDocSelectionChange);
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('selectionchange', handleDocSelectionChange);
+    };
+  }, []);
+
   const handleApplyHighlight = (color: HighlightColor, note?: string) => {
     if (!toolbarState) return;
 
@@ -375,23 +397,28 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       ref={containerRef}
       onScroll={handleScroll}
       onMouseUp={handleMouseUp}
+      onTouchEnd={() => {
+        setTimeout(handleMouseUp, 60);
+      }}
       tabIndex={0}
       aria-label="Conteúdo do livro"
-      className="flex-1 overflow-y-auto px-4 py-8 sm:px-8 sm:py-16 focus:outline-none transition-colors duration-200 relative select-none"
+      className="flex-1 overflow-y-auto px-3.5 py-6 sm:px-8 sm:py-16 focus:outline-none transition-colors duration-200 relative select-none overscroll-y-contain"
     >
       <div
-        className={`mx-auto reader-prose ${fontClassMap[preferences.fontFamily]}`}
+        className={`mx-auto w-full reader-prose ${fontClassMap[preferences.fontFamily]}`}
         style={{
           maxWidth: `${preferences.columnWidth}px`,
           fontSize: `${preferences.fontSize}px`,
           lineHeight: preferences.lineHeight,
-          textAlign: preferences.textAlign
+          textAlign: preferences.textAlign,
+          overflowWrap: 'break-word',
+          wordBreak: 'break-word'
         }}
       >
         {/* Título do Capítulo / Seção */}
         {section.title && (
-          <header className="mb-10 pb-6 border-b border-[var(--border-rule-subtle)] text-center select-none">
-            <h1 className="font-editorial text-3xl sm:text-4xl font-normal text-[var(--text-primary)] leading-tight select-text">
+          <header className="mb-8 pb-5 sm:mb-10 sm:pb-6 border-b border-[var(--border-rule-subtle)] text-center select-none">
+            <h1 className="font-editorial text-2xl sm:text-4xl font-normal text-[var(--text-primary)] leading-tight select-text break-words">
               {section.title}
             </h1>
             <div className="font-code text-xs text-[var(--text-muted)] mt-2 select-none">

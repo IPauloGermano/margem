@@ -15,8 +15,8 @@ const calculatePopoverCoords = (
   width: number,
   estimatedHeight: number
 ) => {
-  const MIN_TOP = 68;
-  const MAX_BOTTOM = window.innerHeight - 68;
+  const MIN_TOP = 56;
+  const MAX_BOTTOM = typeof window !== 'undefined' ? window.innerHeight - 56 : 600;
   const SAFE_GAP = 8;
 
   const targetTop = position.top;
@@ -36,8 +36,11 @@ const calculatePopoverCoords = (
 
   top = Math.max(MIN_TOP, Math.min(MAX_BOTTOM - estimatedHeight, top));
 
-  let left = position.left - width / 2;
-  left = Math.max(16, Math.min(window.innerWidth - width - 16, left));
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
+  const effectiveWidth = Math.min(width, viewportWidth - 24);
+  const maxLeft = Math.max(12, viewportWidth - effectiveWidth - 12);
+  let left = position.left - effectiveWidth / 2;
+  left = Math.max(12, Math.min(maxLeft, left));
 
   return { top: Math.round(top), left: Math.round(left) };
 };
@@ -131,10 +134,10 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
         position: 'fixed',
         top: `${coords.top}px`,
         left: `${coords.left}px`,
-        width: `${popoverWidth}px`,
+        width: typeof window !== 'undefined' ? `${Math.min(popoverWidth, window.innerWidth - 24)}px` : `${popoverWidth}px`,
         zIndex: 55
       }}
-      className="animate-in fade-in zoom-in-95 duration-100 rounded-xl border border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl p-3.5 text-[var(--text-primary)] select-none backdrop-blur-md space-y-2.5 max-w-[calc(100vw-32px)] box-border"
+      className="animate-in fade-in zoom-in-95 duration-100 rounded-xl border border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl p-3.5 text-[var(--text-primary)] select-none backdrop-blur-md space-y-2.5 max-w-[calc(100vw-24px)] box-border"
     >
       {/* Top Header do Card de Nota */}
       <div className="flex items-center justify-between border-b border-[var(--border-rule-subtle)] pb-2 text-[11px] font-code">
@@ -145,7 +148,7 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
           />
           {highlight.sectionTitle ? (
             <span
-              className="text-[var(--text-secondary)] text-[11px] font-medium truncate max-w-[160px]"
+              className="text-[var(--text-secondary)] text-[11px] font-medium truncate max-w-[110px] xs:max-w-[160px]"
               title={highlight.sectionTitle}
             >
               {highlight.sectionTitle}
@@ -158,12 +161,12 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
         </div>
 
         {/* Ações Rápidas */}
-        <div className="flex items-center gap-1 text-[var(--text-muted)] shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-1 text-[var(--text-muted)] shrink-0">
           <button
             type="button"
             onClick={handleCopy}
             title="Copiar citação e nota"
-            className="p-1.5 rounded-md hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] transition-colors shrink-0"
+            className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] active:scale-95 transition-all shrink-0"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
@@ -172,7 +175,7 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
             type="button"
             onClick={() => onEdit(highlight)}
             title="Editar reflexão"
-            className="p-1.5 rounded-md hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] transition-colors shrink-0"
+            className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] active:scale-95 transition-all shrink-0"
           >
             <Edit3 className="w-3.5 h-3.5" />
           </button>
@@ -181,7 +184,7 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
             type="button"
             onClick={() => onDeleteNote(highlight.id)}
             title="Remover anotação"
-            className="p-1.5 rounded-md hover:bg-red-500/15 hover:text-red-400 transition-colors shrink-0"
+            className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md hover:bg-red-500/15 hover:text-red-400 active:scale-95 transition-all shrink-0"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -192,7 +195,7 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
             type="button"
             onClick={onClose}
             title="Fechar"
-            className="p-1.5 rounded-md hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] transition-colors shrink-0"
+            className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] active:scale-95 transition-all shrink-0"
           >
             <X className="w-3.5 h-3.5" />
           </button>

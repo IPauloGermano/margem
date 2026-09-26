@@ -38,16 +38,17 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
   );
 
   return (
-    <header className="h-14 border-b border-[var(--border-rule)] bg-[var(--bg-canvas)]/90 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-30 select-none">
+    <header className="h-[calc(3.5rem+var(--sat))] pt-safe border-b border-[var(--border-rule)] bg-[var(--bg-canvas)]/95 backdrop-blur-md px-2.5 sm:px-4 flex items-center justify-between sticky top-0 z-30 select-none box-border">
       {/* Esquerda: Voltar e Toggle Sidebar */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
         <button
           type="button"
           onClick={onBackToBookshelf}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-code text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] border border-transparent hover:border-[var(--border-rule)] transition-colors"
+          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 min-h-[40px] min-w-[40px] rounded-md text-xs font-code text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] border border-transparent hover:border-[var(--border-rule)] active:scale-95 transition-all cursor-pointer"
           title="Voltar à Estante (Esc)"
+          aria-label="Voltar à Estante"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline">Estante</span>
         </button>
 
@@ -56,36 +57,38 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         <button
           type="button"
           onClick={onToggleSidebar}
-          className={`p-1.5 rounded-md text-xs font-code border transition-colors ${
+          className={`p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-xs font-code border active:scale-95 transition-all cursor-pointer ${
             isSidebarOpen
               ? 'border-[var(--accent-signal)] bg-[var(--accent-signal-bg)] text-[var(--accent-signal)]'
               : 'border-[var(--border-rule)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)]'
           }`}
           title="Sumário e Ferramentas (Ctrl+B)"
+          aria-label="Sumário e Ferramentas"
         >
           <Menu className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Centro: Título do Livro e Seção Atual (apenas se distinta do título do livro) */}
-      <div className="flex-1 px-4 text-center truncate max-w-xl hidden md:block">
-        <span className="font-editorial text-sm font-medium text-[var(--text-primary)] truncate block">
+      {/* Centro: Título do Livro e Seção Atual */}
+      <div className="flex-1 px-1.5 sm:px-4 text-center min-w-0 max-w-[140px] xs:max-w-[200px] sm:max-w-md md:max-w-xl">
+        <span className="font-editorial text-xs sm:text-sm font-medium text-[var(--text-primary)] truncate block" title={book.title}>
           {book.title}
         </span>
         {hasDistinctSectionTitle && (
-          <span className="font-code text-[11px] text-[var(--text-muted)] truncate block">
+          <span className="font-code text-[10px] sm:text-[11px] text-[var(--text-muted)] truncate hidden sm:block" title={currentSection!.title}>
             {currentSection!.title}
           </span>
         )}
       </div>
 
       {/* Direita: Ações Rápidas */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1 sm:gap-1.5">
         <button
           type="button"
           onClick={onOpenSearch}
-          className="p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors"
+          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
           title="Buscar no Documento (Ctrl+F)"
+          aria-label="Buscar no Documento"
         >
           <Search className="w-4 h-4" />
         </button>
@@ -93,8 +96,9 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         <button
           type="button"
           onClick={onAddBookmark}
-          className="p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--accent-signal)] hover:bg-[var(--bg-surface)] transition-colors"
+          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--accent-signal)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
           title="Adicionar Marcador (Ctrl+D)"
+          aria-label="Adicionar Marcador"
         >
           <BookmarkIcon className="w-4 h-4" />
         </button>
@@ -102,8 +106,9 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         <button
           type="button"
           onClick={onOpenAppearance}
-          className="p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors"
+          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
           title="Ajustes de Tipografia e Tema (Ctrl+,)"
+          aria-label="Ajustes de Tipografia e Tema"
         >
           <Sliders className="w-4 h-4" />
         </button>
@@ -111,8 +116,9 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         <button
           type="button"
           onClick={onOpenShortcuts}
-          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors"
+          className="p-2 min-w-[40px] min-h-[40px] hidden sm:flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
           title="Atalhos de Teclado (?)"
+          aria-label="Atalhos de Teclado"
         >
           <HelpCircle className="w-4 h-4" />
         </button>

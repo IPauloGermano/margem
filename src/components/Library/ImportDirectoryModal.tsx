@@ -347,10 +347,11 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-folder-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-150 select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-150 select-none"
+      onClick={onClose}
     >
       <div
-        className="w-full max-w-xl rounded-lg border border-[var(--border-rule)] bg-[var(--bg-surface)] p-6 shadow-2xl space-y-5 text-[var(--text-primary)]"
+        className="w-full max-w-xl rounded-xl border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 text-[var(--text-primary)] max-h-[90dvh] overflow-y-auto pb-safe pb-[calc(1.5rem+var(--sab))] box-border overscroll-y-contain animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         <input
@@ -367,14 +368,15 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[var(--border-rule-subtle)]">
           <div className="flex items-center gap-2.5">
-            <FolderPlus className="w-5 h-5 text-[var(--accent-signal)]" />
-            <h2 id="import-folder-title" className="font-editorial text-xl font-medium">Adicionar Pasta ou Livro em Diretório</h2>
+            <FolderPlus className="w-5 h-5 text-[var(--accent-signal)] shrink-0" />
+            <h2 id="import-folder-title" className="font-editorial text-lg sm:text-xl font-medium">Adicionar Pasta ou Livro em Diretório</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isImporting}
-            className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+            className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+            aria-label="Fechar modal de importação"
           >
             <X className="w-4 h-4" />
           </button>

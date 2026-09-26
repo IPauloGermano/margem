@@ -31,29 +31,29 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
   return (
     <article
       onClick={() => onOpen(book)}
-      className="group relative flex flex-col justify-between p-5 sm:p-6 rounded-md border border-[var(--border-rule)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] transition-all duration-200 cursor-pointer hover:border-[var(--text-muted)] select-none"
+      className="group relative flex flex-col justify-between p-3 sm:p-5 rounded-md border border-[var(--border-rule)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] transition-all duration-200 cursor-pointer hover:border-[var(--text-muted)] select-none"
     >
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {/* Top bar com índice e badges */}
         <div className="flex items-center justify-between font-code text-xs">
-          <span className="tabular-nums text-[var(--text-muted)]">
+          <span className="tabular-nums text-[var(--text-muted)] text-[10px] sm:text-xs">
             #{String(index + 1).padStart(2, '0')}
           </span>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <span
-              className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider border ${badgeClass}`}
+              className={`px-1.5 py-0.5 sm:px-2 rounded text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider border ${badgeClass}`}
             >
               {formatLabel}
             </span>
 
             {isCompleted ? (
-              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">
+              <span className="px-1.5 py-0.5 sm:px-2 rounded text-[9px] sm:text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">
                 Lido
               </span>
             ) : isReading ? (
-              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] border border-[var(--accent-signal)]/20">
-                Lendo agora
+              <span className="px-1.5 py-0.5 sm:px-2 rounded text-[9px] sm:text-[10px] font-medium bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] border border-[var(--accent-signal)]/20">
+                Lendo
               </span>
             ) : null}
           </div>
@@ -61,7 +61,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
 
         {/* Capa (se houver) ou ícone minimalista */}
         {book.coverImage ? (
-          <div className="h-36 w-full overflow-hidden rounded border border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] flex items-center justify-center">
+          <div className="h-24 sm:h-36 w-full overflow-hidden rounded border border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] flex items-center justify-center">
             <img
               src={book.coverImage}
               alt={book.title}
@@ -72,40 +72,40 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
 
         {/* Título e Autor */}
         <div>
-          <h2 className="font-editorial text-xl sm:text-2xl font-medium text-[var(--text-primary)] leading-snug line-clamp-2 group-hover:text-[var(--accent-signal)] transition-colors">
+          <h2 className="font-editorial text-sm sm:text-xl font-medium text-[var(--text-primary)] leading-snug line-clamp-2 group-hover:text-[var(--accent-signal)] transition-colors">
             {book.title}
           </h2>
-          <p className="font-code text-xs text-[var(--text-secondary)] mt-1">
+          <p className="font-code text-[11px] sm:text-xs text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">
             {book.author || 'Autor desconhecido'}
           </p>
           {isFolder ? (
-            <div className="flex items-center gap-1.5 text-[11px] font-code text-amber-400/90 mt-1 truncate">
-              <Layers className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-code text-amber-400/90 mt-1 truncate">
+              <Layers className="w-3 h-3 shrink-0 text-amber-400" />
               <span className="truncate">
-                {book.chapterFiles?.length || book.progress.totalSections} capítulos • {book.folderName || 'Pasta'}
+                {book.chapterFiles?.length || book.progress.totalSections} cap. • {book.folderName || 'Pasta'}
               </span>
             </div>
           ) : book.folderName ? (
-            <div className="flex items-center gap-1.5 text-[11px] font-code text-[var(--text-muted)] mt-1 truncate">
+            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-code text-[var(--text-muted)] mt-1 truncate">
               <Folder className="w-3 h-3 shrink-0 text-[var(--accent-signal)]/80" />
               <span className="truncate">{book.folderName}</span>
             </div>
           ) : null}
         </div>
 
-        {/* Descrição resumida */}
+        {/* Descrição resumida (oculta no mobile para manter cards uniformes e compactos) */}
         {book.description ? (
-          <p className="text-xs text-[var(--text-muted)] line-clamp-2 leading-relaxed">
+          <p className="text-xs text-[var(--text-muted)] line-clamp-2 leading-relaxed hidden sm:block">
             {book.description}
           </p>
         ) : null}
       </div>
 
       {/* Rodapé com progresso e estatísticas */}
-      <div className="pt-4 mt-4 border-t border-[var(--border-rule-subtle)] space-y-2.5">
-        <div className="flex items-center justify-between text-xs text-[var(--text-muted)] font-code">
-          <span className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
+      <div className="pt-2 sm:pt-3.5 mt-2 sm:mt-3.5 border-t border-[var(--border-rule-subtle)] space-y-1.5 sm:space-y-2.5">
+        <div className="flex items-center justify-between text-[10px] sm:text-xs text-[var(--text-muted)] font-code">
+          <span className="flex items-center gap-1 sm:gap-1.5">
+            <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             {book.estimatedMinutes} min
           </span>
 
@@ -122,24 +122,25 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
           />
         </div>
 
-        {/* Ação de remover (no hover) */}
-        <div className="flex items-center justify-between pt-1">
-          <span className="text-[11px] font-code text-[var(--text-muted)]">
+        {/* Ação de remover */}
+        <div className="flex items-center justify-between pt-0.5 sm:pt-1">
+          <span className="text-[10px] sm:text-[11px] font-code text-[var(--text-muted)] truncate pr-1 sm:pr-2">
             {isFolder
               ? `Capítulo ${book.progress.currentSectionIndex + 1} de ${book.progress.totalSections}`
               : book.progress.totalSections > 1
               ? `Seção ${book.progress.currentSectionIndex + 1} de ${book.progress.totalSections}`
-              : `${book.wordCount.toLocaleString()} palavras`}
+              : `${book.wordCount.toLocaleString()} pal.`}
           </span>
 
           <button
             type="button"
             title="Remover da estante"
+            aria-label={`Remover ${book.title} da estante`}
             onClick={(e) => {
               e.stopPropagation();
               onDelete(book.id);
             }}
-            className="p-1 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1 sm:p-1.5 rounded-md text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 min-w-[32px] min-h-[32px] sm:min-w-[28px] sm:min-h-[28px] flex items-center justify-center shrink-0 cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>

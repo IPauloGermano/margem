@@ -194,10 +194,10 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   return (
     <aside
       aria-label="Painel lateral do leitor"
-      className="absolute md:relative inset-y-0 left-0 z-40 md:z-20 w-80 sm:w-96 border-r border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl md:shadow-none flex flex-col shrink-0 h-full animate-in slide-in-from-left duration-200 select-none"
+      className="absolute md:relative inset-y-0 left-0 z-40 md:z-20 w-[88vw] max-w-sm sm:w-96 border-r border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl md:shadow-none flex flex-col shrink-0 h-full pb-[env(safe-area-inset-bottom,0px)] animate-in slide-in-from-left duration-200 select-none box-border"
     >
       {/* Top Header do Painel */}
-      <div className="border-b border-[var(--border-rule)] p-3 space-y-2.5 bg-[var(--bg-surface)] shrink-0">
+      <div className="border-b border-[var(--border-rule)] p-2.5 sm:p-3 space-y-2.5 bg-[var(--bg-surface)] shrink-0">
         {/* Linha Superior: Título do Painel e Botão Fechar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -216,7 +216,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] border border-transparent hover:border-[var(--border-rule-subtle)] transition-colors"
+            className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] border border-transparent hover:border-[var(--border-rule-subtle)] transition-colors cursor-pointer"
             title="Fechar painel (Esc ou Ctrl+B)"
             aria-label="Fechar painel lateral"
           >
@@ -241,18 +241,18 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
                 title={tab.title}
-                className={`flex items-center justify-center gap-1 py-1.5 px-0.5 rounded transition-all text-[11px] relative ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-0.5 rounded transition-all text-[11px] relative min-h-[42px] cursor-pointer ${
                   isActive
-                    ? 'bg-[var(--accent-signal)] text-black font-semibold shadow-xs'
+                    ? 'bg-[var(--accent-signal)] text-white font-semibold shadow-xs'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-[10px] sm:text-[11px] font-medium whitespace-nowrap">{tab.label}</span>
+                <span className="text-[9px] sm:text-[10px] md:text-[11px] font-medium truncate max-w-full">{tab.label}</span>
                 {typeof tab.count === 'number' && tab.count > 0 && (
                   <span
-                    className={`text-[9px] px-1 rounded-full font-bold leading-none ${
-                      isActive ? 'bg-black/25 text-black' : 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)]'
+                    className={`text-[8px] sm:text-[9px] px-1 rounded-full font-bold leading-none ${
+                      isActive ? 'bg-black/30 text-white' : 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)]'
                     }`}
                   >
                     {tab.count}

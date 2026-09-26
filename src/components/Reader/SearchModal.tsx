@@ -143,29 +143,30 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     <div
       role="search"
       aria-label="Barra de busca no documento"
-      className="absolute top-3 right-4 sm:right-8 z-30 w-84 sm:w-96 bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-rule)] shadow-2xl rounded-xl p-2 sm:p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-150 text-[var(--text-primary)] select-none"
+      className="absolute top-2 sm:top-3 inset-x-2 sm:inset-x-auto sm:right-8 sm:w-96 max-w-[calc(100vw-1rem)] z-30 bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-rule)] shadow-2xl rounded-xl p-2 sm:p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-150 text-[var(--text-primary)] select-none box-border"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Linha Principal de Controles */}
       <div className="flex items-center gap-1.5">
         {/* Campo de Entrada com Ícone */}
-        <div className="relative flex-1">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--accent-signal)]" />
+        <div className="relative flex-1 min-w-0">
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--accent-signal)] pointer-events-none" />
           <input
             ref={inputRef}
             type="text"
-            placeholder={scope === 'section' ? "Buscar nesta página... (Enter / Esc)" : "Buscar no livro todo... (Enter / Esc)"}
+            placeholder={scope === 'section' ? "Buscar nesta página..." : "Buscar no livro todo..."}
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-md pl-8 pr-7 py-1.5 text-xs font-code focus:outline-none focus:border-[var(--accent-signal)] transition-colors"
+            className="w-full bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-md pl-8 pr-7 py-2 min-h-[38px] text-xs font-code focus:outline-none focus:border-[var(--accent-signal)] transition-colors box-border"
           />
           {query && (
             <button
               type="button"
               onClick={() => onQueryChange('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 cursor-pointer"
               title="Limpar texto"
+              aria-label="Limpar texto"
             >
               <X className="w-3 h-3" />
             </button>
@@ -173,7 +174,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         </div>
 
         {/* Contador de Ocorrências */}
-        <div className="font-code text-[11px] text-[var(--text-muted)] shrink-0 px-1 text-center min-w-[3.6rem]">
+        <div className="font-code text-[11px] text-[var(--text-muted)] shrink-0 px-1 text-center min-w-[3.2rem]">
           {hasQuery ? (
             matches.length > 0 ? (
               <span className="text-[var(--text-secondary)] font-medium">
@@ -188,24 +189,26 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         </div>
 
         {/* Botões de Navegação Anterior / Próximo */}
-        <div className="flex items-center gap-0.5 shrink-0 border-l border-[var(--border-rule-subtle)] pl-1.5">
+        <div className="flex items-center gap-0.5 shrink-0 border-l border-[var(--border-rule-subtle)] pl-1">
           <button
             type="button"
             disabled={matches.length === 0}
             onClick={onPrevMatch}
-            className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
             title="Ocorrência anterior (Shift+Enter)"
+            aria-label="Ocorrência anterior"
           >
-            <ChevronUp className="w-3.5 h-3.5" />
+            <ChevronUp className="w-4 h-4" />
           </button>
           <button
             type="button"
             disabled={matches.length === 0}
             onClick={onNextMatch}
-            className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
             title="Próxima ocorrência (Enter)"
+            aria-label="Próxima ocorrência"
           >
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className="w-4 h-4" />
           </button>
         </div>
 
@@ -214,24 +217,26 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           type="button"
           disabled={matches.length === 0}
           onClick={() => setIsListExpanded(!isListExpanded)}
-          className={`p-1 rounded text-xs transition-colors shrink-0 ${
+          className={`p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded text-xs transition-colors shrink-0 cursor-pointer ${
             isListExpanded
               ? 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] font-medium'
               : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
           } disabled:opacity-30 disabled:cursor-not-allowed`}
           title={isListExpanded ? 'Recolher lista' : (scope === 'section' ? 'Ver trechos da página' : 'Ver todos os trechos da obra')}
+          aria-label="Alternar lista de ocorrências"
         >
-          <List className="w-3.5 h-3.5" />
+          <List className="w-4 h-4" />
         </button>
 
         {/* Botão Fechar */}
         <button
           type="button"
           onClick={onClose}
-          className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors shrink-0"
+          className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors shrink-0 cursor-pointer"
           title="Fechar busca (Esc)"
+          aria-label="Fechar busca"
         >
-          <X className="w-3.5 h-3.5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
 
