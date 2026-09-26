@@ -14,6 +14,8 @@ interface ReaderContentProps {
   onDeleteHighlight: (highlightId: string) => void;
   initialScrollPercentage?: number;
   targetAnchor?: string;
+  /** Incrementado cada vez que se quer forçar re-scroll para targetAnchor */
+  targetAnchorKey?: number;
   searchQuery?: string;
   activeSearchLocalIndex?: number;
 }
@@ -37,6 +39,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   onDeleteHighlight,
   initialScrollPercentage = 0,
   targetAnchor,
+  targetAnchorKey,
   searchQuery,
   activeSearchLocalIndex
 }) => {
@@ -59,17 +62,30 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     dyslexic: 'font-sans tracking-wide leading-loose'
   };
 
-  // Restauração de posição inicial ao trocar de seção
+  // Restauração de posição inicial ao trocar de seção ou forçar scroll para âncora
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     if (targetAnchor) {
-      const targetElem = el.querySelector(`#${targetAnchor}`) || el.querySelector(`[name="${targetAnchor}"]`);
-      if (targetElem) {
-        targetElem.scrollIntoView({ behavior: 'smooth' });
-        return;
+      // Aguarda o DOM estar pronto com o conteúdo renderizado antes de buscar a âncora
+      const tryScroll = () => {
+        const targetElem =
+          el.querySelector(`#${CSS.escape(targetAnchor)}`) ||
+          el.querySelector(`[name="${targetAnchor}"]`);
+        if (targetElem) {
+          targetElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return true;
+        }
+        return false;
+      };
+
+      if (!tryScroll()) {
+        // Retry após microtask (DOM pode ainda estar sendo preenchido pelo useEffect de highlights)
+        const raf = requestAnimationFrame(() => tryScroll());
+        return () => cancelAnimationFrame(raf);
       }
+      return;
     }
 
     if (initialScrollPercentage > 0) {
@@ -84,7 +100,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     } else {
       el.scrollTop = 0;
     }
-  }, [section.id, targetAnchor]);
+  }, [section.id, targetAnchor, targetAnchorKey]);
 
   const handleHighlightClick = (clickedHl: Highlight, rect: DOMRect) => {
     if (clickedHl.note) {

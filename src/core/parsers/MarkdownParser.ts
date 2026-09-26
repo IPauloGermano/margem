@@ -1,4 +1,4 @@
-import { marked } from 'marked';
+import { Marked } from 'marked';
 import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, TableOfContentsItem } from '../types/index.ts';
 import { sanitizeHtml } from './sanitize.ts';
@@ -50,41 +50,66 @@ export class MarkdownParser implements DocumentParser {
       }
     }
 
-    // 2. Extração de Headings para o Sumário (TOC)
+    // 2. Fatiamento em seções lógicas e extração do Sumário (TOC)
     const toc: TableOfContentsItem[] = [];
-    const headingRegex = /^(#{1,3})\s+(.+)$/gm;
-    let match: RegExpExecArray | null;
-
-    let headingIdx = 0;
-    while ((match = headingRegex.exec(body)) !== null) {
-      const hashes = match[1];
-      const headingText = match[2].trim();
-      const level = hashes.length;
-      const slug = `heading-${headingIdx++}-${headingText.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-')}`;
-
-      toc.push({
-        id: slug,
-        title: headingText,
-        level,
-        sectionIndex: 0,
-        anchor: slug
-      });
-    }
-
-    // 3. Fatiamento em seções lógicas (caso haja múltiplos # ou ##)
-    // Se o arquivo tiver vários capítulos principais (# Capítulo ...), dividimos em seções.
-    // Caso contrário, mantemos como uma seção única e fluida.
     const h1Count = (body.match(/^#\s+/gm) || []).length;
     let sections: DocumentSection[] = [];
 
+    const slugifyHeading = (text: string, secIdx: number, hIdx: number): string => {
+      const clean = text
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[*_`#]/g, '')
+        .replace(/[^\w\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+      return `h-sec${secIdx}-${hIdx}-${clean || 'heading'}`;
+    };
+
     if (h1Count > 1) {
-      // Divide por H1
-      const parts = body.split(/(?=^#\s+)/gm);
+      // Divide por H1 (Capítulos principais)
+      const parts = body.split(/(?=^#\s+)/gm).filter((p) => p.trim().length > 0);
       sections = await Promise.all(
-        parts.filter((p) => p.trim().length > 0).map(async (part, idx) => {
+        parts.map(async (part, idx) => {
           const partTitleMatch = part.match(/^#\s+(.+)$/m);
-          const partTitle = partTitleMatch ? partTitleMatch[1].trim() : `Seção ${idx + 1}`;
-          const html = transformContentMediaLinks(sanitizeHtml(String(await marked.parse(part))));
+          const partTitle = partTitleMatch ? partTitleMatch[1].replace(/[*_`]/g, '').trim() : `Seção ${idx + 1}`;
+
+          // Extrai cabeçalhos desta seção para o TOC com o índice correto
+          const headingRegex = /^(#{1,3})\s+(.+)$/gm;
+          let hMatch: RegExpExecArray | null;
+          let partHeadingIdx = 0;
+          while ((hMatch = headingRegex.exec(part)) !== null) {
+            const hashes = hMatch[1];
+            const headingText = hMatch[2].replace(/[*_`]/g, '').trim();
+            const level = hashes.length;
+            const slug = slugifyHeading(headingText, idx, partHeadingIdx++);
+
+            toc.push({
+              id: slug,
+              title: headingText,
+              level,
+              sectionIndex: idx,
+              anchor: slug
+            });
+          }
+
+          // Renderiza markdown injetando id="${slug}" em cada <hN>
+          let renderHeadingIdx = 0;
+          const markedInstance = new Marked();
+          markedInstance.use({
+            renderer: {
+              heading({ tokens, depth, text }) {
+                const parsedText = this.parser.parseInline(tokens);
+                const cleanRaw = text.replace(/[*_`]/g, '').trim();
+                const slug = slugifyHeading(cleanRaw, idx, renderHeadingIdx++);
+                return `<h${depth} id="${slug}">${parsedText}</h${depth}>\n`;
+              }
+            }
+          });
+
+          const rawHtml = String(await markedInstance.parse(part));
+          const html = transformContentMediaLinks(sanitizeHtml(rawHtml));
           const words = part.trim().split(/\s+/).length;
 
           return {
@@ -97,8 +122,40 @@ export class MarkdownParser implements DocumentParser {
         })
       );
     } else {
-      // Seção única contínua
-      const html = transformContentMediaLinks(sanitizeHtml(String(await marked.parse(body))));
+      // Seção única contínua (seção 0)
+      const headingRegex = /^(#{1,3})\s+(.+)$/gm;
+      let hMatch: RegExpExecArray | null;
+      let headingIdx = 0;
+      while ((hMatch = headingRegex.exec(body)) !== null) {
+        const hashes = hMatch[1];
+        const headingText = hMatch[2].replace(/[*_`]/g, '').trim();
+        const level = hashes.length;
+        const slug = slugifyHeading(headingText, 0, headingIdx++);
+
+        toc.push({
+          id: slug,
+          title: headingText,
+          level,
+          sectionIndex: 0,
+          anchor: slug
+        });
+      }
+
+      let renderHeadingIdx = 0;
+      const markedInstance = new Marked();
+      markedInstance.use({
+        renderer: {
+          heading({ tokens, depth, text }) {
+            const parsedText = this.parser.parseInline(tokens);
+            const cleanRaw = text.replace(/[*_`]/g, '').trim();
+            const slug = slugifyHeading(cleanRaw, 0, renderHeadingIdx++);
+            return `<h${depth} id="${slug}">${parsedText}</h${depth}>\n`;
+          }
+        }
+      });
+
+      const rawHtml = String(await markedInstance.parse(body));
+      const html = transformContentMediaLinks(sanitizeHtml(rawHtml));
       const words = body.trim().split(/\s+/).length;
       sections = [
         {

@@ -101,10 +101,22 @@ export class EpubParser implements DocumentParser {
       }
     });
 
-    // 3. Extrair Sumário (NCX ou NAV)
+    // Resolve sectionIndex normalizando basename para compatibilidade EPUB 2 e 3
+    const findSpineIndex = (src: string): number => {
+      const srcBase = src.split('/').pop() || src;
+      // Tentativa exata
+      let idx = spineHrefs.findIndex((href) => href === src || href.endsWith('/' + src));
+      // Fallback por basename
+      if (idx < 0) idx = spineHrefs.findIndex((href) => (href.split('/').pop() || href) === srcBase);
+      return idx;
+    };
+
+    // 3. Extrair Sumário (NCX preferido, NAV como fallback para EPUB 3)
     const toc: TableOfContentsItem[] = [];
     const ncxItem = Array.from(manifestItems.values()).find((i) => i.mediaType === 'application/x-dtbncx+xml');
+
     if (ncxItem) {
+      // EPUB 2: usa NCX
       const ncxPath = this.resolvePath(opfDir, ncxItem.href);
       const ncxFile = zip.file(ncxPath);
       if (ncxFile) {
@@ -117,8 +129,7 @@ export class EpubParser implements DocumentParser {
           const contentSrc = np.querySelector('content')?.getAttribute('src') || '';
           const srcClean = contentSrc.split('#')[0];
           const anchor = contentSrc.includes('#') ? contentSrc.split('#')[1] : undefined;
-
-          const sectionIndex = spineHrefs.findIndex((href) => href.endsWith(srcClean));
+          const sectionIndex = findSpineIndex(srcClean);
 
           toc.push({
             id: `toc-${idx}`,
@@ -128,6 +139,39 @@ export class EpubParser implements DocumentParser {
             anchor
           });
         });
+      }
+    }
+
+    // EPUB 3: fallback NAV document (epub:type="toc")
+    if (toc.length === 0) {
+      const navItem = Array.from(manifestItems.values()).find(
+        (i) => i.mediaType === 'application/xhtml+xml' && i.href.toLowerCase().includes('nav')
+      );
+      if (navItem) {
+        const navPath = this.resolvePath(opfDir, navItem.href);
+        const navFile = zip.file(navPath);
+        if (navFile) {
+          const navHtml = await navFile.async('text');
+          const navDoc = parser.parseFromString(navHtml, 'text/html');
+          const tocNav = navDoc.querySelector('nav[epub\\:type="toc"], nav[role="doc-toc"]') || navDoc.querySelector('nav');
+          const anchors = tocNav ? Array.from(tocNav.querySelectorAll('a')) : [];
+          anchors.forEach((a, idx) => {
+            const href = a.getAttribute('href') || '';
+            const srcClean = href.split('#')[0];
+            const anchor = href.includes('#') ? href.split('#')[1] : undefined;
+            const sectionIndex = findSpineIndex(srcClean);
+            const titleText = (a.textContent || `Capítulo ${idx + 1}`).trim();
+            if (titleText) {
+              toc.push({
+                id: `toc-nav-${idx}`,
+                title: titleText,
+                level: 1,
+                sectionIndex: sectionIndex >= 0 ? sectionIndex : idx,
+                anchor
+              });
+            }
+          });
+        }
       }
     }
 

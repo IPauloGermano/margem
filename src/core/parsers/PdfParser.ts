@@ -324,7 +324,7 @@ export class PdfParser implements DocumentParser {
       try {
         const outline = await pdf.getOutline();
         if (outline && outline.length > 0) {
-          const nativeToc = await this.buildTocFromOutline(outline, pdf, sections.length);
+          const nativeToc = await this.buildTocFromOutline(outline, pdf, sections.length, pagesPerSection);
           if (nativeToc.length > 0) {
             toc.splice(0, toc.length, ...nativeToc);
           }
@@ -491,6 +491,7 @@ export class PdfParser implements DocumentParser {
     items: any[],
     pdf: any,
     maxSections: number,
+    pagesPerSection: number,
     level = 1
   ): Promise<TableOfContentsItem[]> {
     const result: TableOfContentsItem[] = [];
@@ -499,13 +500,16 @@ export class PdfParser implements DocumentParser {
       if (!item.title) continue;
 
       let sectionIdx = 0;
+      let targetAnchor: string | undefined = undefined;
+
       if (item.dest) {
         try {
           const dest = typeof item.dest === 'string' ? await pdf.getDestination(item.dest) : item.dest;
           if (dest && dest[0]) {
             const pageIndex = await pdf.getPageIndex(dest[0]);
-            // Mapeia página para o índice da seção aproximada
-            sectionIdx = Math.min(maxSections - 1, Math.floor(pageIndex / 4));
+            // Mapeia página para o índice da seção exata baseado na paginação configurada
+            sectionIdx = Math.min(maxSections - 1, Math.floor(pageIndex / pagesPerSection));
+            targetAnchor = `pdf-page-${pageIndex + 1}`;
           }
         } catch {}
       }
@@ -514,11 +518,12 @@ export class PdfParser implements DocumentParser {
         id: `pdf-outline-${result.length}-${Math.random().toString(36).substring(2, 6)}`,
         title: item.title,
         level: Math.min(3, level),
-        sectionIndex: sectionIdx
+        sectionIndex: sectionIdx,
+        anchor: targetAnchor
       });
 
       if (item.items && item.items.length > 0 && level < 3) {
-        const children = await this.buildTocFromOutline(item.items, pdf, maxSections, level + 1);
+        const children = await this.buildTocFromOutline(item.items, pdf, maxSections, pagesPerSection, level + 1);
         result.push(...children);
       }
     }

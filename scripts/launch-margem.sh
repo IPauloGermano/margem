@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
 # Launcher robusto para o Margem no Linux / Fedora
+# Agnóstico à versão: encontra automaticamente o AppImage/unpacked mais recente.
 set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Se o binário Linux desempacotado existir, roda diretamente (rápido e sem dependência do libfuse.so.2)
+# 1. Binário Linux desempacotado (mais rápido, sem dependência de FUSE)
 if [ -x "$DIR/dist-package/linux-unpacked/caderno-reader" ]; then
   exec "$DIR/dist-package/linux-unpacked/caderno-reader" "$@"
 fi
 
-# Fallback 1: executa o AppImage do repositório
-if [ -f "$DIR/dist-package/Margem-1.0.1.AppImage" ]; then
-  exec "$DIR/dist-package/Margem-1.0.1.AppImage" "$@"
+# 2. AppImage no repositório (qualquer versão, o mais novo primeiro)
+REPO_APPIMAGE=$(ls -t "$DIR"/dist-package/Margem-*.AppImage 2>/dev/null | grep -v '\.0\.0' | head -1)
+if [ -f "$REPO_APPIMAGE" ]; then
+  exec "$REPO_APPIMAGE" "$@"
+fi
+# Fallback: qualquer AppImage incluindo links simbólicos
+REPO_APPIMAGE=$(ls -t "$DIR"/dist-package/Margem-*.AppImage 2>/dev/null | head -1)
+if [ -f "$REPO_APPIMAGE" ]; then
+  exec "$REPO_APPIMAGE" "$@"
 fi
 
-# Fallback 2: executa o AppImage em ~/Applications
-if [ -f "$HOME/Applications/Margem-1.0.1.AppImage" ]; then
-  exec "$HOME/Applications/Margem-1.0.1.AppImage" "$@"
+# 3. AppImage em ~/Applications (qualquer versão, o mais novo primeiro)
+HOME_APPIMAGE=$(ls -t "$HOME"/Applications/Margem-*.AppImage 2>/dev/null | head -1)
+if [ -f "$HOME_APPIMAGE" ]; then
+  exec "$HOME_APPIMAGE" "$@"
 fi
 
 echo "Erro: Nenhum executável do Margem encontrado." >&2
