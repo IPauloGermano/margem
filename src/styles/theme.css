@@ -151,6 +151,41 @@ body {
 .pr-safe {
   padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
 }
+.px-safe {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+
+/* Otimizações Ergonômicas para Landscape Mobile (altura útil curta <= 520px) */
+@media (orientation: landscape) and (max-height: 520px) {
+  .header-compact-landscape {
+    height: 2.625rem !important; /* 42px de altura preservando touch target */
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .footer-compact-landscape {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    min-height: 2.25rem !important;
+  }
+
+  .reader-container-landscape {
+    padding-top: 0.75rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .sidebar-compact-landscape {
+    width: min(340px, 45vw) !important;
+    max-width: 360px !important;
+  }
+
+  .modal-compact-landscape {
+    max-height: 88vh !important;
+    margin-top: auto !important;
+    margin-bottom: auto !important;
+  }
+}
 
 @media (pointer: coarse) {
   button, [role="button"], a {

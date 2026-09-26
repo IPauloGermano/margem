@@ -45,7 +45,7 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-2xl sm:rounded-xl border-t sm:border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-2xl space-y-5 text-[var(--text-primary)] max-h-[90dvh] overflow-y-auto pb-safe pb-[calc(1.5rem+var(--sab))] box-border overscroll-y-contain animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 duration-150"
+        className="w-full max-w-lg modal-compact-landscape rounded-t-2xl sm:rounded-xl border-t sm:border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 sm:p-6 pl-safe pr-safe shadow-2xl space-y-5 text-[var(--text-primary)] max-h-[88vh] sm:max-h-[90dvh] overflow-y-auto pb-safe pb-[calc(1.5rem+var(--sab))] box-border overscroll-y-contain animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

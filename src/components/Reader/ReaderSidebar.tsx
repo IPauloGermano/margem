@@ -194,7 +194,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   return (
     <aside
       aria-label="Painel lateral do leitor"
-      className="absolute md:relative inset-y-0 left-0 z-40 md:z-20 w-[88vw] max-w-sm sm:w-96 border-r border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl md:shadow-none flex flex-col shrink-0 h-full pb-[env(safe-area-inset-bottom,0px)] animate-in slide-in-from-left duration-200 select-none box-border"
+      className="absolute md:relative inset-y-0 left-0 z-40 md:z-20 w-[88vw] max-w-sm sm:w-96 sidebar-compact-landscape pl-safe border-r border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl md:shadow-none flex flex-col shrink-0 h-full pb-[env(safe-area-inset-bottom,0px)] animate-in slide-in-from-left duration-200 select-none box-border"
     >
       {/* Top Header do Painel */}
       <div className="border-b border-[var(--border-rule)] p-2.5 sm:p-3 space-y-2.5 bg-[var(--bg-surface)] shrink-0">

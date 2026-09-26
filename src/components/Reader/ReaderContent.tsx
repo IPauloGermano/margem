@@ -48,6 +48,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   const bodyRef = useRef<HTMLDivElement>(null);
   const isRestoringScroll = useRef(false);
   const lastKnownScrollTop = useRef<number>(0);
+  const currentScrollPercentageRef = useRef<number>(initialScrollPercentage);
 
   const [toolbarState, setToolbarState] = useState<ToolbarState | null>(null);
   const [activeNotePopover, setActiveNotePopover] = useState<{
@@ -67,10 +68,35 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     dyslexic: 'font-sans tracking-wide leading-loose'
   };
 
+  // Preservação de posição ao rotacionar a tela (portrait <-> landscape) ou redimensionar
+  useEffect(() => {
+    const handleResize = () => {
+      const el = containerRef.current;
+      if (!el || isRestoringScroll.current) return;
+      const scrollHeight = el.scrollHeight - el.clientHeight;
+      if (scrollHeight > 0 && currentScrollPercentageRef.current > 0) {
+        isRestoringScroll.current = true;
+        el.scrollTop = (currentScrollPercentageRef.current / 100) * scrollHeight;
+        setTimeout(() => {
+          isRestoringScroll.current = false;
+        }, 100);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
   // Restauração de posição inicial ao trocar de seção ou forçar scroll para âncora
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
+    currentScrollPercentageRef.current = initialScrollPercentage;
 
     if (targetAnchor) {
       // Aguarda o DOM estar pronto com o conteúdo renderizado antes de buscar a âncora
@@ -253,6 +279,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
 
     const currentProgress = Math.min(100, Math.max(0, (el.scrollTop / scrollHeight) * 100));
+    currentScrollPercentageRef.current = currentProgress;
     onScrollProgress(currentProgress);
   };
 
@@ -453,7 +480,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       }}
       tabIndex={0}
       aria-label="Conteúdo do livro"
-      className="flex-1 overflow-y-auto px-3.5 py-6 sm:px-8 sm:py-16 focus:outline-none transition-colors duration-200 relative select-none overscroll-y-contain"
+      className="flex-1 overflow-y-auto px-3.5 py-6 sm:px-8 sm:py-16 pl-safe pr-safe reader-container-landscape focus:outline-none transition-colors duration-200 relative select-none overscroll-y-contain"
     >
       <div
         className={`mx-auto w-full reader-prose ${fontClassMap[preferences.fontFamily]}`}

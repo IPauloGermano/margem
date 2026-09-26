@@ -38,7 +38,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
   );
 
   return (
-    <header className="h-[calc(3.5rem+var(--sat))] pt-safe border-b border-[var(--border-rule)] bg-[var(--bg-canvas)]/95 backdrop-blur-md px-2.5 sm:px-4 flex items-center justify-between sticky top-0 z-30 select-none box-border">
+    <header className="h-[calc(3.5rem+var(--sat))] header-compact-landscape pt-safe border-b border-[var(--border-rule)] bg-[var(--bg-canvas)]/95 backdrop-blur-md px-2.5 sm:px-4 pl-safe pr-safe flex items-center justify-between sticky top-0 z-30 select-none box-border">
       {/* Esquerda: Voltar e Toggle Sidebar */}
       <div className="flex items-center gap-1.5 sm:gap-3">
         <button

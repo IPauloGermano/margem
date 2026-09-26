@@ -22,7 +22,7 @@ export const ReaderFooter: React.FC<ReaderFooterProps> = ({
   const hasNext = currentIdx < totalSections - 1;
 
   return (
-    <footer className="border-t border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/95 backdrop-blur-md px-3 sm:px-4 py-2 pb-safe flex items-center justify-between text-xs font-code text-[var(--text-secondary)] select-none sticky bottom-0 z-30 box-border">
+    <footer className="border-t border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/95 backdrop-blur-md px-3 sm:px-4 py-2 pb-safe pl-safe pr-safe footer-compact-landscape flex items-center justify-between text-xs font-code text-[var(--text-secondary)] select-none sticky bottom-0 z-30 box-border">
       {/* Botão Anterior */}
       <button
         type="button"

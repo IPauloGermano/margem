@@ -350,7 +350,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-canvas)]/95 backdrop-blur-md select-none animate-in fade-in duration-150 box-border text-[var(--text-primary)]"
     >
       {/* Barra de Ferramentas Superior Editorial */}
-      <header className="w-full h-14 pt-safe px-3 sm:px-6 flex items-center justify-between border-b border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20">
+      <header className="w-full h-14 header-compact-landscape pt-safe px-3 sm:px-6 pl-safe pr-safe flex items-center justify-between border-b border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20">
         {/* Identificação e Título */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <span className="font-editorial text-sm sm:text-base font-medium tracking-tight text-[var(--text-primary)] truncate">
@@ -473,7 +473,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       </main>
 
       {/* Rodapé Editorial Informativo */}
-      <footer className="w-full pb-safe px-4 py-2 sm:py-2.5 flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)] border-t border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20 pointer-events-none">
+      <footer className="w-full pb-safe px-4 py-2 sm:py-2.5 pl-safe pr-safe footer-compact-landscape flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)] border-t border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20 pointer-events-none">
         <div className="flex items-center gap-1.5">
           <Move className="w-3 h-3 opacity-60" />
           <span>Arraste para navegar</span>

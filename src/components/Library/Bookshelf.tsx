@@ -128,7 +128,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
       )}
 
       {/* Header Principal */}
-      <header className="border-b border-[var(--border-rule)] px-4 py-6 sm:px-12 sm:py-12">
+      <header className="border-b border-[var(--border-rule)] px-4 py-6 sm:px-12 sm:py-12 pl-safe pr-safe">
         <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -172,7 +172,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
       </header>
 
       {/* Barra de Filtros e Busca */}
-      <nav aria-label="Filtros e busca da estante" className="border-b border-[var(--border-rule-subtle)] px-4 py-3 sm:px-12 sm:py-4 bg-[var(--bg-surface)]/70 sticky top-0 z-20 backdrop-blur-md">
+      <nav aria-label="Filtros e busca da estante" className="border-b border-[var(--border-rule-subtle)] px-4 py-3 sm:px-12 sm:py-4 pl-safe pr-safe bg-[var(--bg-surface)]/70 sticky top-0 z-20 backdrop-blur-md">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           {/* Campo de Busca */}
           <div className="relative flex-1 max-w-md w-full">
@@ -238,7 +238,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
       </nav>
 
       {/* Conteúdo Principal */}
-      <main className="max-w-6xl mx-auto px-4 py-6 sm:px-12 sm:py-8">
+      <main className="max-w-6xl mx-auto px-4 py-6 sm:px-12 sm:py-8 pl-safe pr-safe">
         {filteredBooks.length > 0 ? (
           <div className="grid grid-cols-1 min-[340px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6">
             {filteredBooks.map((book, idx) => (

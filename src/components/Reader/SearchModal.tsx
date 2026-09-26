@@ -143,7 +143,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     <div
       role="search"
       aria-label="Barra de busca no documento"
-      className="absolute top-2 sm:top-3 inset-x-2 sm:inset-x-auto sm:right-8 sm:w-96 max-w-[calc(100vw-1rem)] z-30 bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-rule)] shadow-2xl rounded-xl p-2 sm:p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-150 text-[var(--text-primary)] select-none box-border"
+      className="absolute top-2 sm:top-3 inset-x-2 sm:inset-x-auto sm:right-8 sm:w-96 max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto z-30 bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-rule)] shadow-2xl rounded-xl p-2 sm:p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-150 text-[var(--text-primary)] select-none box-border"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Linha Principal de Controles */}
