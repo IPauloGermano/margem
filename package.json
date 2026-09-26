@@ -1,6 +1,6 @@
 {
   "name": "caderno-reader",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Leitor desktop minimalista com estética editorial e suporte a MD, TXT, EPUB e arquitetura modular",
   "main": "dist-electron/main.js",
