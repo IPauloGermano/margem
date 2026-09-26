@@ -16,6 +16,7 @@
 - **4 temas** — Warm Charcoal (padrão), Paperwhite, Linen Sepia, Pitch Black OLED.
 - **Navegação estruturada** — TOC lateral, busca full-text com contexto, scrubber de progresso, anterior/próximo por capítulo.
 - **Grifos e notas de margem** — 3 cores, notas ancoradas, exportação Markdown.
+- **Pasta viva** — `fs.watch` recarrega o livro ao editar os arquivos fora do app; leitura contínua inibe a suspensão da tela.
 - **Persistência local** — IndexedDB (livros, posição, marcadores) + `localStorage` (preferências). Nada sai da máquina.
 - **Higienização XSS** — todo HTML/Markdown/EPUB/PDF passa por DOMPurify com allowlist de embeds (ver `src/core/parsers/sanitize.ts`).
 
@@ -79,7 +80,7 @@ chmod +x "dist-package/Margem-1.0.2.AppImage"
 | `npm run dev:desktop` | `scripts/dev-desktop.mjs` — Vite + Electron lado a lado |
 | `npm run build` | `tsc && vite build && scripts/build-electron.mjs` |
 | `npm run package:appimage` | build + `electron-builder --linux AppImage` |
-| `npm test` | 16 suítes Node (parsers, XSS, PDF, links, file-watcher, titlebar) |
+| `npm test` | 23 suítes Node (parsers, XSS, PDF, links/embeds, IPC, file-watcher, titlebar, mobile) |
 
 ---
 
@@ -133,11 +134,14 @@ Registry Pattern — novo formato = 1 classe, sem tocar o leitor:
 ```text
 src/
 ├── core/types/          # Book, Section, TOC, Progress, Preferences
-├── core/parsers/        # DocumentParser, ParserRegistry, Markdown/Text/Epub/Pdf
+├── core/parsers/        # DocumentParser, Registry, Markdown/Text/Epub/Pdf, sanitize (DOMPurify)
+├── core/media/          # linkEngine (cards YouTube, autolink pós-sanitize)
+├── core/export/         # Markdown p/ Obsidian/Zettelkasten
 ├── core/storage/db.ts   # IndexedDB + localStorage
 ├── components/Library/  # Bookshelf, BookCard, ImportDirectoryModal
 ├── components/Reader/   # ReaderView, Header/Footer, Sidebar, Modais, Highlights
 ├── components/Window/   # TitleBar (desktop)
+├── electron/            # main (IPC, watcher, single-instance), preload (bridge), pathScope (confinamento), powerBlocker
 └── styles/theme.css     # tokens + .reader-prose
 ```
 
@@ -174,7 +178,7 @@ npm run build
 npm test
 ```
 
-`npm test` roda 16 arquivos em `tests/` (`test-folder-books`, `test-xss-sanitize`, `test-pdf-*`, `test-link-engine`, `test-youtube-links`, `test-titlebar-engine`, `test-file-watcher`, etc.) — sem framework, `node --experimental-strip-types` + asserts.
+`npm test` roda 23 arquivos em `tests/` (`test-folder-books`, `test-xss-sanitize`, `test-pdf-*`, `test-link-engine`, `test-youtube-links`, `test-titlebar-engine`, `test-file-watcher`, `test-path-scope`, `test-mobile-responsiveness`, etc.) — sem framework, `node --experimental-strip-types` + asserts.
 
 ---
 

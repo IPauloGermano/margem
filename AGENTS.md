@@ -7,7 +7,7 @@
 ```text
 # produto: Margem (repo/dir: caderno-reader; package name e appId mantidos p/ compatibilidade)
 # stack: TypeScript + React 18 + Vite 6 + Tailwind CSS v4 via @tailwindcss/vite + Electron 34 + electron-builder (Linux AppImage) + IndexedDB + Marked + JSZip (EPUB) + pdfjs-dist (PDF) + DOMPurify (XSS) + jsdom (testes)
-# commands: npm run dev / npm run dev:desktop / npm run build / npm test (cadeia 22 suítes node) / npm run package:appimage
+# commands: npm run dev / npm run dev:desktop / npm run build / npm test (cadeia 23 suítes node) / npm run package:appimage
 # entry points: electron/main.ts, electron/preload.ts (12 invokes + 2 pushes), electron/pathScope.ts, electron/powerBlocker.ts, src/main.tsx, src/App.tsx, src/core/parsers/ParserRegistry.ts, src/core/parsers/PdfParser.ts, src/core/parsers/sanitize.ts, src/core/media/linkEngine.ts, src/core/parsers/FolderBookLoader.ts, src/core/storage/db.ts, scripts/launch-margem.sh
 # sensitive: electron/main.ts (FS/IPC/watcher/single-instance), electron/preload.ts (bridge 12+2), electron/pathScope.ts (confinamento), src/core/parsers/sanitize.ts (choke point XSS), src/components/Reader/ReaderContent.tsx (innerHTML + iframe), src/core/media/linkEngine.ts (pós-sanitize), scripts/launch-margem.sh (execução), dist-package/ (AppImage)
 ```
