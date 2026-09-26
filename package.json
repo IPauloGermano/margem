@@ -57,7 +57,7 @@
         "AppImage"
       ],
       "category": "Office",
-      "icon": "public/icon.png"
+      "icon": "build/icons"
     }
   }
 }
