@@ -10,6 +10,7 @@ import {
   ReadingProgress
 } from '../../core/types';
 import { db } from '../../core/storage/db';
+import { smoothScrollBehavior, triggerHaptic } from '../../core/motion/fluid';
 import { ReaderHeader } from './ReaderHeader';
 import { ReaderSidebar } from './ReaderSidebar';
 import { ReaderContent } from './ReaderContent';
@@ -191,6 +192,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
     await db.addBookmark(newBookmark);
     setBookmarks((prev) => [newBookmark, ...prev]);
+    triggerHaptic(10);
   };
 
   const handleDeleteBookmark = async (id: string) => {
@@ -228,6 +230,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
     await db.addHighlight(newHighlight);
     setHighlights((prev) => [...prev, newHighlight]);
+    triggerHaptic(12);
   };
 
   const handleUpdateHighlight = async (updated: Highlight) => {
@@ -373,11 +376,11 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       }
 
       if (e.key === 'j') {
-        window.scrollBy({ top: 120, behavior: 'smooth' });
+        window.scrollBy({ top: 120, behavior: smoothScrollBehavior() });
       }
 
       if (e.key === 'k') {
-        window.scrollBy({ top: -120, behavior: 'smooth' });
+        window.scrollBy({ top: -120, behavior: smoothScrollBehavior() });
       }
     };
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '../../core/types';
 import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
+import { smoothScrollBehavior } from '../../core/motion/fluid';
 import { applyHighlights, getSelectionOffsets } from '../../core/highlights/highlightEngine';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
@@ -108,7 +109,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           el.querySelector(`#${CSS.escape(targetAnchor)}`) ||
           el.querySelector(`[name="${targetAnchor}"]`);
         if (targetElem) {
-          targetElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          targetElem.scrollIntoView({ behavior: smoothScrollBehavior(), block: 'start' });
           return true;
         }
         return false;
@@ -243,7 +244,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         activeSearchLocalIndex ?? 0
       );
       if (activeElement) {
-        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        activeElement.scrollIntoView({ behavior: smoothScrollBehavior(), block: 'center' });
       }
     } else {
       // Preserva a posição exata de leitura ao recarregar a seção dinamicamente
@@ -423,7 +424,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           containerRef.current?.querySelector(`#${CSS.escape(anchorId)}`) ||
           containerRef.current?.querySelector(`[name="${CSS.escape(anchorId)}"]`);
         if (targetElement) {
-          targetElement.scrollIntoView({ behavior: 'smooth' });
+          targetElement.scrollIntoView({ behavior: smoothScrollBehavior() });
         }
         return;
       }

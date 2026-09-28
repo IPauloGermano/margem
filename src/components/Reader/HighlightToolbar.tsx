@@ -158,6 +158,7 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
     }
   };
 
+  const isAbove = coords.top < position.top;
   return (
     <div
       ref={containerRef}
@@ -168,9 +169,10 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
         top: `${coords.top}px`,
         left: `${coords.left}px`,
         width: typeof window !== 'undefined' ? `${Math.min(toolbarWidth, window.innerWidth - 24)}px` : `${toolbarWidth}px`,
+        transformOrigin: isAbove ? 'bottom center' : 'top center',
         zIndex: 60
       }}
-      className="animate-in fade-in zoom-in-95 duration-150 shadow-2xl rounded-2xl border border-[var(--border-rule)] bg-[var(--bg-surface)] p-2 text-[var(--text-primary)] font-sans select-none backdrop-blur-md transition-all max-w-[calc(100vw-24px)] box-border"
+      className="shadow-2xl rounded-2xl border border-[var(--border-rule)] bg-[var(--bg-surface)] p-2 text-[var(--text-primary)] font-sans select-none backdrop-blur-md max-w-[calc(100vw-24px)] box-border"
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Barra Principal de Cores e Ações Rápidas */}

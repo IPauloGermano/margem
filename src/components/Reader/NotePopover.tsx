@@ -135,9 +135,10 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
         top: `${coords.top}px`,
         left: `${coords.left}px`,
         width: typeof window !== 'undefined' ? `${Math.min(popoverWidth, window.innerWidth - 24)}px` : `${popoverWidth}px`,
+        transformOrigin: coords.top < position.top ? 'bottom center' : 'top center',
         zIndex: 55
       }}
-      className="animate-in fade-in zoom-in-95 duration-100 rounded-xl border border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl p-3.5 text-[var(--text-primary)] select-none backdrop-blur-md space-y-2.5 max-w-[calc(100vw-24px)] box-border"
+      className="rounded-xl border border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl p-3.5 text-[var(--text-primary)] select-none backdrop-blur-md space-y-2.5 max-w-[calc(100vw-24px)] box-border"
     >
       {/* Top Header do Card de Nota */}
       <div className="flex items-center justify-between border-b border-[var(--border-rule-subtle)] pb-2 text-[11px] font-code">

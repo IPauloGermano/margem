@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ReaderFontFamily,
   ReaderPreferences,
@@ -6,6 +6,8 @@ import {
   ReaderTheme
 } from '../../core/types';
 import { AlignJustify, AlignLeft, Check, Minus, Plus, X } from 'lucide-react';
+import { prefersReducedMotion } from '../../core/motion/fluid';
+import { useDismissDrag } from '../../core/motion/useDismissDrag';
 
 interface AppearanceModalProps {
   isOpen: boolean;
@@ -20,6 +22,17 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
   onUpdatePreferences,
   onClose
 }) => {
+  const sheetDrag = useDismissDrag({ axis: 'y', dimension: 480, dismissDirection: 1, enabled: isOpen, onDismiss: onClose });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (prefersReducedMotion()) return;
+    sheetDrag.animateTo(480, 0);
+    const raf = requestAnimationFrame(() => sheetDrag.animateTo(0, 0));
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const themes: { id: ReaderTheme; name: string; bg: string; text: string; border: string }[] = [
@@ -41,13 +54,27 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="appearance-settings-title"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-150 select-none"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/65 backdrop-blur-xs select-none"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg modal-compact-landscape rounded-t-2xl sm:rounded-xl border-t sm:border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 sm:p-6 pl-safe pr-safe shadow-2xl space-y-5 text-[var(--text-primary)] max-h-[88vh] sm:max-h-[90dvh] overflow-y-auto pb-safe pb-[calc(1.5rem+var(--sab))] box-border overscroll-y-contain animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 duration-150"
+        style={{
+          transform: `translate3d(0, ${sheetDrag.offset}px, 0)`,
+          transition: sheetDrag.isDragging ? 'none' : undefined,
+          willChange: 'transform',
+        }}
+        className="w-full max-w-lg modal-compact-landscape rounded-t-2xl sm:rounded-xl border-t sm:border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 sm:p-6 pl-safe pr-safe shadow-2xl space-y-5 text-[var(--text-primary)] max-h-[88vh] sm:max-h-[90dvh] overflow-y-auto pb-safe pb-[calc(1.5rem+var(--sab))] box-border overscroll-y-contain"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Alça de arrasto 1:1 — mesma origem de entrada/saída (bottom) */}
+        <div
+          {...sheetDrag.bind}
+          style={{ touchAction: 'pan-x', cursor: 'grab' }}
+          className="mx-auto -mt-1 mb-1 h-6 w-full flex items-center justify-center"
+          aria-hidden="true"
+        >
+          <div className="h-1 w-10 rounded-full bg-[var(--border-rule)]" />
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[var(--border-rule-subtle)]">
           <h2 id="appearance-settings-title" className="font-editorial text-lg sm:text-xl font-medium">Aparência & Tipografia</h2>

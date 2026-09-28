@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Bookmark,
   Check,
@@ -29,6 +29,8 @@ import {
   generateMarkdownExport
 } from '../../core/export/markdownExport';
 import { SearchMatchItem, HighlightedSnippet } from './SearchModal';
+import { prefersReducedMotion } from '../../core/motion/fluid';
+import { useDismissDrag } from '../../core/motion/useDismissDrag';
 
 interface ReaderSidebarProps {
   isOpen: boolean;
@@ -81,6 +83,23 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   const [editingNoteText, setEditingNoteText] = useState<string>('');
   const [copiedHighlightId, setCopiedHighlightId] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const sidebarDrag = useDismissDrag({
+    axis: 'x',
+    dimension: 384,
+    dismissDirection: -1,
+    enabled: isOpen,
+    onDismiss: onClose,
+  });
+
+  // Entrada via spring desde o valor presentation (fora da tela) — simétrico à saída
+  useEffect(() => {
+    if (!isOpen) return;
+    if (prefersReducedMotion()) return;
+    sidebarDrag.animateTo(-384, 0);
+    const raf = requestAnimationFrame(() => sidebarDrag.animateTo(0, 0));
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -194,10 +213,18 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   return (
     <aside
       aria-label="Painel lateral do leitor"
-      className="absolute md:relative inset-y-0 left-0 z-40 md:z-20 w-[88vw] max-w-sm sm:w-96 sidebar-compact-landscape pl-safe border-r border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl md:shadow-none flex flex-col shrink-0 h-full pb-[env(safe-area-inset-bottom,0px)] animate-in slide-in-from-left duration-200 select-none box-border"
+      style={{
+        transform: `translate3d(${sidebarDrag.offset}px, 0, 0)`,
+        transition: sidebarDrag.isDragging ? 'none' : undefined,
+        willChange: 'transform',
+      }}
+      className="absolute md:relative inset-y-0 left-0 z-40 md:z-20 w-[88vw] max-w-sm sm:w-96 sidebar-compact-landscape pl-safe border-r border-[var(--border-rule)] bg-[var(--bg-surface)] shadow-2xl md:shadow-none flex flex-col shrink-0 h-full pb-[env(safe-area-inset-bottom,0px)] select-none box-border"
     >
-      {/* Top Header do Painel */}
-      <div className="border-b border-[var(--border-rule)] p-2.5 sm:p-3 space-y-2.5 bg-[var(--bg-surface)] shrink-0">
+      {/* Top Header do Painel — alça de arrasto 1:1 (swipe p/ fechar) */}
+      <div
+        {...sidebarDrag.bind}
+        style={{ touchAction: 'pan-y', cursor: 'grab' }}
+        className="border-b border-[var(--border-rule)] p-2.5 sm:p-3 space-y-2.5 bg-[var(--bg-surface)] shrink-0">
         {/* Linha Superior: Título do Painel e Botão Fechar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, List, Search, X } from 'lucide-react';
+import { prefersReducedMotion } from '../../core/motion/fluid';
+import { useDismissDrag } from '../../core/motion/useDismissDrag';
 
 export interface SearchMatchItem {
   globalIndex: number;
@@ -84,6 +86,16 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 }) => {
   const [isListExpanded, setIsListExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchDrag = useDismissDrag({ axis: 'y', dimension: 240, dismissDirection: -1, enabled: isOpen, onDismiss: onClose });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (prefersReducedMotion()) return;
+    searchDrag.animateTo(-240, 0);
+    const raf = requestAnimationFrame(() => searchDrag.animateTo(0, 0));
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -143,11 +155,17 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     <div
       role="search"
       aria-label="Barra de busca no documento"
-      className="absolute top-2 sm:top-3 inset-x-2 sm:inset-x-auto sm:right-8 sm:w-96 max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto z-30 bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-rule)] shadow-2xl rounded-xl p-2 sm:p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-150 text-[var(--text-primary)] select-none box-border"
+      style={{
+        transform: `translate3d(0, ${searchDrag.offset}px, 0)`,
+        transformOrigin: 'top right',
+        transition: searchDrag.isDragging ? 'none' : undefined,
+        willChange: 'transform',
+      }}
+      className="absolute top-2 sm:top-3 inset-x-2 sm:inset-x-auto sm:right-8 sm:w-96 max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto z-30 bg-[var(--bg-surface)]/95 backdrop-blur-md border border-[var(--border-rule)] shadow-2xl rounded-xl p-2 sm:p-2.5 flex flex-col gap-2 text-[var(--text-primary)] select-none box-border"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Linha Principal de Controles */}
-      <div className="flex items-center gap-1.5">
+      {/* Linha Principal de Controles — alça 1:1 p/ dismiss p/ cima */}
+      <div {...searchDrag.bind} style={{ touchAction: 'pan-x', cursor: 'grab' }} className="flex items-center gap-1.5">
         {/* Campo de Entrada com Ícone */}
         <div className="relative flex-1 min-w-0">
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--accent-signal)] pointer-events-none" />
