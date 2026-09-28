@@ -243,7 +243,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] border border-transparent hover:border-[var(--border-rule-subtle)] transition-colors cursor-pointer"
+            className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] border border-transparent hover:border-[var(--border-rule-subtle)] transition-all active:scale-95 cursor-pointer"
             title="Fechar painel (Esc ou Ctrl+B)"
             aria-label="Fechar painel lateral"
           >
@@ -268,7 +268,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
                 title={tab.title}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-0.5 rounded transition-all text-[11px] relative min-h-[42px] cursor-pointer ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-0.5 rounded transition-all active:scale-95 text-[11px] relative min-h-[42px] cursor-pointer ${
                   isActive
                     ? 'bg-[var(--accent-signal)] text-white font-semibold shadow-xs'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
@@ -439,7 +439,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                     <div
                       key={hl.id}
                       onClick={() => onSelectHighlight(hl)}
-                      className={`p-3 rounded-lg border transition-all cursor-pointer space-y-2 group ${
+                      className={`p-3 rounded-lg border transition-all active:scale-[0.98] cursor-pointer space-y-2 group ${
                         hasNote
                           ? 'border-[var(--border-rule)] bg-[var(--bg-canvas)] shadow-xs hover:border-[var(--accent-signal)]/60'
                           : 'border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] hover:border-[var(--text-muted)]'
@@ -626,7 +626,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                         onSelectSection(res.sectionIndex);
                       }
                     }}
-                    className={`p-2.5 rounded border transition-colors cursor-pointer text-xs space-y-1 ${
+                    className={`p-2.5 rounded border transition-all active:scale-[0.98] cursor-pointer text-xs space-y-1 ${
                       isCurrent
                         ? 'border-[var(--accent-signal)] bg-[var(--accent-signal-bg)]/25'
                         : 'border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] hover:border-[var(--accent-signal)]'
@@ -662,7 +662,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                 <div
                   key={bm.id}
                   onClick={() => onSelectBookmark(bm)}
-                  className="p-3 rounded-md border border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] hover:border-[var(--accent-signal)] transition-colors cursor-pointer space-y-2 group"
+                  className="p-3 rounded-md border border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] hover:border-[var(--accent-signal)] transition-all active:scale-[0.98] cursor-pointer space-y-2 group"
                 >
                   <div className="flex items-center justify-between text-[11px] font-code">
                     <span className="text-[var(--accent-signal)] font-medium">

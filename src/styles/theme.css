@@ -16,6 +16,8 @@
   --text-muted: #938D80;
   --accent-signal: #DE6B44;
   --accent-signal-bg: rgba(222, 107, 68, 0.12);
+  --window-close-bg: #C42B1C;
+  --window-close-bg-active: #A52115;
 
   --font-serif: "Source Serif 4 Variable", "Newsreader", Georgia, serif;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -54,6 +56,8 @@
   --text-muted: #6A655D;
   --accent-signal: #B34420;
   --accent-signal-bg: rgba(179, 68, 32, 0.08);
+  --window-close-bg: #C42B1C;
+  --window-close-bg-active: #A52115;
 
   /* Syntax Highlighting Editorial: Paperwhite */
   --hl-keyword: #A63C1B;
@@ -82,6 +86,8 @@
   --text-muted: #7E7467;
   --accent-signal: #9E4522;
   --accent-signal-bg: rgba(158, 69, 34, 0.1);
+  --window-close-bg: #C42B1C;
+  --window-close-bg-active: #A52115;
 
   /* Syntax Highlighting Editorial: Linen Sepia */
   --hl-keyword: #9E4522;
@@ -110,6 +116,8 @@
   --text-muted: #7A756B;
   --accent-signal: #E06D44;
   --accent-signal-bg: rgba(224, 109, 68, 0.15);
+  --window-close-bg: #C42B1C;
+  --window-close-bg-active: #A52115;
 
   /* Syntax Highlighting Editorial: Pitch Black OLED */
   --hl-keyword: #E87955;

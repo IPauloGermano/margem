@@ -119,7 +119,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           </button>
 
           {isMenuOpen && (
-            <div className="absolute left-0 top-full mt-1 w-64 bg-[var(--bg-surface)] border border-[var(--border-rule)] rounded-lg shadow-2xl py-1 text-xs text-[var(--text-primary)] z-50 animate-in fade-in zoom-in-95 duration-100 font-sans backdrop-blur-md">
+            <div className="absolute left-0 top-full mt-1 w-64 bg-[var(--bg-surface)] border border-[var(--border-rule)] rounded-lg shadow-2xl py-1 text-xs text-[var(--text-primary)] z-50 transition-opacity duration-100 font-sans backdrop-blur-md">
               <button
                 type="button"
                 onClick={() => {
@@ -265,7 +265,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
         <button
           type="button"
           onClick={handleClose}
-          className="w-[48px] h-full flex items-center justify-center text-[var(--text-muted)] hover:text-white hover:bg-[#C42B1C] active:bg-[#A52115] active:text-white/90 active:scale-[0.97] transition-all duration-100 outline-none"
+          className="w-[48px] h-full flex items-center justify-center text-[var(--text-muted)] hover:text-white hover:bg-[var(--window-close-bg)] active:bg-[var(--window-close-bg-active)] active:text-white/90 active:scale-[0.97] transition-all duration-100 outline-none"
           title="Fechar"
           aria-label="Fechar janela"
         >
@@ -278,7 +278,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
       {/* Modal Sobre a Margem */}
       {isAboutOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 app-no-drag">
-          <div className="bg-[var(--bg-surface)] border border-[var(--border-rule)] rounded-xl shadow-2xl p-6 max-w-sm w-full space-y-4 text-center animate-in zoom-in-95 duration-150">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-rule)] rounded-xl shadow-2xl p-6 max-w-sm w-full space-y-4 text-center transition-opacity duration-150">
             <div className="w-12 h-12 mx-auto">
               <svg viewBox="0 0 512 512" className="w-full h-full">
                 <rect x="24" y="24" width="464" height="464" rx="108" fill="#242220" stroke="#3A3632" strokeWidth="16" />

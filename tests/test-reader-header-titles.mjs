@@ -1,14 +1,15 @@
 import assert from 'node:assert';
 import { JSDOM } from 'jsdom';
+import { isSameTitle } from '../src/core/text/titles.ts';
 
 console.log('🧪 Iniciando testes de desduplicação e hierarquia de títulos na UI...');
 
-// 1. Teste de Lógica de Distinção de Título no ReaderHeader
+// 1. Teste de Lógica de Distinção de Título no ReaderHeader (usa o helper real)
 console.log('1. Testando lógica de distinção de título de seção vs livro...');
 
 function shouldShowSectionTitle(bookTitle, sectionTitle) {
   if (!sectionTitle) return false;
-  return sectionTitle.trim().toLowerCase() !== bookTitle.trim().toLowerCase();
+  return !isSameTitle(bookTitle, sectionTitle);
 }
 
 // Caso idêntico: não deve exibir linha secundária duplicada
@@ -29,6 +30,23 @@ assert.strictEqual(
   ),
   false,
   'Títulos com variação apenas de caixa/espaço não devem ser duplicados'
+);
+
+// Caso do screenshot 02-leitor-dark: mesma frase com/sem acento não duplica
+assert.strictEqual(
+  shouldShowSectionTitle(
+    'A Arte da Leitura Tipográfica e a Construção de Leitores Digitais',
+    'A Arte da Leitura Tipografica e a Construcao de Leitores Digitais'
+  ),
+  false,
+  'Variação só de acentos não deve duplicar o título no header'
+);
+
+// Caso com pontuação/espaço diferentes: não deve duplicar
+assert.strictEqual(
+  shouldShowSectionTitle('Capítulo 1: O Começo!', 'capitulo 1 o comeco'),
+  false,
+  'Variação de pontuação/acentos não deve duplicar'
 );
 
 // Caso distinto (Capítulo ou Seção específica): deve exibir
@@ -85,7 +103,7 @@ function cleanContentBody(sectionTitle, htmlContent) {
     if (
       firstHeading &&
       firstHeading === bodyRef.firstElementChild &&
-      firstHeading.textContent?.trim().toLowerCase() === sectionTitle.trim().toLowerCase()
+      isSameTitle(firstHeading.textContent ?? '', sectionTitle)
     ) {
       firstHeading.remove();
     }

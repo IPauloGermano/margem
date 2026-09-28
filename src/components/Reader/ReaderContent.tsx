@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '../../core/types';
 import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
+import { isSameTitle } from '../../core/text/titles';
 import { smoothScrollBehavior } from '../../core/motion/fluid';
 import { applyHighlights, getSelectionOffsets } from '../../core/highlights/highlightEngine';
 import { HighlightToolbar } from './HighlightToolbar';
@@ -176,7 +177,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       if (
         firstHeading &&
         firstHeading === bodyRef.current.firstElementChild &&
-        firstHeading.textContent?.trim().toLowerCase() === section.title.trim().toLowerCase()
+        isSameTitle(firstHeading.textContent, section.title)
       ) {
         firstHeading.remove();
       }

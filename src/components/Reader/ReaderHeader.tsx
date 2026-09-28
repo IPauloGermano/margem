@@ -8,6 +8,7 @@ import {
   Sliders
 } from 'lucide-react';
 import { Book, DocumentSection } from '../../core/types';
+import { isSameTitle } from '../../core/text/titles';
 
 interface ReaderHeaderProps {
   book: Book;
@@ -33,8 +34,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
   isSidebarOpen
 }) => {
   const hasDistinctSectionTitle = Boolean(
-    currentSection?.title &&
-    currentSection.title.trim().toLowerCase() !== book.title.trim().toLowerCase()
+    currentSection?.title && !isSameTitle(currentSection.title, book.title)
   );
 
   return (
@@ -86,7 +86,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         <button
           type="button"
           onClick={onOpenSearch}
-          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all active:scale-95 cursor-pointer"
           title="Buscar no Documento (Ctrl+F)"
           aria-label="Buscar no Documento"
         >
@@ -96,7 +96,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         <button
           type="button"
           onClick={onAddBookmark}
-          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--accent-signal)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--accent-signal)] hover:bg-[var(--bg-surface)] transition-all active:scale-95 cursor-pointer"
           title="Adicionar Marcador (Ctrl+D)"
           aria-label="Adicionar Marcador"
         >
@@ -106,7 +106,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         <button
           type="button"
           onClick={onOpenAppearance}
-          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all active:scale-95 cursor-pointer"
           title="Ajustes de Tipografia e Tema (Ctrl+,)"
           aria-label="Ajustes de Tipografia e Tema"
         >
@@ -116,7 +116,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         <button
           type="button"
           onClick={onOpenShortcuts}
-          className="p-2 min-w-[40px] min-h-[40px] hidden sm:flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+          className="p-2 min-w-[40px] min-h-[40px] hidden sm:flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all active:scale-95 cursor-pointer"
           title="Atalhos de Teclado (?)"
           aria-label="Atalhos de Teclado"
         >
