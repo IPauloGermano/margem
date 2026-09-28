@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '../../core/types';
 import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
+import { applyHighlights, getSelectionOffsets } from '../../core/highlights/highlightEngine';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 import { DiagramFullscreenModal } from './DiagramFullscreenModal';
@@ -10,7 +11,7 @@ interface ReaderContentProps {
   preferences: ReaderPreferences;
   highlights: Highlight[];
   onScrollProgress: (percentage: number) => void;
-  onAddHighlight: (text: string, color: HighlightColor, note?: string) => void;
+  onAddHighlight: (text: string, color: HighlightColor, note?: string, offsets?: { start: number; end: number }) => void;
   onUpdateHighlight: (highlight: Highlight) => void;
   onDeleteHighlight: (highlightId: string) => void;
   initialScrollPercentage?: number;
@@ -25,6 +26,8 @@ interface ToolbarState {
   isOpen: boolean;
   position: { top: number; bottom?: number; left: number };
   selectedText: string;
+  selectionStart?: number;
+  selectionEnd?: number;
   highlightId?: string;
   activeColor: HighlightColor;
   existingNote?: string;
@@ -180,13 +183,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
     const sectionHighlights = highlights.filter((h) => h.sectionId === section.id);
     if (sectionHighlights.length > 0) {
-      sectionHighlights.forEach((hl) => {
-        applyHighlightToTree(
-          bodyRef.current!,
-          hl,
-          handleHighlightClick
-        );
-      });
+      applyHighlights(bodyRef.current!, sectionHighlights, handleHighlightClick);
     }
 
     // Renderização dinâmica dos diagramas Mermaid
@@ -300,6 +297,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     try {
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
+      const offsets = bodyRef.current ? getSelectionOffsets(bodyRef.current, range) : null;
 
       setToolbarState({
         isOpen: true,
@@ -308,7 +306,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           bottom: rect.bottom,
           left: rect.left + rect.width / 2
         },
-        selectedText: text,
+        selectedText: offsets?.text ?? text,
+        selectionStart: offsets?.start,
+        selectionEnd: offsets?.end,
         highlightId: undefined,
         activeColor: 'amber',
         existingNote: undefined
@@ -354,8 +354,16 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         });
       }
     } else {
-      // Criação de novo grifo
-      onAddHighlight(toolbarState.selectedText, color, note);
+      // Criação de novo grifo (com âncora exata quando mensurável)
+      const { selectionStart, selectionEnd } = toolbarState;
+      onAddHighlight(
+        toolbarState.selectedText,
+        color,
+        note,
+        selectionStart !== undefined && selectionEnd !== undefined
+          ? { start: selectionStart, end: selectionEnd }
+          : undefined
+      );
     }
 
     // Limpa a seleção do usuário e fecha toolbar
@@ -569,51 +577,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     </main>
   );
 };
-
-/**
- * Função utilitária para encontrar nós de texto e envolvê-los em tags <mark>
- */
-function applyHighlightToTree(
-  root: HTMLElement,
-  hl: Highlight,
-  onHighlightClick: (hl: Highlight, rect: DOMRect) => void
-) {
-  const target = hl.text.trim();
-  if (!target) return;
-
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let textNode: Text | null = null;
-
-  while ((textNode = walker.nextNode() as Text | null)) {
-    const text = textNode.nodeValue || '';
-    const index = text.indexOf(target);
-
-    if (index !== -1) {
-      const matchNode = textNode.splitText(index);
-      matchNode.splitText(target.length);
-
-      const mark = document.createElement('mark');
-      mark.className = `reader-highlight reader-highlight-${hl.color}`;
-      mark.dataset.highlightId = hl.id;
-      if (hl.note) {
-        mark.dataset.hasNote = 'true';
-        mark.title = 'Nota de reflexão · Clique para abrir';
-      } else {
-        mark.title = 'Trecho grifado · Clique para gerenciar';
-      }
-
-      mark.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const rect = mark.getBoundingClientRect();
-        onHighlightClick(hl, rect);
-      });
-
-      matchNode.parentNode?.replaceChild(mark, matchNode);
-      mark.appendChild(matchNode);
-      break;
-    }
-  }
-}
 
 /**
  * Encontra e destaca visualmente no texto todas as correspondências do termo buscado,

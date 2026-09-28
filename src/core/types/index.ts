@@ -145,6 +145,10 @@ export interface Highlight {
   text: string;
   color: HighlightColor;
   note?: string;
+  /** Âncora exata em chars no texto corrido da seção (mesma base do highlightEngine). Opcional: legados só têm `text`. */
+  start?: number;
+  /** Fim exclusivo da âncora. Offsets stale (texto mudou) caem no fallback por texto. */
+  end?: number;
   createdAt: number;
   updatedAt?: number;
 }

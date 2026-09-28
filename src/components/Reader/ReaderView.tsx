@@ -205,7 +205,12 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   };
 
   // Handlers para Destaques e Anotações
-  const handleAddHighlight = async (text: string, color: HighlightColor, note?: string) => {
+  const handleAddHighlight = async (
+    text: string,
+    color: HighlightColor,
+    note?: string,
+    offsets?: { start: number; end: number }
+  ) => {
     if (!currentSection) return;
 
     const newHighlight: Highlight = {
@@ -217,6 +222,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       text,
       color,
       note,
+      ...(offsets ? { start: offsets.start, end: offsets.end } : {}),
       createdAt: Date.now()
     };
 
