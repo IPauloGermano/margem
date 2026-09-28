@@ -3,9 +3,10 @@ import { Book, ParsedDocument, ReaderPreferences, ScannedItem } from './core/typ
 import { db } from './core/storage/db';
 import { defaultParserRegistry } from './core/parsers/ParserRegistry';
 import { loadFolderBook } from './core/parsers/FolderBookLoader';
+import { reconcileChapterFiles } from './core/parsers/chapterSync';
 import { Bookshelf } from './components/Library/Bookshelf';
 import { SAMPLE_ESSAY_MD, SAMPLE_TEXT_TXT } from './core/samples';
-import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { AppLoadingOverlay, AppSuspenseFallback, AppToast } from './components/UI/AppFeedback';
 import { TitleBar } from './components/Window/TitleBar';
 
 const ReaderView = React.lazy(() =>
@@ -15,18 +16,28 @@ const ImportDirectoryModal = React.lazy(() =>
   import('./components/Library/ImportDirectoryModal').then((m) => ({ default: m.ImportDirectoryModal }))
 );
 
+/** Pré-carrega o chunk do Reader fora do caminho crítico (abrir livro não espera o lazy). */
+function preloadReaderView(): void {
+  void import('./components/Reader/ReaderView');
+}
+
+const LOADING_DELAY_MS = 200;
+
 export const App: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [parsedDoc, setParsedDoc] = useState<ParsedDocument | null>(null);
   const [preferences, setPreferences] = useState<ReaderPreferences>(db.getPreferences());
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadingVisible, setLoadingVisible] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('Processando documento...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [deletedUndo, setDeletedUndo] = useState<{ book: Book; buffer: ArrayBuffer | null; index: number } | null>(null);
 
   // Inicialização instantânea: renderiza a estante imediatamente e carrega livros
   useEffect(() => {
@@ -44,7 +55,28 @@ export const App: React.FC = () => {
       }
     }
     init();
+    // Chunk do Reader em idle: a 1ª abertura não paga o custo do lazy.
+    const w = window as unknown as {
+      requestIdleCallback?: (cb: () => void) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(preloadReaderView);
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(preloadReaderView, 1200);
+    return () => window.clearTimeout(timer);
   }, []);
+
+  // Overlay com atraso: aberturas <200ms nunca piscam loading na tela.
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingVisible(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setLoadingVisible(true), LOADING_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
 
   // Atalho global Ctrl+Q / Cmd+Q para fechar o aplicativo
   useEffect(() => {
@@ -100,6 +132,30 @@ export const App: React.FC = () => {
       try {
         // 1. Caso Livro Composto / Pasta
         if (activeBook.isFolderBook || activeBook.format === 'folder') {
+          // Rescan: loadFolderBook só lê chapterFiles (snapshot da importação),
+          // então reconcilia com o disco antes — arquivo novo entra, removido sai.
+          let syncNote = '';
+          if (activeBook.folderPath && window.cadernoAPI?.scanDirectoryPath) {
+            try {
+              const rescan = await window.cadernoAPI.scanDirectoryPath(activeBook.folderPath);
+              const fresh = (rescan.files || []).filter((fl) =>
+                fl.filePath.startsWith(activeBook.folderPath as string)
+              );
+              const prevPaths = new Set((activeBook.chapterFiles || []).map((fl) => fl.filePath));
+              const merged = reconcileChapterFiles(activeBook.chapterFiles || [], fresh);
+              const nextPaths = new Set(merged.map((fl) => fl.filePath));
+              const added = merged.filter((fl) => !prevPaths.has(fl.filePath)).length;
+              const removed = [...prevPaths].filter((p) => !nextPaths.has(p)).length;
+              activeBook.chapterFiles = merged;
+              activeBook.fileSize = merged.reduce((t, fl) => t + (fl.size || 0), 0);
+              if (added > 0 || removed > 0) {
+                syncNote = ` (+${added}/−${removed})`;
+              }
+            } catch {
+              // Rescan falhou: segue com a lista atual (reconcile nunca zera)
+            }
+          }
+
           const readBufferFn = async (fPath: string): Promise<ArrayBuffer | null> => {
             if (window.cadernoAPI?.readFileByPath && fPath) {
               try {
@@ -120,7 +176,7 @@ export const App: React.FC = () => {
 
           setParsedDoc(updatedParsed);
           setActiveBook({ ...activeBook });
-          setNotification('Pasta sincronizada com as alterações no disco');
+          setNotification(`Pasta sincronizada com as alterações no disco${syncNote}`);
           setTimeout(() => setNotification(null), 2500);
           return;
         }
@@ -561,12 +617,51 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteBook = async (bookId: string) => {
+    const target = books.find((b) => b.id === bookId);
+    if (!target) return;
+    const index = books.findIndex((b) => b.id === bookId);
+    let buffer: ArrayBuffer | null = null;
+    try {
+      buffer = await db.getCachedFileBuffer(bookId);
+    } catch {
+      buffer = null;
+    }
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
     await db.deleteBook(bookId);
     setBooks((prev) => prev.filter((b) => b.id !== bookId));
     if (activeBook?.id === bookId) {
       setActiveBook(null);
       setParsedDoc(null);
     }
+    setDeletedUndo({ book: target, buffer, index: Math.max(0, index) });
+    undoTimeoutRef.current = setTimeout(() => {
+      setDeletedUndo(null);
+      undoTimeoutRef.current = null;
+    }, 8000);
+  };
+
+  const handleUndoDelete = async () => {
+    if (!deletedUndo) return;
+    const { book, buffer, index } = deletedUndo;
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+    try {
+      await db.saveBook(book, buffer ?? undefined);
+    } catch (e) {
+      console.warn('Falha ao desfazer remoção:', e);
+    }
+    setBooks((prev) => {
+      if (prev.some((b) => b.id === book.id)) return prev;
+      const next = [...prev];
+      next.splice(Math.min(index, next.length), 0, book);
+      return next;
+    });
+    setDeletedUndo(null);
   };
 
   const isDesktop = Boolean(
@@ -594,60 +689,38 @@ export const App: React.FC = () => {
 
       {/* Notificação Positiva */}
       {notification && (
-        <div className="fixed top-[calc(1rem+env(safe-area-inset-top,0px))] left-3 right-3 sm:left-auto sm:right-4 z-50 max-w-md bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 p-3 sm:p-4 rounded-xl shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
-          <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-          <div className="text-xs space-y-1 min-w-0 flex-1">
-            <p className="font-semibold font-code">Sucesso</p>
-            <p className="leading-relaxed break-words">{notification}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setNotification(null)}
-            className="text-emerald-400 hover:text-emerald-100 text-xs font-code ml-auto shrink-0 min-h-[32px] px-2 flex items-center"
-          >
-            Fechar
-          </button>
-        </div>
+        <AppToast variant="success" title="Sucesso" message={notification} onClose={() => setNotification(null)} />
       )}
 
       {/* Alerta de Erro */}
       {errorMessage && (
-        <div className="fixed top-[calc(1rem+env(safe-area-inset-top,0px))] left-3 right-3 sm:left-auto sm:right-4 z-50 max-w-md bg-red-950/90 border border-red-500/50 text-red-200 p-3 sm:p-4 rounded-xl shadow-xl flex items-start gap-3 backdrop-blur-md animate-in slide-in-from-top">
-          <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-          <div className="text-xs space-y-1 min-w-0 flex-1">
-            <p className="font-semibold font-code">Aviso</p>
-            <p className="leading-relaxed break-words">{errorMessage}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setErrorMessage(null)}
-            className="text-red-400 hover:text-red-100 text-xs font-code ml-auto shrink-0 min-h-[32px] px-2 flex items-center"
-          >
-            Fechar
-          </button>
-        </div>
+        <AppToast variant="error" title="Aviso" message={errorMessage} onClose={() => setErrorMessage(null)} />
       )}
 
-      {/* Indicador Global de Carregamento */}
-      {isLoading && (
-        <div className="fixed inset-0 z-50 bg-[var(--bg-canvas)]/75 backdrop-blur-xs flex flex-col items-center justify-center space-y-3">
-          <Loader2 className="w-8 h-8 text-[var(--accent-signal)] animate-spin" />
-          <span className="font-code text-xs text-[var(--text-secondary)] tracking-wider">
-            {loadingMessage}
-          </span>
-        </div>
+      {/* Undo de remoção — Agency/forgiveness */}
+      {deletedUndo && (
+        <AppToast
+          variant="success"
+          title="Livro removido"
+          message={`"${deletedUndo.book.title}" foi removido da estante.`}
+          actionLabel="Desfazer"
+          onAction={handleUndoDelete}
+          onClose={() => {
+            if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+            undoTimeoutRef.current = null;
+            setDeletedUndo(null);
+          }}
+        />
       )}
+
+      {/* Indicador Global de Carregamento (com atraso anti-pisca) */}
+      {isLoading && loadingVisible && <AppLoadingOverlay message={loadingMessage} />}
 
       {/* Renderização Condicional: Leitor ou Estante */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {activeBook && parsedDoc ? (
           <React.Suspense
-            fallback={
-              <div className="flex-1 flex flex-col items-center justify-center space-y-3 bg-[var(--bg-canvas)] text-[var(--text-muted)]">
-                <Loader2 className="w-6 h-6 text-[var(--accent-signal)] animate-spin" />
-                <span className="font-editorial text-sm">Carregando livro...</span>
-              </div>
-            }
+            fallback={<AppSuspenseFallback />}
           >
             <ReaderView
               book={activeBook}
