@@ -411,7 +411,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-canvas)]/95 backdrop-blur-md select-none animate-in fade-in duration-150 box-border text-[var(--text-primary)]"
     >
       {/* Barra de Ferramentas Superior Editorial */}
-      <header className="w-full h-14 header-compact-landscape pt-safe px-3 sm:px-6 pl-safe pr-safe flex items-center justify-between border-b border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20">
+      <header className="w-full h-[calc(4rem+var(--sat))] header-compact-landscape pt-safe px-3 sm:px-6 pl-safe pr-safe flex items-center justify-between border-b border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20">
         {/* Identificação e Título */}
         <div className="flex items-center gap-2 min-w-0 shrink-0">
           <span className="font-editorial text-sm sm:text-base font-medium leading-tight tracking-tight text-[var(--text-primary)] truncate">
@@ -423,7 +423,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
         </div>
 
         {/* Controles Centrais com Estética Editorial */}
-        <div className="flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] px-1 py-0.5 rounded-full shadow-xs shrink-0">
+        <div className="diagram-pill flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] px-1 py-0.5 rounded-full shadow-xs shrink-0">
           <button
             type="button"
             onClick={handleZoomOut}
@@ -438,7 +438,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
           <button
             type="button"
             onClick={handleResetZoom}
-            className="h-10 min-w-[3rem] px-2 inline-flex items-center justify-center rounded-full font-mono text-xs leading-none text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer tabular-nums shrink-0"
+            className="pill-pct h-10 min-w-[3rem] px-2 inline-flex items-center justify-center rounded-full font-mono text-xs leading-none text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer tabular-nums shrink-0"
             title="Ajustar ao padrão 100% (0)"
             aria-label="Ajustar ao padrão 100%"
           >

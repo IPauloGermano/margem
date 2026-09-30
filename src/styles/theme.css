@@ -172,6 +172,18 @@ body {
     padding-bottom: 0 !important;
   }
 
+  /* Pílula de zoom do fullscreen de diagramas: encolhe p/ caber nos 42px */
+  .diagram-pill > button {
+    width: 2rem !important;
+    height: 2rem !important;
+    min-width: 0 !important;
+  }
+  .diagram-pill > button.pill-pct {
+    width: auto !important;
+    min-width: 2.5rem !important;
+    padding-inline: 0.375rem !important;
+  }
+
   .footer-compact-landscape {
     padding-top: 0.25rem !important;
     padding-bottom: 0.25rem !important;
