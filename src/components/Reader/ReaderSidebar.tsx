@@ -10,7 +10,6 @@ import {
   List,
   MessageSquare,
   Quote,
-  Search,
   Trash2,
   X
 } from 'lucide-react';
@@ -20,7 +19,6 @@ import {
   DocumentSection,
   Highlight,
   HighlightColor,
-  SearchResult,
   TableOfContentsItem
 } from '../../core/types';
 import {
@@ -28,7 +26,6 @@ import {
   downloadMarkdownFile,
   generateMarkdownExport
 } from '../../core/export/markdownExport';
-import { SearchMatchItem, HighlightedSnippet } from './SearchModal';
 import { prefersReducedMotion, smoothScrollBehavior } from '../../core/motion/fluid';
 import { useDismissDrag } from '../../core/motion/useDismissDrag';
 
@@ -49,11 +46,6 @@ interface ReaderSidebarProps {
   onSelectHighlight: (highlight: Highlight) => void;
   onDeleteHighlight: (highlightId: string) => void;
   onUpdateHighlight?: (highlight: Highlight) => void;
-  searchQuery?: string;
-  onSearchQueryChange?: (q: string) => void;
-  searchMatches?: SearchMatchItem[];
-  currentSearchMatchIndex?: number;
-  onSelectSearchMatch?: (index: number) => void;
 }
 
 export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
@@ -71,16 +63,9 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   highlights,
   onSelectHighlight,
   onDeleteHighlight,
-  onUpdateHighlight,
-  searchQuery: propSearchQuery,
-  onSearchQueryChange,
-  searchMatches: propSearchMatches,
-  currentSearchMatchIndex = 0,
-  onSelectSearchMatch
+  onUpdateHighlight
 }) => {
-  const [activeTab, setActiveTab] = useState<'toc' | 'highlights' | 'bookmarks' | 'search' | 'info'>('toc');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [activeTab, setActiveTab] = useState<'toc' | 'highlights' | 'bookmarks' | 'info'>('toc');
   const [highlightFilter, setHighlightFilter] = useState<'all' | 'notes_only' | HighlightColor>('all');
   const [editingHighlightId, setEditingHighlightId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState<string>('');
@@ -116,48 +101,6 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   if (!isOpen) return null;
 
   const notesCount = highlights.filter((h) => Boolean(h.note?.trim())).length;
-
-  const effectiveQuery = propSearchQuery !== undefined ? propSearchQuery : searchQuery;
-  const effectiveMatches = propSearchMatches !== undefined ? propSearchMatches : searchResults;
-
-  const handleSearch = (q: string) => {
-    if (onSearchQueryChange) {
-      onSearchQueryChange(q);
-    }
-    setSearchQuery(q);
-    if (!q.trim() || q.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    const query = q.toLowerCase();
-    const results: SearchResult[] = [];
-
-    sections.forEach((sec, secIdx) => {
-      const raw = sec.rawText || sec.content.replace(/<[^>]+>/g, ' ');
-      const text = raw.replace(/[*#_`>]/g, ' ').replace(/\s+/g, ' ');
-      const lower = text.toLowerCase();
-      let pos = lower.indexOf(query);
-
-      while (pos !== -1 && results.length < 100) {
-        const start = Math.max(0, pos - 45);
-        const end = Math.min(text.length, pos + query.length + 45);
-        const surrounding = text.substring(start, end).trim();
-
-        results.push({
-          sectionIndex: secIdx,
-          sectionTitle: sec.title,
-          matchText: text.substring(pos, pos + query.length),
-          surroundingContext: surrounding,
-          charIndex: pos
-        });
-
-        pos = lower.indexOf(query, pos + query.length);
-      }
-    });
-
-    setSearchResults(results);
-  };
 
   const handleExportMarkdown = () => {
     const md = generateMarkdownExport(book, highlights);
@@ -247,7 +190,6 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
               {activeTab === 'toc' && 'Índice'}
               {activeTab === 'highlights' && `Destaques (${highlights.length})`}
               {activeTab === 'bookmarks' && `Marcadores (${bookmarks.length})`}
-              {activeTab === 'search' && 'Busca'}
               {activeTab === 'info' && 'Informações'}
             </span>
           </div>
@@ -263,13 +205,12 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
           </button>
         </div>
 
-        {/* Linha das 5 Abas: Distribuição Equilibrada e Sempre Visível */}
-        <div className="grid grid-cols-5 gap-1 p-1 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] font-code">
+        {/* Linha das 4 Abas: Distribuição Equilibrada e Sempre Visível */}
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] font-code">
           {[
             { id: 'toc', label: 'Índice', icon: List, count: undefined, title: 'Índice e Sumário de Capítulos' },
             { id: 'highlights', label: 'Grifos', icon: Highlighter, count: highlights.length, title: `Destaques e Notas (${highlights.length})` },
             { id: 'bookmarks', label: 'Marcas', icon: Bookmark, count: bookmarks.length, title: `Marcadores Salvos (${bookmarks.length})` },
-            { id: 'search', label: 'Busca', icon: Search, count: undefined, title: 'Buscar no Documento' },
             { id: 'info', label: 'Info', icon: Info, count: undefined, title: 'Detalhes da Obra' }
           ].map((tab) => {
             const Icon = tab.icon;
@@ -608,73 +549,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
           </div>
         )}
 
-        {/* ABA: BUSCA */}
-        {activeTab === 'search' && (
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-[var(--accent-signal)]" />
-              <input
-                type="text"
-                value={effectiveQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Buscar palavra ou termo..."
-                className="w-full text-xs font-code pl-9 pr-8 py-2 rounded bg-[var(--bg-canvas)] border border-[var(--border-rule)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-signal)] transition-colors"
-              />
-              {effectiveQuery && (
-                <button
-                  type="button"
-                  onClick={() => handleSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5"
-                  title="Limpar busca"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <span className="text-[11px] font-code text-[var(--text-muted)] block">
-                {effectiveQuery.length >= 2
-                  ? `${effectiveMatches.length} ocorrência(s) encontrada(s) na obra`
-                  : 'Digite pelo menos 2 caracteres para buscar'}
-              </span>
-
-              {effectiveMatches.map((res: any, idx: number) => {
-                const globalIdx = res.globalIndex !== undefined ? res.globalIndex : idx;
-                const isCurrent = globalIdx === currentSearchMatchIndex;
-                return (
-                  <div
-                    key={globalIdx}
-                    onClick={() => {
-                      if (onSelectSearchMatch) {
-                        onSelectSearchMatch(globalIdx);
-                      } else {
-                        onSelectSection(res.sectionIndex);
-                      }
-                    }}
-                    className={`p-2.5 rounded border transition-all active:scale-[0.98] cursor-pointer text-xs space-y-1 ${
-                      isCurrent
-                        ? 'border-[var(--accent-signal)] bg-[var(--accent-signal-bg)]/25'
-                        : 'border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] hover:border-[var(--accent-signal)]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-[11px] font-code">
-                      <span className="text-[var(--accent-signal)] font-medium truncate">
-                        {res.sectionTitle}
-                      </span>
-                      <span className="text-[var(--text-muted)] text-[10px] shrink-0 ml-2">
-                        #{globalIdx + 1}
-                      </span>
-                    </div>
-                    <p className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
-                      ...<HighlightedSnippet text={res.surroundingContext} query={effectiveQuery} />...
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* ABA: BUSCA removida do painel — busca vive no SearchModal (Ctrl+F). */}
 
         {/* ABA: MARCADORES */}
         {activeTab === 'bookmarks' && (

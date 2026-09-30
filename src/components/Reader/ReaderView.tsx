@@ -468,14 +468,6 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           onSelectHighlight={handleSelectHighlight}
           onDeleteHighlight={handleDeleteHighlight}
           onUpdateHighlight={handleUpdateHighlight}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          searchMatches={allSearchMatches}
-          currentSearchMatchIndex={activeMatchGlobalIndex}
-          onSelectSearchMatch={(idx) => {
-            handleSelectMatch(idx);
-            setIsSearchOpen(true);
-          }}
         />
 
         {currentSection ? (
