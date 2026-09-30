@@ -74,7 +74,8 @@ console.log('✓ Arquitetura de modais adaptativos e drawer validada com sucesso
 console.log('5. Testando ReaderHeader, ReaderFooter e ReaderContent (Fatia 3)...');
 const readerHeader = fs.readFileSync(path.resolve('src/components/Reader/ReaderHeader.tsx'), 'utf-8');
 assert.ok(readerHeader.includes('pt-safe'), 'ReaderHeader deve usar pt-safe para proteção superior');
-assert.ok(readerHeader.includes('min-w-[40px]'), 'ReaderHeader deve garantir touch targets de no mínimo 40px');
+assert.ok(readerHeader.includes('size-10'), 'ReaderHeader deve normalizar botões em size-10 (40px touch, sem py-2 altura variável)');
+assert.ok(!readerHeader.includes('Voltar à Estante (Esc)'), 'Título voltar não deve citar Esc (não navega mais à home)');
 
 const readerFooter = fs.readFileSync(path.resolve('src/components/Reader/ReaderFooter.tsx'), 'utf-8');
 assert.ok(readerFooter.includes('pb-safe'), 'ReaderFooter deve usar pb-safe para proteção inferior');
