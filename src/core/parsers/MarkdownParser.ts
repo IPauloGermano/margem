@@ -5,6 +5,30 @@ import type { DocumentSection, ParsedDocument, TableOfContentsItem } from '../ty
 import { sanitizeHtml } from './sanitize.ts';
 import { transformContentMediaLinks } from '../media/linkEngine.ts';
 import { renderHighlightedCodeBlock } from '../syntax/syntaxHighlighter.ts';
+import { buildHeadingSlug } from '../text/slugs.ts';
+
+/**
+ * Extrai o TOC do HTML renderizado (ordem e ids idênticos ao DOM por
+ * construção). Elimina o drift do extrator regex sobre markdown cru
+ * (ex: `#` dentro de code fence contava como heading no TOC, mas o
+ * Marked nunca o renderizava — todos os slugs seguintes divergiam).
+ */
+function extractTocFromHtml(html: string, sectionIndex: number): TableOfContentsItem[] {
+  const items: TableOfContentsItem[] = [];
+  const re = /<h([1-6])\s+id="([^"]+)"[^>]*>([\s\S]*?)<\/h\1>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const title = m[3].replace(/<[^>]+>/g, '').trim() || 'Seção';
+    items.push({
+      id: m[2],
+      title,
+      level: parseInt(m[1], 10),
+      sectionIndex,
+      anchor: m[2]
+    });
+  }
+  return items;
+}
 
 function extractAndRenderMath(markdown: string): { processedMarkdown: string; mathMap: Map<string, string> } {
   const mathMap = new Map<string, string>();
@@ -118,44 +142,13 @@ export class MarkdownParser implements DocumentParser {
     const h1Count = (body.match(/^#\s+/gm) || []).length;
     let sections: DocumentSection[] = [];
 
-    const slugifyHeading = (text: string, secIdx: number, hIdx: number): string => {
-      const clean = text
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[*_`#]/g, '')
-        .replace(/[^\w\s-]/g, '')
-        .trim()
-        .replace(/\s+/g, '-');
-      return `h-sec${secIdx}-${hIdx}-${clean || 'heading'}`;
-    };
-
     if (h1Count > 1) {
       // Divide por H1 (Capítulos principais)
       const parts = body.split(/(?=^#\s+)/gm).filter((p) => p.trim().length > 0);
-      sections = await Promise.all(
+      const results = await Promise.all(
         parts.map(async (part, idx) => {
           const partTitleMatch = part.match(/^#\s+(.+)$/m);
           const partTitle = partTitleMatch ? partTitleMatch[1].replace(/[*_`]/g, '').trim() : `Seção ${idx + 1}`;
-
-          // Extrai cabeçalhos desta seção para o TOC com o índice correto
-          const headingRegex = /^(#{1,3})\s+(.+)$/gm;
-          let hMatch: RegExpExecArray | null;
-          let partHeadingIdx = 0;
-          while ((hMatch = headingRegex.exec(part)) !== null) {
-            const hashes = hMatch[1];
-            const headingText = hMatch[2].replace(/[*_`]/g, '').trim();
-            const level = hashes.length;
-            const slug = slugifyHeading(headingText, idx, partHeadingIdx++);
-
-            toc.push({
-              id: slug,
-              title: headingText,
-              level,
-              sectionIndex: idx,
-              anchor: slug
-            });
-          }
 
           // Preprocessa expressões matemáticas antes do Marked
           const { processedMarkdown, mathMap } = extractAndRenderMath(part);
@@ -168,7 +161,7 @@ export class MarkdownParser implements DocumentParser {
               heading({ tokens, depth, text }) {
                 const parsedText = this.parser.parseInline(tokens);
                 const cleanRaw = text.replace(/[*_`]/g, '').trim();
-                const slug = slugifyHeading(cleanRaw, idx, renderHeadingIdx++);
+                const slug = buildHeadingSlug(idx, renderHeadingIdx++, cleanRaw);
                 return `<h${depth} id="${slug}">${parsedText}</h${depth}>\n`;
               },
               code({ text, lang }) {
@@ -188,34 +181,22 @@ export class MarkdownParser implements DocumentParser {
           const words = part.trim().split(/\s+/).length;
 
           return {
-            id: `sec-${idx}`,
-            title: partTitle,
-            content: html,
-            rawText: part,
-            wordCount: words
+            section: {
+              id: `sec-${idx}`,
+              title: partTitle,
+              content: html,
+              rawText: part,
+              wordCount: words
+            },
+            partToc: extractTocFromHtml(html, idx)
           };
         })
       );
+      // Promise.all preserva a ordem das partes: seções e TOC alinhados.
+      sections = results.map((r) => r.section);
+      results.forEach((r) => toc.push(...r.partToc));
     } else {
       // Seção única contínua (seção 0)
-      const headingRegex = /^(#{1,3})\s+(.+)$/gm;
-      let hMatch: RegExpExecArray | null;
-      let headingIdx = 0;
-      while ((hMatch = headingRegex.exec(body)) !== null) {
-        const hashes = hMatch[1];
-        const headingText = hMatch[2].replace(/[*_`]/g, '').trim();
-        const level = hashes.length;
-        const slug = slugifyHeading(headingText, 0, headingIdx++);
-
-        toc.push({
-          id: slug,
-          title: headingText,
-          level,
-          sectionIndex: 0,
-          anchor: slug
-        });
-      }
-
       // Preprocessa expressões matemáticas antes do Marked
       const { processedMarkdown, mathMap } = extractAndRenderMath(body);
 
@@ -226,7 +207,7 @@ export class MarkdownParser implements DocumentParser {
           heading({ tokens, depth, text }) {
             const parsedText = this.parser.parseInline(tokens);
             const cleanRaw = text.replace(/[*_`]/g, '').trim();
-            const slug = slugifyHeading(cleanRaw, 0, renderHeadingIdx++);
+            const slug = buildHeadingSlug(0, renderHeadingIdx++, cleanRaw);
             return `<h${depth} id="${slug}">${parsedText}</h${depth}>\n`;
           },
           code({ text, lang }) {
@@ -253,6 +234,7 @@ export class MarkdownParser implements DocumentParser {
           wordCount: words
         }
       ];
+      toc.push(...extractTocFromHtml(html, 0));
     }
 
     const totalWords = sections.reduce((acc, s) => acc + s.wordCount, 0);
