@@ -80,7 +80,7 @@ chmod +x "dist-package/Margem-1.0.3.AppImage"
 | `npm run dev:desktop` | `scripts/dev-desktop.mjs` — Vite + Electron lado a lado |
 | `npm run build` | `tsc && vite build && scripts/build-electron.mjs` |
 | `npm run package:appimage` | build + `electron-builder --linux AppImage` |
-| `npm test` | 33 suítes Node (parsers, XSS, PDF, links/embeds, IPC, file-watcher, titlebar, mobile) |
+| `npm test` | 34 suítes Node (parsers, XSS, PDF, links/embeds, IPC, file-watcher, titlebar, mobile) |
 
 ---
 
