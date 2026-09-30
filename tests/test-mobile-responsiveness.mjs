@@ -131,6 +131,9 @@ const diagramZoom = fs.readFileSync(path.resolve('src/core/media/diagramZoom.ts'
 assert.ok(diagramZoom.includes('isMobile ? 3 : 2'), 'diagramZoom deve permitir zoom de até 300% no mobile e 200% no desktop');
 assert.ok(diagramModal.includes('disabled={zoom <= minZoom'), 'Botão de zoom out deve ser desativado no zoom mínimo de 100%');
 assert.ok(diagramModal.includes('disabled={zoom >= maxZoom'), 'Botão de zoom in deve ser desativado no zoom máximo suportado');
+assert.ok(diagramModal.includes('isZoomed'), 'Botão Fit deve ser condicional a zoom ativo (isZoomed)');
+assert.ok(diagramModal.includes('aria-label="Ajustar diagrama à tela"'), 'Botão Fit deve ter aria-label acessível');
+assert.ok(diagramModal.includes('bottom-3 right-3'), 'Botão Fit deve flutuar no canto inferior direito do palco');
 
 assert.ok(readerContent.includes('DiagramFullscreenModal'), 'ReaderContent deve importar DiagramFullscreenModal');
 assert.ok(readerContent.includes('reader-mermaid-container'), 'ReaderContent deve interceptar clique em reader-mermaid-container');

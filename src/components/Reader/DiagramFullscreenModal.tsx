@@ -259,6 +259,9 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   // Pointer Events para Pan / Drag suave
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    // Interativos (ex: botão Fit flutuante) têm gesto próprio: não inicia drag
+    // nem captura o pointer (capture retargetearia o click para o main).
+    if ((e.target as HTMLElement | null)?.closest?.('button')) return;
 
     isDraggingRef.current = true;
     setIsDragging(true);
@@ -402,6 +405,11 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
   const currentScalePct = Math.round((zoom / fitZoom) * 100);
   const clampedScalePct = Math.min(maxPercent, Math.max(100, currentScalePct));
+  // Fit visível só com zoom ativo (tolerância p/ arredondamento de ponto flutuante).
+  const isZoomed = Math.abs(zoom - fitZoom) > 0.01;
+  // Flutuante aparece com zoom OU deslocamento (pan) ativo.
+  const isPanned = pan.x !== 0 || pan.y !== 0;
+  const showFloatingFit = isZoomed || isPanned;
 
   return (
     <div
@@ -454,18 +462,6 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
             aria-label="Aumentar Zoom"
           >
             <ZoomIn className="size-4 shrink-0" />
-          </button>
-
-          <div className="w-[1px] h-4 bg-[var(--border-rule-subtle)] mx-0.5 hidden xs:block shrink-0" />
-
-          <button
-            type="button"
-            onClick={handleResetZoom}
-            className="size-10 inline-flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 transition-all cursor-pointer shrink-0"
-            title="Ajustar à tela (Fit)"
-            aria-label="Ajustar à tela"
-          >
-            <Maximize2 className="size-4 shrink-0" />
           </button>
         </div>
 
@@ -531,6 +527,18 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
           className="bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] rounded-xl shadow-lg p-3 sm:p-6 [&_svg]:!w-full [&_svg]:!h-full [&_svg]:!max-w-none [&_svg]:block select-none pointer-events-none"
           dangerouslySetInnerHTML={{ __html: cleanedSvgHtml }}
         />
+        {/* Fit flutuante: visível só com zoom ou pan ativo; reseta ambos. */}
+        <button
+          type="button"
+          onClick={handleResetZoom}
+          aria-label="Ajustar diagrama à tela"
+          title="Ajustar à tela (Fit)"
+          aria-hidden={!showFloatingFit}
+          tabIndex={showFloatingFit ? 0 : -1}
+          className={`absolute bottom-3 right-3 z-10 size-10 inline-flex items-center justify-center rounded-full bg-[var(--bg-surface)]/80 backdrop-blur-sm border border-[var(--border-rule-subtle)] shadow-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 transition-opacity duration-200 cursor-pointer ${showFloatingFit ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        >
+          <Maximize2 className="size-4 shrink-0" />
+        </button>
       </main>
 
       {/* Rodapé Editorial Informativo */}
