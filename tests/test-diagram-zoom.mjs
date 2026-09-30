@@ -6,7 +6,12 @@
  */
 
 import assert from 'node:assert';
-import { clampZoomToRange, computeFitZoom, maxZoomForFit } from '../src/core/media/diagramZoom.ts';
+import {
+  clampZoomToRange,
+  computeFitZoom,
+  maxZoomForFit,
+  recenterPanIfOutside,
+} from '../src/core/media/diagramZoom.ts';
 
 let failures = 0;
 function check(name, cond, extra = '') {
@@ -50,6 +55,44 @@ check(
 
 // Zoom abaixo do novo piso sobe para o fit
 check('zoom abaixo do fit sobe para o fit', clampZoomToRange(0.3, 0.8, false) === 0.8);
+
+// --- Fatia recenter: soltar fora do limite volta ao centro ---
+
+// Pan centralizado permanece intacto
+check(
+  'pan no centro não recentraliza',
+  JSON.stringify(recenterPanIfOutside({ x: 0, y: 0 }, 1300, 800, 1000, 600, 1.25)) ===
+    JSON.stringify({ x: 0, y: 0 })
+);
+
+// Pan pequeno de exploração permanece intacto
+check(
+  'pan pequeno (100px) não recentraliza',
+  JSON.stringify(recenterPanIfOutside({ x: 100, y: 50 }, 1300, 800, 1000, 600, 1.25)) ===
+    JSON.stringify({ x: 100, y: 50 })
+);
+
+// Bug reportado: arrastado para fora da área visível → volta ao centro
+check(
+  'pan totalmente fora recentraliza em {0,0}',
+  JSON.stringify(recenterPanIfOutside({ x: 5000, y: 0 }, 1300, 800, 1000, 600, 1.25)) ===
+    JSON.stringify({ x: 0, y: 0 })
+);
+
+// Parcialmente fora mas abaixo do mínimo visível → volta ao centro
+check(
+  'pan com <120px visíveis recentraliza',
+  JSON.stringify(recenterPanIfOutside({ x: 1175, y: 0 }, 1300, 800, 1000, 600, 1.25)) ===
+    JSON.stringify({ x: 0, y: 0 }),
+  `obtido=${JSON.stringify(recenterPanIfOutside({ x: 1175, y: 0 }, 1300, 800, 1000, 600, 1.25))}`
+);
+
+// Eixo Y fora também recentraliza
+check(
+  'pan vertical fora recentraliza',
+  JSON.stringify(recenterPanIfOutside({ x: 0, y: -3000 }, 1300, 800, 1000, 600, 1.25)) ===
+    JSON.stringify({ x: 0, y: 0 })
+);
 
 if (failures > 0) {
   console.error(`\n❌ TESTE DE DIAGRAM-ZOOM: ${failures} falha(s)`);

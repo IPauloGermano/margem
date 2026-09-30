@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Maximize2, Move, X, ZoomIn, ZoomOut } from 'lucide-react';
-import { clampZoomToRange, computeFitZoom, maxZoomForFit } from '../../core/media/diagramZoom';
+import { clampZoomToRange, computeFitZoom, maxZoomForFit, recenterPanIfOutside } from '../../core/media/diagramZoom';
 
 interface DiagramFullscreenModalProps {
   isOpen: boolean;
@@ -94,6 +94,11 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
+  // Espelho do pan: o pointerUp fecha sobre o valor renderizado, não o do closure.
+  const panRef = useRef<{ x: number; y: number }>(pan);
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
 
   // Dimensões intrínsecas e SVG limpo
   const dimensions = useMemo(() => parseSvgDimensions(svgHtml), [svgHtml]);
@@ -230,6 +235,27 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
     }
   };
 
+  // Snap de soltura: se o diagrama ficou com menos que o mínimo visível em
+  // qualquer eixo, volta ao centro seguro (com transição suave, pois o
+  // arrasto já terminou). Sem isso o diagrama strandava fora da tela.
+  const snapPanToVisible = () => {
+    if (!containerRef.current) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    if (clientWidth <= 0 || clientHeight <= 0) return;
+    const snapped = recenterPanIfOutside(
+      panRef.current,
+      clientWidth,
+      clientHeight,
+      dimensions.width,
+      dimensions.height,
+      zoomRef.current
+    );
+    if (snapped.x !== panRef.current.x || snapped.y !== panRef.current.y) {
+      panRef.current = snapped;
+      setPan(snapped);
+    }
+  };
+
   // Pointer Events para Pan / Drag suave
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
@@ -298,6 +324,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
           lastTapRef.current = now;
         }
       }
+      snapPanToVisible();
     }
   };
 
@@ -332,6 +359,8 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
   const handleTouchEnd = () => {
     touchDistRef.current = null;
+    // Fim de pinça também pode strandar o diagrama: aplica o mesmo snap.
+    snapPanToVisible();
   };
 
   // Zoom via roda do mouse ou trackpad

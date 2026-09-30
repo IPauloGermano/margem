@@ -48,3 +48,44 @@ export function maxZoomForFit(fitZoom: number, isMobile: boolean): number {
 export function clampZoomToRange(zoom: number, fitZoom: number, isMobile: boolean): number {
   return Math.min(maxZoomForFit(fitZoom, isMobile), Math.max(fitZoom, zoom));
 }
+
+export interface DiagramPan {
+  x: number;
+  y: number;
+}
+
+/**
+ * Largura/altura mínima do diagrama que deve restar visível após soltar o
+ * arrasto. Abaixo disso, o diagrama é considerado fora da área visível e
+ * volta ao centro — sem strandear o usuário com um diagrama inacessível.
+ */
+export const RECENTER_MIN_VISIBLE = 120;
+
+/**
+ * Snap de soltura: se o diagrama renderizado (centralizado no container +
+ * pan, escalado pelo zoom) ficar com menos que o mínimo visível em qualquer
+ * eixo, retorna {x:0,y:0} (centro seguro); senão devolve o pan intacto.
+ */
+export function recenterPanIfOutside(
+  pan: DiagramPan,
+  containerWidth: number,
+  containerHeight: number,
+  diagramWidth: number,
+  diagramHeight: number,
+  zoom: number
+): DiagramPan {
+  const scaledW = diagramWidth * zoom;
+  const scaledH = diagramHeight * zoom;
+  const centerX = containerWidth / 2 + pan.x;
+  const centerY = containerHeight / 2 + pan.y;
+  const left = centerX - scaledW / 2;
+  const right = centerX + scaledW / 2;
+  const top = centerY - scaledH / 2;
+  const bottom = centerY + scaledH / 2;
+  const visibleW = Math.min(right, containerWidth) - Math.max(left, 0);
+  const visibleH = Math.min(bottom, containerHeight) - Math.max(top, 0);
+  const needW = Math.min(RECENTER_MIN_VISIBLE, scaledW);
+  const needH = Math.min(RECENTER_MIN_VISIBLE, scaledH);
+  if (visibleW < needW || visibleH < needH) return { x: 0, y: 0 };
+  return pan;
+}
