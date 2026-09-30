@@ -411,9 +411,9 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-canvas)]/95 backdrop-blur-md select-none animate-in fade-in duration-150 box-border text-[var(--text-primary)]"
     >
       {/* Barra de Ferramentas Superior Editorial */}
-      <header className="w-full h-[calc(4rem+var(--sat))] header-compact-landscape pt-safe px-3 sm:px-6 pl-safe pr-safe flex items-center justify-between border-b border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20">
+      <header className="w-full h-[calc(4rem+var(--sat))] header-compact-landscape pt-safe px-3 sm:px-6 pl-safe pr-safe grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20">
         {/* Identificação e Título */}
-        <div className="flex items-center gap-2 min-w-0 shrink-0">
+        <div className="flex items-center gap-2 min-w-0 justify-self-start">
           <span className="font-editorial text-sm sm:text-base font-medium leading-tight tracking-tight text-[var(--text-primary)] truncate">
             Diagrama
           </span>
@@ -423,7 +423,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
         </div>
 
         {/* Controles Centrais com Estética Editorial */}
-        <div className="diagram-pill flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] px-1 py-0.5 rounded-full shadow-xs shrink-0">
+        <div className="diagram-pill flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] px-1 py-0.5 rounded-full shadow-xs justify-self-center">
           <button
             type="button"
             onClick={handleZoomOut}
@@ -470,12 +470,12 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
         </div>
 
         {/* Ações da Direita: Copiar Código e Fechar */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 justify-self-end">
           {code && (
             <button
               type="button"
               onClick={handleCopyCode}
-              className="size-10 inline-flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer shrink-0"
+              className="size-10 hidden sm:inline-flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer shrink-0"
               title="Copiar código Mermaid"
               aria-label="Copiar código Mermaid"
             >
