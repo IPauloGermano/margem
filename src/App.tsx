@@ -23,6 +23,9 @@ function preloadReaderView(): void {
 
 const LOADING_DELAY_MS = 200;
 
+/** Livro aberto persiste ao reload: guardado ao abrir, removido ao voltar à estante. */
+const ACTIVE_BOOK_KEY = 'margem_active_book_id';
+
 export const App: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
@@ -37,7 +40,34 @@ export const App: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didRestoreActiveBookRef = useRef(false);
+  const hasHadActiveBookRef = useRef(false);
+  // Sessão a restaurar (leitura síncrona da chave): enquanto true, mostra o
+  // skeleton do leitor em vez da estante — sem flash da home no reload.
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(ACTIVE_BOOK_KEY) !== null;
+    } catch {
+      return false;
+    }
+  });
   const [deletedUndo, setDeletedUndo] = useState<{ book: Book; buffer: ArrayBuffer | null; index: number } | null>(null);
+
+  // Sincroniza o livro aberto com localStorage (reload volta ao mesmo livro).
+  // O guarda `hasHadActiveBookRef` impede o mount inicial (activeBook=null)
+  // de apagar a chave antes do restore do init ler.
+  useEffect(() => {
+    try {
+      if (activeBook) {
+        hasHadActiveBookRef.current = true;
+        localStorage.setItem(ACTIVE_BOOK_KEY, activeBook.id);
+      } else if (hasHadActiveBookRef.current) {
+        localStorage.removeItem(ACTIVE_BOOK_KEY);
+      }
+    } catch {
+      // storage indisponível: reload volta à estante (comportamento atual)
+    }
+  }, [activeBook]);
 
   // Inicialização instantânea: renderiza a estante imediatamente e carrega livros
   useEffect(() => {
@@ -50,8 +80,26 @@ export const App: React.FC = () => {
         if (storedBooks.length === 0) {
           loadSampleContent('md', false);
         }
+
+        // Restore: recarrega o livro que estava aberto antes do reload.
+        // Guarda anti-duplo (StrictMode dev remonta effects 2x).
+        if (!didRestoreActiveBookRef.current) {
+          didRestoreActiveBookRef.current = true;
+          let savedId: string | null = null;
+          try {
+            savedId = localStorage.getItem(ACTIVE_BOOK_KEY);
+          } catch {
+            savedId = null;
+          }
+          const saved = savedId ? storedBooks.find((b) => b.id === savedId) : undefined;
+          if (saved) {
+            await handleOpenBook(saved);
+          }
+        }
       } catch (err: any) {
         console.error('Falha ao inicializar banco de dados:', err);
+      } finally {
+        setIsRestoringSession(false);
       }
     }
     init();
@@ -472,6 +520,12 @@ export const App: React.FC = () => {
     } catch (err: any) {
       console.error('Erro ao abrir livro:', err);
       setErrorMessage(err.message || 'Erro ao carregar o livro.');
+      // Falha (ex: arquivo sumiu do disco): limpa chave p/ não errar a cada reload
+      try {
+        localStorage.removeItem(ACTIVE_BOOK_KEY);
+      } catch {
+        // ignora
+      }
     } finally {
       setIsLoading(false);
     }
@@ -737,6 +791,8 @@ export const App: React.FC = () => {
               }}
             />
           </React.Suspense>
+        ) : isRestoringSession ? (
+          <AppSuspenseFallback />
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto">
             <Bookshelf
