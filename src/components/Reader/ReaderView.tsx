@@ -323,7 +323,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         return;
       }
 
-      // Escape: fecha modais ou retorna à estante
+      // Escape: fecha overlays. Nunca navega à estante sozinho — voltar à
+      // home é gesto explícito (botão voltar). Antes, um Esc com popover de
+      // nota aberto disparava onClose (document) + onBackToBookshelf (window).
       if (e.key === 'Escape') {
         if (isAppearanceOpen) setIsAppearanceOpen(false);
         else if (isSearchOpen) {
@@ -332,7 +334,6 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         }
         else if (isShortcutsOpen) setIsShortcutsOpen(false);
         else if (isSidebarOpen) setIsSidebarOpen(false);
-        else onBackToBookshelf();
         return;
       }
 
