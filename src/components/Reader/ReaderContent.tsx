@@ -4,6 +4,7 @@ import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
 import { isSameTitle } from '../../core/text/titles';
 import { smoothScrollBehavior } from '../../core/motion/fluid';
 import { applyHighlights, clearHighlightMarks, getSelectionOffsets } from '../../core/highlights/highlightEngine';
+import { useScrollSpy } from '../../core/hooks/useScrollSpy';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 import { DiagramFullscreenModal } from './DiagramFullscreenModal';
@@ -335,62 +336,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
   }, [section.id, section.content, preferences.theme, preferences.fontFamily]);
 
-  // ScrollSpy do sumário: observa headings com id (+ âncoras do TOC, ex: páginas
-  // de PDF) e reporta a âncora visível. Roda após o preenchimento (DOM pronto).
-  const activeHeadingCbRef = useRef(onActiveHeadingChange);
-  useEffect(() => {
-    activeHeadingCbRef.current = onActiveHeadingChange;
+  // ScrollSpy por linha de leitura (hook dedicado): reporta a âncora visível
+  // para o TOC. Pausado durante travessia de navegação programática.
+  // contentKey espelha os gatilhos do preenchimento (innerHTML recria os nós).
+  useScrollSpy(containerRef, bodyRef, {
+    anchors: headingAnchors ?? [],
+    onChange: (id) => onActiveHeadingChange?.(id),
+    pausedRef: isAnchorNavigating,
+    contentKey: `${section.id}|${preferences.theme}|${preferences.fontFamily}|${section.content.length}`
   });
-  useEffect(() => {
-    const body = bodyRef.current;
-    const scroller = containerRef.current;
-    if (!body || !scroller) return;
-
-    const anchorSet = new Set((headingAnchors ?? []).filter(Boolean));
-    const targets = [...body.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id]')].filter(
-      (el) => el.id && (anchorSet.size === 0 || anchorSet.has(el.id))
-    );
-    if (anchorSet.size > 0) {
-      anchorSet.forEach((a) => {
-        const el = body.querySelector<HTMLElement>(`#${CSS.escape(a)}`);
-        if (el && !targets.includes(el)) targets.push(el);
-      });
-    }
-    if (targets.length === 0) {
-      activeHeadingCbRef.current?.(null);
-      return;
-    }
-
-    const visibleTop = new Map<string, number>();
-    const pick = () => {
-      let best: string | null = null;
-      let bestTop = Infinity;
-      visibleTop.forEach((top, id) => {
-        if (top < bestTop) {
-          bestTop = top;
-          best = id;
-        }
-      });
-      // Sticky: sem heading na faixa, mantém o último (nunca apaga o clique
-      // de navegação nem pisca entre cabeçalhos).
-      if (best) activeHeadingCbRef.current?.(best);
-    };
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // Travessia programática: ignora cabeçalhos no caminho do scroll suave.
-        if (isAnchorNavigating.current) return;
-        entries.forEach((en) => {
-          const id = (en.target as HTMLElement).id;
-          if (en.isIntersecting) visibleTop.set(id, en.boundingClientRect.top);
-          else visibleTop.delete(id);
-        });
-        pick();
-      },
-      { root: scroller, rootMargin: '-10% 0px -70% 0px', threshold: 0 }
-    );
-    targets.forEach((t) => observer.observe(t));
-    return () => observer.disconnect();
-  }, [section.id, section.content, headingAnchors]);
 
   // Grifos + busca sobre o DOM já preenchido: desfaz só os marks e reaplica,
   // sem `innerHTML` (preserva imagens, Mermaid renderizado e posição de scroll).
