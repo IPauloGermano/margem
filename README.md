@@ -80,7 +80,7 @@ chmod +x "dist-package/Margem-1.0.3.AppImage"
 | `npm run dev:desktop` | `scripts/dev-desktop.mjs` — Vite + Electron lado a lado |
 | `npm run build` | `tsc && vite build && scripts/build-electron.mjs` |
 | `npm run package:appimage` | build + `electron-builder --linux AppImage` |
-| `npm test` | 23 suítes Node (parsers, XSS, PDF, links/embeds, IPC, file-watcher, titlebar, mobile) |
+| `npm test` | 31 suítes Node (parsers, XSS, PDF, links/embeds, IPC, file-watcher, titlebar, mobile) |
 
 ---
 
@@ -178,7 +178,7 @@ npm run build
 npm test
 ```
 
-`npm test` roda 23 arquivos em `tests/` (`test-folder-books`, `test-xss-sanitize`, `test-pdf-*`, `test-link-engine`, `test-youtube-links`, `test-titlebar-engine`, `test-file-watcher`, `test-path-scope`, `test-mobile-responsiveness`, etc.) — sem framework, `node --experimental-strip-types` + asserts.
+`npm test` roda 31 arquivos em `tests/` (`test-folder-books`, `test-highlight-engine`, `test-xss-sanitize`, `test-pdf-*`, `test-link-engine`, `test-youtube-links`, `test-titlebar-engine`, `test-file-watcher`, `test-path-scope`, `test-mobile-responsiveness`, etc.) — sem framework, `node --experimental-strip-types` + asserts.
 
 ---
 
