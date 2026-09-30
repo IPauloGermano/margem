@@ -3,7 +3,7 @@ import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '.
 import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
 import { isSameTitle } from '../../core/text/titles';
 import { smoothScrollBehavior } from '../../core/motion/fluid';
-import { applyHighlights, getSelectionOffsets } from '../../core/highlights/highlightEngine';
+import { applyHighlights, clearHighlightMarks, getSelectionOffsets } from '../../core/highlights/highlightEngine';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 import { DiagramFullscreenModal } from './DiagramFullscreenModal';
@@ -219,7 +219,10 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }, 250);
   };
 
-  // Aplicação dos grifos no DOM
+  // Preenchimento do corpo: roda 1x por conteúdo/tema (reset real do DOM).
+  // Reaplicações de grifo/busca NÃO passam por aqui (ver effect abaixo) —
+  // resetar `innerHTML` a cada nota salva recriava imagens, re-renderizava
+  // Mermaid e fazia a UI piscar.
   useEffect(() => {
     if (!bodyRef.current) return;
 
@@ -237,17 +240,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       ) {
         firstHeading.remove();
       }
-    }
-
-    const sectionHighlights = highlights.filter((h) => h.sectionId === section.id);
-    if (sectionHighlights.length > 0) {
-      applyHighlights(
-        bodyRef.current!,
-        sectionHighlights,
-        handleHighlightClick,
-        handleHighlightHover,
-        handleHighlightLeave
-      );
     }
 
     // Renderização dinâmica dos diagramas Mermaid
@@ -299,24 +291,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         });
     }
 
-    // Aplicação dos destaques de busca em tempo real no corpo da leitura
-    if (searchQuery && searchQuery.trim().length >= 2) {
-      const { activeElement } = applySearchHighlightsToTree(
-        bodyRef.current!,
-        searchQuery,
-        activeSearchLocalIndex ?? 0
-      );
-      if (activeElement) {
-        activeElement.scrollIntoView({ behavior: smoothScrollBehavior(), block: 'center' });
-      }
-    } else {
-      // Preserva a posição exata de leitura ao recarregar a seção dinamicamente
-      const el = containerRef.current;
-      if (el && lastKnownScrollTop.current > 0) {
-        el.scrollTop = lastKnownScrollTop.current;
-      }
-    }
-
     // Restauração de posição: só aqui o scrollHeight é real (body preenchido +
     // grifos aplicados). 1x por seção; scroll do usuário cancela (handleScroll).
     if (!targetAnchor && initialScrollPercentage > 0 && restoredSectionRef.current !== section.id) {
@@ -341,7 +315,38 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         pendingRestoreRaf.current = requestAnimationFrame(applyRestore);
       });
     }
-  }, [section.id, section.content, highlights, searchQuery, activeSearchLocalIndex, preferences.theme, preferences.fontFamily]);
+  }, [section.id, section.content, preferences.theme, preferences.fontFamily]);
+
+  // Grifos + busca sobre o DOM já preenchido: desfaz só os marks e reaplica,
+  // sem `innerHTML` (preserva imagens, Mermaid renderizado e posição de scroll).
+  useEffect(() => {
+    if (!bodyRef.current) return;
+
+    clearHighlightMarks(bodyRef.current);
+
+    const sectionHighlights = highlights.filter((h) => h.sectionId === section.id);
+    if (sectionHighlights.length > 0) {
+      applyHighlights(
+        bodyRef.current!,
+        sectionHighlights,
+        handleHighlightClick,
+        handleHighlightHover,
+        handleHighlightLeave
+      );
+    }
+
+    // Aplicação dos destaques de busca em tempo real no corpo da leitura
+    if (searchQuery && searchQuery.trim().length >= 2) {
+      const { activeElement } = applySearchHighlightsToTree(
+        bodyRef.current!,
+        searchQuery,
+        activeSearchLocalIndex ?? 0
+      );
+      if (activeElement) {
+        activeElement.scrollIntoView({ behavior: smoothScrollBehavior(), block: 'center' });
+      }
+    }
+  }, [section.id, section.content, highlights, searchQuery, activeSearchLocalIndex]);
 
   // Listener de Scroll para atualizar o progresso de leitura
   const handleScroll = () => {

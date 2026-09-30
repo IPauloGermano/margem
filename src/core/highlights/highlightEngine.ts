@@ -182,6 +182,25 @@ function wrapResolved(
 }
 
 /**
+ * Desfaz os marks de grifo/busca sem destruir o resto do DOM.
+ *
+ * Usado para reaplicar grifos (ex: salvar nota) sem `innerHTML = ...`,
+ * que recriava imagens, re-renderizava Mermaid e fazia a UI piscar.
+ * Após o unwrap, `normalize()` rejunta os nós de texto divididos,
+ * devolvendo o texto corrido à forma original para nova aplicação.
+ */
+export function clearHighlightMarks(root: HTMLElement): void {
+  const marks = root.querySelectorAll('mark.reader-highlight, mark.reader-search-match');
+  marks.forEach((mark) => {
+    const parent = mark.parentNode;
+    if (!parent) return;
+    while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+    parent.removeChild(mark);
+  });
+  root.normalize();
+}
+
+/**
  * Aplica todos os grifos da seção em uma passada determinística.
  *
  * Diferença para o algoritmo anterior (um walker + `indexOf` + `break`

@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom';
-import { applyHighlights, getSelectionOffsets } from '../src/core/highlights/highlightEngine.ts';
+import { applyHighlights, clearHighlightMarks, getSelectionOffsets } from '../src/core/highlights/highlightEngine.ts';
 
 const COLORS = ['amber', 'sage', 'muted'];
 
@@ -165,6 +165,48 @@ function check(name, cond, extra = '') {
   const mark = root.querySelector('mark.reader-highlight');
   mark.dispatchEvent(new root.ownerDocument.defaultView.MouseEvent('click', { bubbles: true }));
   check('clique sem hover segue funcionando', clicked?.id === 'hl-1', `obtido=${clicked?.id}`);
+}
+
+// --- Fatia no-flash: reaplicar grifos sem resetar o DOM ---
+
+// Caso 10 (bug reportado): clear desfaz marks sem destruir o resto do DOM
+{
+  const root = setupDom('<p>O rato roeu a roupa</p><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">');
+  applyHighlights(root, [makeHl('hl-1', 'rato', 'amber')], () => {});
+  const imgBefore = root.querySelector('img');
+  imgBefore.__token = 'mesmo-node';
+  check('1 mark aplicado antes do clear', root.querySelectorAll('mark.reader-highlight').length === 1);
+  clearHighlightMarks(root);
+  check('clear remove todos os marks', root.querySelectorAll('mark.reader-highlight').length === 0);
+  check(
+    'texto visível intacto após clear',
+    root.textContent === 'O rato roeu a roupa',
+    `obtido=${root.textContent}`
+  );
+  check(
+    'clear não recria <img> (sem reload)',
+    root.querySelector('img')?.__token === 'mesmo-node',
+    'node da imagem foi destruído'
+  );
+}
+
+// Caso 11: adicionar 2º grifo = clear + reaplica, sem duplicar nem aninhar
+{
+  const root = setupDom('<p>O rato roeu a roupa</p>');
+  const hls = [makeHl('hl-1', 'rato', 'amber')];
+  applyHighlights(root, hls, () => {});
+  clearHighlightMarks(root);
+  hls.push(makeHl('hl-2', 'roupa', 'sage'));
+  applyHighlights(root, hls, () => {});
+  const marks = root.querySelectorAll('mark.reader-highlight');
+  check('reaplicar após clear gera 2 marks', marks.length === 2, `obtido=${marks.length}`);
+  const nested = [...marks].some((m) => m.parentElement?.tagName === 'MARK');
+  check('reaplicação não aninha marks', !nested);
+  check(
+    'texto visível intacto após reaplicação',
+    root.textContent === 'O rato roeu a roupa',
+    `obtido=${root.textContent}`
+  );
 }
 
 if (failures > 0) {
