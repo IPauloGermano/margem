@@ -2,6 +2,12 @@ import type { Highlight } from '../types';
 
 type HighlightClickHandler = (hl: Highlight, rect: DOMRect) => void;
 
+/** Hover sobre a marcação (mouseenter — desktop). Só dispara; quem decide abrir é o chamador. */
+export type HighlightHoverHandler = (hl: Highlight, rect: DOMRect) => void;
+
+/** Saída do cursor da marcação (mouseleave — desktop). */
+export type HighlightLeaveHandler = (highlightId: string) => void;
+
 /** Âncora medida de um Range do usuário, já com trim aplicado. */
 export interface SelectionOffsets {
   start: number;
@@ -106,7 +112,13 @@ function resolveFirstFreeOccurrence(
   return -1;
 }
 
-function createMark(doc: Document, hl: Highlight, onClick: HighlightClickHandler): HTMLElement {
+function createMark(
+  doc: Document,
+  hl: Highlight,
+  onClick: HighlightClickHandler,
+  onHover?: HighlightHoverHandler,
+  onLeave?: HighlightLeaveHandler
+): HTMLElement {
   const mark = doc.createElement('mark');
   mark.className = `reader-highlight reader-highlight-${hl.color}`;
   mark.dataset.highlightId = hl.id;
@@ -121,6 +133,19 @@ function createMark(doc: Document, hl: Highlight, onClick: HighlightClickHandler
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     onClick(hl, rect);
   });
+  // Hover desktop: passar o cursor sobre grifo com nota abre o popover.
+  // Sem hover não há como descobrir a nota (só clique) — esse era o bug.
+  if (onHover) {
+    mark.addEventListener('mouseenter', (e) => {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      onHover(hl, rect);
+    });
+  }
+  if (onLeave) {
+    mark.addEventListener('mouseleave', () => {
+      onLeave(hl.id);
+    });
+  }
   return mark;
 }
 
@@ -129,7 +154,9 @@ function wrapResolved(
   start: number,
   end: number,
   hl: Highlight,
-  onClick: HighlightClickHandler
+  onClick: HighlightClickHandler,
+  onHover?: HighlightHoverHandler,
+  onLeave?: HighlightLeaveHandler
 ): void {
   const doc = spans.length > 0 ? spans[0].node.ownerDocument : document;
   for (let i = spans.length - 1; i >= 0; i--) {
@@ -148,7 +175,7 @@ function wrapResolved(
     if (relEnd - relStart < (matchNode.nodeValue?.length ?? 0)) {
       matchNode.splitText(relEnd - relStart);
     }
-    const mark = createMark(doc, hl, onClick);
+    const mark = createMark(doc, hl, onClick, onHover, onLeave);
     matchNode.parentNode?.replaceChild(mark, matchNode);
     mark.appendChild(matchNode);
   }
@@ -168,7 +195,9 @@ function wrapResolved(
 export function applyHighlights(
   root: HTMLElement,
   highlights: Highlight[],
-  onHighlightClick: HighlightClickHandler
+  onHighlightClick: HighlightClickHandler,
+  onHighlightHover?: HighlightHoverHandler,
+  onHighlightLeave?: HighlightLeaveHandler
 ): void {
   const candidates: ResolvedRange[] = [];
   const claimed: Array<{ start: number; end: number }> = [];
@@ -206,6 +235,6 @@ export function applyHighlights(
   candidates.sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start));
   for (const { hl, start, end } of candidates) {
     const { spans } = collectSpans(root);
-    wrapResolved(spans, start, end, hl, onHighlightClick);
+    wrapResolved(spans, start, end, hl, onHighlightClick, onHighlightHover, onHighlightLeave);
   }
 }
