@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Bookmark,
   Check,
@@ -29,7 +29,7 @@ import {
   generateMarkdownExport
 } from '../../core/export/markdownExport';
 import { SearchMatchItem, HighlightedSnippet } from './SearchModal';
-import { prefersReducedMotion } from '../../core/motion/fluid';
+import { prefersReducedMotion, smoothScrollBehavior } from '../../core/motion/fluid';
 import { useDismissDrag } from '../../core/motion/useDismissDrag';
 
 interface ReaderSidebarProps {
@@ -37,6 +37,8 @@ interface ReaderSidebarProps {
   onClose: () => void;
   toc: TableOfContentsItem[];
   currentSectionIndex: number;
+  /** ScrollSpy: âncora visível — só o item exato recebe destaque. */
+  activeHeadingId?: string | null;
   onSelectSection: (sectionIndex: number, anchor?: string) => void;
   sections: DocumentSection[];
   book: Book;
@@ -59,6 +61,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   onClose,
   toc,
   currentSectionIndex,
+  activeHeadingId = null,
   onSelectSection,
   sections,
   book,
@@ -100,6 +103,15 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  // ScrollSpy: mantém o item ativo visível dentro da rolagem do painel.
+  const tocItemRefs = useRef(new Map<string, HTMLButtonElement>());
+  useEffect(() => {
+    if (!activeHeadingId) return;
+    tocItemRefs.current
+      .get(activeHeadingId)
+      ?.scrollIntoView({ block: 'nearest', behavior: smoothScrollBehavior() });
+  }, [activeHeadingId]);
 
   if (!isOpen) return null;
 
@@ -301,24 +313,38 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
             </h3>
 
             {toc.length > 0 ? (
-              toc.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onSelectSection(item.sectionIndex, item.anchor)}
-                  style={{ paddingLeft: `${Math.max(0.5, item.level * 0.75)}rem` }}
-                  className={`w-full text-left py-2 px-3 rounded text-xs transition-colors flex items-center justify-between group ${
-                    currentSectionIndex === item.sectionIndex
-                      ? 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] font-medium border-l-2 border-[var(--accent-signal)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
-                  }`}
-                >
-                  <span className="truncate">{item.title}</span>
-                  <span className="font-code text-[10px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
-                    #{item.sectionIndex + 1}
-                  </span>
-                </button>
-              ))
+              toc.map((item) => {
+                // Exato: só a âncora visível recebe destaque (fim da poluição macro).
+                const isExact = Boolean(item.anchor) && item.anchor === activeHeadingId;
+                // Na seção atual sem match exato: ênfase sutil de "aberto", sem caixa.
+                const isInSection = currentSectionIndex === item.sectionIndex;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    ref={(el) => {
+                      if (!item.anchor) return;
+                      if (el) tocItemRefs.current.set(item.anchor, el);
+                      else tocItemRefs.current.delete(item.anchor);
+                    }}
+                    data-toc-active={isExact ? 'true' : 'false'}
+                    onClick={() => onSelectSection(item.sectionIndex, item.anchor)}
+                    style={{ paddingLeft: `${Math.max(0.5, item.level * 0.75)}rem` }}
+                    className={`w-full text-left py-2 px-3 rounded text-xs transition-colors flex items-center justify-between group ${
+                      isExact
+                        ? 'border-l-2 border-[var(--accent-signal)] bg-[var(--accent-signal)]/10 text-[var(--text-primary)] font-medium'
+                        : isInSection
+                          ? 'text-[var(--text-primary)] font-medium'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
+                    }`}
+                  >
+                    <span className="truncate">{item.title}</span>
+                    <span className="font-code text-[10px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
+                      #{item.sectionIndex + 1}
+                    </span>
+                  </button>
+                );
+              })
             ) : (
               sections.map((sec, idx) => (
                 <button

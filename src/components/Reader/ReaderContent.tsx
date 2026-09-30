@@ -22,6 +22,10 @@ interface ReaderContentProps {
   targetAnchorKey?: number;
   searchQuery?: string;
   activeSearchLocalIndex?: number;
+  /** Âncoras do TOC para a seção atual (inclui não-headings, ex: páginas de PDF). */
+  headingAnchors?: string[];
+  /** ScrollSpy: id da âncora visível (ou null). */
+  onActiveHeadingChange?: (anchorId: string | null) => void;
 }
 
 interface ToolbarState {
@@ -47,7 +51,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   targetAnchor,
   targetAnchorKey,
   searchQuery,
-  activeSearchLocalIndex
+  activeSearchLocalIndex,
+  headingAnchors,
+  onActiveHeadingChange
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -63,6 +69,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   const lastSeenSectionRef = useRef<string | null>(null);
   const pendingRestoreRaf = useRef<number | null>(null);
   const userScrolledRef = useRef(false);
+  // Travessia de navegação por âncora em voo: observer pausado (não rouba o clique).
+  const isAnchorNavigating = useRef(false);
+  const anchorNavTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [toolbarState, setToolbarState] = useState<ToolbarState | null>(null);
   const [activeNotePopover, setActiveNotePopover] = useState<{
@@ -124,6 +133,14 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
 
     if (targetAnchor) {
+      // Navegação programática: o observer ignora a travessia até o destino
+      // (cabeçalhos no caminho não roubam o ativo do clique).
+      isAnchorNavigating.current = true;
+      if (anchorNavTimer.current) clearTimeout(anchorNavTimer.current);
+      anchorNavTimer.current = setTimeout(() => {
+        isAnchorNavigating.current = false;
+        anchorNavTimer.current = null;
+      }, 1200);
       // Aguarda o DOM estar pronto com o conteúdo renderizado antes de buscar a âncora
       const tryScroll = () => {
         const targetElem =
@@ -162,6 +179,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     return () => {
       if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
       if (pendingRestoreRaf.current) cancelAnimationFrame(pendingRestoreRaf.current);
+      if (anchorNavTimer.current) clearTimeout(anchorNavTimer.current);
     };
   }, []);
 
@@ -316,6 +334,63 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       });
     }
   }, [section.id, section.content, preferences.theme, preferences.fontFamily]);
+
+  // ScrollSpy do sumário: observa headings com id (+ âncoras do TOC, ex: páginas
+  // de PDF) e reporta a âncora visível. Roda após o preenchimento (DOM pronto).
+  const activeHeadingCbRef = useRef(onActiveHeadingChange);
+  useEffect(() => {
+    activeHeadingCbRef.current = onActiveHeadingChange;
+  });
+  useEffect(() => {
+    const body = bodyRef.current;
+    const scroller = containerRef.current;
+    if (!body || !scroller) return;
+
+    const anchorSet = new Set((headingAnchors ?? []).filter(Boolean));
+    const targets = [...body.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id]')].filter(
+      (el) => el.id && (anchorSet.size === 0 || anchorSet.has(el.id))
+    );
+    if (anchorSet.size > 0) {
+      anchorSet.forEach((a) => {
+        const el = body.querySelector<HTMLElement>(`#${CSS.escape(a)}`);
+        if (el && !targets.includes(el)) targets.push(el);
+      });
+    }
+    if (targets.length === 0) {
+      activeHeadingCbRef.current?.(null);
+      return;
+    }
+
+    const visibleTop = new Map<string, number>();
+    const pick = () => {
+      let best: string | null = null;
+      let bestTop = Infinity;
+      visibleTop.forEach((top, id) => {
+        if (top < bestTop) {
+          bestTop = top;
+          best = id;
+        }
+      });
+      // Sticky: sem heading na faixa, mantém o último (nunca apaga o clique
+      // de navegação nem pisca entre cabeçalhos).
+      if (best) activeHeadingCbRef.current?.(best);
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Travessia programática: ignora cabeçalhos no caminho do scroll suave.
+        if (isAnchorNavigating.current) return;
+        entries.forEach((en) => {
+          const id = (en.target as HTMLElement).id;
+          if (en.isIntersecting) visibleTop.set(id, en.boundingClientRect.top);
+          else visibleTop.delete(id);
+        });
+        pick();
+      },
+      { root: scroller, rootMargin: '-10% 0px -70% 0px', threshold: 0 }
+    );
+    targets.forEach((t) => observer.observe(t));
+    return () => observer.disconnect();
+  }, [section.id, section.content, headingAnchors]);
 
   // Grifos + busca sobre o DOM já preenchido: desfaz só os marks e reaplica,
   // sem `innerHTML` (preserva imagens, Mermaid renderizado e posição de scroll).

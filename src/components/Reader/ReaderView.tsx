@@ -53,6 +53,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeMatchGlobalIndex, setActiveMatchGlobalIndex] = useState(0);
+  // ScrollSpy do sumário: âncora visível (null = nenhuma / sem headings).
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
 
   const sections = document.sections;
   const [searchScope, setSearchScope] = useState<'section' | 'book'>('section');
@@ -150,6 +152,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       setCurrentSectionIndex(nextIdx);
       setScrollPercentage(0);
       setTargetAnchor(undefined);
+      setActiveHeadingId(null);
       saveProgress(nextIdx, 0);
     }
   };
@@ -160,6 +163,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       setCurrentSectionIndex(nextIdx);
       setScrollPercentage(0);
       setTargetAnchor(undefined);
+      setActiveHeadingId(null);
       saveProgress(nextIdx, 0);
     }
   };
@@ -170,9 +174,20 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       setScrollPercentage(0);
       setTargetAnchor(anchor);
       setTargetAnchorKey((k) => k + 1);
+      // Clique no sumário atualiza o ativo imediatamente (sem esperar o observer).
+      setActiveHeadingId(anchor ?? null);
       saveProgress(index, 0);
     }
   };
+
+  // Âncoras do TOC para a seção atual (guia o observer do ScrollSpy).
+  const currentSectionAnchors = useMemo(
+    () =>
+      document.toc
+        .filter((item) => item.sectionIndex === currentSectionIndex && item.anchor)
+        .map((item) => item.anchor as string),
+    [document.toc, currentSectionIndex]
+  );
 
   const handleAddBookmark = async () => {
     if (!currentSection) return;
@@ -438,6 +453,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           onClose={() => setIsSidebarOpen(false)}
           toc={document.toc}
           currentSectionIndex={currentSectionIndex}
+          activeHeadingId={activeHeadingId}
           onSelectSection={(idx, anchor) => {
             handleSelectSection(idx, anchor);
             // Fecha apenas em mobile; em desktop a sidebar permanece visível
@@ -475,6 +491,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             initialScrollPercentage={scrollPercentage}
             targetAnchor={targetAnchor}
             targetAnchorKey={targetAnchorKey}
+            headingAnchors={currentSectionAnchors}
+            onActiveHeadingChange={setActiveHeadingId}
             searchQuery={isSearchOpen ? searchQuery : undefined}
             activeSearchLocalIndex={
               isSearchOpen && currentMatch && currentMatch.sectionIndex === currentSectionIndex
