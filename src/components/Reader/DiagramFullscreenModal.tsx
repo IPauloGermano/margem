@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Maximize2, Move, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { clampZoomToRange, computeFitZoom, maxZoomForFit } from '../../core/media/diagramZoom';
 
 interface DiagramFullscreenModalProps {
   isOpen: boolean;
@@ -84,16 +85,46 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   const hasDraggedRef = useRef<boolean>(false);
   const lastTapRef = useRef<number>(0);
   const touchDistRef = useRef<number | null>(null);
+  // Zoom aplicado pelo usuário: true após qualquer gesto de zoom. Resize do
+  // container só recontém (clamp) — nunca reseta para o fit (era o bug: o
+  // ResizeObserver apagava o zoom a cada resize).
+  const userZoomedRef = useRef<boolean>(false);
+  // Espelho do zoom para leitura em callbacks assíncronos do observer.
+  const zoomRef = useRef<number>(1);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   // Dimensões intrínsecas e SVG limpo
   const dimensions = useMemo(() => parseSvgDimensions(svgHtml), [svgHtml]);
   const cleanedSvgHtml = useMemo(() => cleanMermaidSvg(svgHtml), [svgHtml]);
 
-  // Zoom adaptativo inicial (Fit-to-Screen) calculado dinamicamente
+  // Fit inicial: ao abrir ou trocar de diagrama, segue o fit e zera o pan.
   useEffect(() => {
     if (!isOpen || !containerRef.current) return;
 
-    const calculateFit = () => {
+    const { clientWidth, clientHeight } = containerRef.current;
+    if (clientWidth <= 0 || clientHeight <= 0) return;
+
+    const mobile =
+      clientWidth < 768 ||
+      (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
+    setIsMobile(mobile);
+    const fit = computeFitZoom(clientWidth, clientHeight, dimensions.width, dimensions.height, mobile);
+
+    userZoomedRef.current = false;
+    setFitZoom(fit);
+    setZoom(fit);
+    zoomRef.current = fit;
+    setPan({ x: 0, y: 0 });
+  }, [isOpen, dimensions.width, dimensions.height]);
+
+  // Resize do container: atualiza a base (fit) mas preserva o zoom do usuário
+  // contido no novo range; só zera o pan se o zoom colar no piso.
+  useEffect(() => {
+    if (!isOpen || !containerRef.current) return;
+
+    const onResize = () => {
       if (!containerRef.current) return;
       const { clientWidth, clientHeight } = containerRef.current;
       if (clientWidth <= 0 || clientHeight <= 0) return;
@@ -102,28 +133,24 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
         clientWidth < 768 ||
         (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
       setIsMobile(mobile);
-      const padX = mobile ? 24 : 56;
-      const padY = mobile ? 24 : 56;
+      const fit = computeFitZoom(clientWidth, clientHeight, dimensions.width, dimensions.height, mobile);
 
-      const availWidth = Math.max(60, clientWidth - padX * 2);
-      const availHeight = Math.max(60, clientHeight - padY * 2);
-
-      const scaleX = availWidth / dimensions.width;
-      const scaleY = availHeight / dimensions.height;
-      const initialScale = Math.min(scaleX, scaleY);
-
-      // Limita zoom fit para não esticar além de 1.25x se for pequeno, nem ficar microscópico
-      const clampedFit = Math.max(0.05, Math.min(initialScale, 1.25));
-      const roundedFit = +clampedFit.toFixed(3);
-
-      setFitZoom(roundedFit);
-      setZoom(roundedFit);
-      setPan({ x: 0, y: 0 });
+      setFitZoom(fit);
+      if (!userZoomedRef.current) {
+        setZoom(fit);
+        zoomRef.current = fit;
+        setPan({ x: 0, y: 0 });
+      } else {
+        const next = clampZoomToRange(zoomRef.current, fit, mobile);
+        if (next !== zoomRef.current) {
+          zoomRef.current = next;
+          setZoom(next);
+        }
+        if (next <= fit + 0.001) setPan({ x: 0, y: 0 });
+      }
     };
 
-    calculateFit();
-
-    const observer = new ResizeObserver(calculateFit);
+    const observer = new ResizeObserver(onResize);
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, [isOpen, dimensions.width, dimensions.height]);
@@ -162,20 +189,21 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, fitZoom]);
+  }, [isOpen, onClose, fitZoom, isMobile]);
 
   if (!isOpen || !svgHtml) return null;
 
   const minZoom = fitZoom;
-  const maxZoomMultiplier = isMobile ? 3 : 2;
-  const maxZoom = +(fitZoom * maxZoomMultiplier).toFixed(3);
+  const maxZoom = maxZoomForFit(fitZoom, isMobile);
   const maxPercent = isMobile ? 300 : 200;
 
   const handleZoomIn = () => {
+    userZoomedRef.current = true;
     setZoom((z) => Math.min(maxZoom, +(z + fitZoom * 0.25).toFixed(3)));
   };
 
   const handleZoomOut = () => {
+    userZoomedRef.current = true;
     setZoom((z) => {
       const next = +(z - fitZoom * 0.25).toFixed(3);
       if (next <= minZoom + 0.001) {
@@ -187,6 +215,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   };
 
   const handleResetZoom = () => {
+    userZoomedRef.current = false;
     setZoom(fitZoom);
     setPan({ x: 0, y: 0 });
   };
@@ -196,6 +225,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
     if (zoom > minZoom + 0.01) {
       handleResetZoom();
     } else {
+      userZoomedRef.current = true;
       setZoom(maxZoom);
     }
   };
@@ -287,6 +317,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
       const factor = newDist / touchDistRef.current;
       if (Math.abs(factor - 1) > 0.02) {
+        userZoomedRef.current = true;
         setZoom((z) => {
           const next = Math.min(maxZoom, Math.max(minZoom, +(z * factor).toFixed(3)));
           if (next <= minZoom + 0.001) {
@@ -316,6 +347,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
     const direction = e.deltaY < 0 ? 1 : -1;
     const factor = e.ctrlKey || e.metaKey ? 1.05 : 1.12;
+    userZoomedRef.current = true;
     setZoom((z) => {
       const next =
         direction > 0
