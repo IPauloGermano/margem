@@ -116,6 +116,57 @@ function check(name, cond, extra = '') {
   check('helper mede end exato da 2ª ocorrência', sel?.end === 15, `obtido=${sel?.end}`);
 }
 
+// --- Fatia hover: mouseenter/mouseleave encaminhados pelo engine ---
+
+// Caso 7 (bug reportado): mouseenter no mark dispara onHover com o highlight e o rect
+{
+  const root = setupDom('<p>O rato roeu a roupa</p>');
+  let hovered = null;
+  applyHighlights(
+    root,
+    [{ ...makeHl('hl-1', 'rato', 'amber'), note: 'minha nota' }],
+    () => {},
+    (hl) => {
+      hovered = hl;
+    }
+  );
+  const mark = root.querySelector('mark.reader-highlight');
+  check('mark com nota existe para hover', !!mark);
+  mark.dispatchEvent(new root.ownerDocument.defaultView.MouseEvent('mouseenter', { bubbles: true }));
+  check('mouseenter dispara onHover', hovered?.id === 'hl-1', `obtido=${hovered?.id}`);
+  check('onHover recebe a nota', hovered?.note === 'minha nota', `obtido=${hovered?.note}`);
+}
+
+// Caso 8: mouseleave no mark dispara onLeave com o id
+{
+  const root = setupDom('<p>O rato roeu a roupa</p>');
+  let left = null;
+  applyHighlights(
+    root,
+    [{ ...makeHl('hl-1', 'rato', 'amber'), note: 'minha nota' }],
+    () => {},
+    () => {},
+    (id) => {
+      left = id;
+    }
+  );
+  const mark = root.querySelector('mark.reader-highlight');
+  mark.dispatchEvent(new root.ownerDocument.defaultView.MouseEvent('mouseleave', { bubbles: true }));
+  check('mouseleave dispara onLeave com o id', left === 'hl-1', `obtido=${left}`);
+}
+
+// Caso 9: sem callbacks de hover o clique continua funcionando (retrocompat)
+{
+  const root = setupDom('<p>O rato roeu a roupa</p>');
+  let clicked = null;
+  applyHighlights(root, [makeHl('hl-1', 'rato', 'amber')], (hl) => {
+    clicked = hl;
+  });
+  const mark = root.querySelector('mark.reader-highlight');
+  mark.dispatchEvent(new root.ownerDocument.defaultView.MouseEvent('click', { bubbles: true }));
+  check('clique sem hover segue funcionando', clicked?.id === 'hl-1', `obtido=${clicked?.id}`);
+}
+
 if (failures > 0) {
   console.error(`\n❌ ${failures} asserção(ões) falharam (fatia 2).`);
   process.exit(1);
