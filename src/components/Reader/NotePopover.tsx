@@ -204,7 +204,7 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
       </div>
 
       {/* Corpo da Nota do Usuário */}
-      <div className="bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] rounded-lg p-2.5 text-xs text-[var(--text-primary)] leading-relaxed font-sans whitespace-pre-wrap selection:bg-[var(--accent-signal)]/30 max-h-36 overflow-y-auto break-words [overflow-wrap:anywhere] [scrollbar-width:thin] [scrollbar-color:var(--border-rule)_transparent]">
+      <div className="bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] rounded-lg p-3 text-sm text-[var(--text-primary)] leading-relaxed font-sans whitespace-pre-wrap selection:bg-[var(--accent-signal)]/30 max-h-64 overflow-y-auto break-words [overflow-wrap:anywhere] [scrollbar-width:thin] [scrollbar-color:var(--border-rule)_transparent]">
         {highlight.note || <span className="italic text-[var(--text-muted)]">Sem anotação escrita.</span>}
       </div>
 
