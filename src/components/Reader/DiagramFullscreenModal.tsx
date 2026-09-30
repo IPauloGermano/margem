@@ -413,32 +413,32 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       {/* Barra de Ferramentas Superior Editorial */}
       <header className="w-full h-14 header-compact-landscape pt-safe px-3 sm:px-6 pl-safe pr-safe flex items-center justify-between border-b border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20">
         {/* Identificação e Título */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <span className="font-editorial text-sm sm:text-base font-medium tracking-tight text-[var(--text-primary)] truncate">
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <span className="font-editorial text-sm sm:text-base font-medium leading-tight tracking-tight text-[var(--text-primary)] truncate">
             Diagrama
           </span>
-          <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-wider uppercase hidden sm:inline">
+          <span className="text-[11px] font-mono leading-none text-[var(--text-muted)] tracking-wider uppercase hidden sm:inline shrink-0">
             · Tela Cheia
           </span>
         </div>
 
         {/* Controles Centrais com Estética Editorial */}
-        <div className="flex items-center gap-0.5 sm:gap-1 bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] px-1 py-0.5 rounded-full shadow-xs">
+        <div className="flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] px-1 py-0.5 rounded-full shadow-xs shrink-0">
           <button
             type="button"
             onClick={handleZoomOut}
             disabled={zoom <= minZoom + 0.001}
-            className="p-1.5 min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+            className="size-10 inline-flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
             title="Diminuir Zoom (-)"
             aria-label="Diminuir Zoom"
           >
-            <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <ZoomOut className="size-4 shrink-0" />
           </button>
 
           <button
             type="button"
             onClick={handleResetZoom}
-            className="px-2 sm:px-2.5 py-1 min-h-[32px] sm:min-h-[36px] flex items-center justify-center rounded-full font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer tabular-nums"
+            className="h-10 min-w-[3rem] px-2 inline-flex items-center justify-center rounded-full font-mono text-xs leading-none text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer tabular-nums shrink-0"
             title="Ajustar ao padrão 100% (0)"
             aria-label="Ajustar ao padrão 100%"
           >
@@ -449,40 +449,40 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
             type="button"
             onClick={handleZoomIn}
             disabled={zoom >= maxZoom - 0.001}
-            className="p-1.5 min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+            className="size-10 inline-flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
             title="Aumentar Zoom (+)"
             aria-label="Aumentar Zoom"
           >
-            <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <ZoomIn className="size-4 shrink-0" />
           </button>
 
-          <div className="w-[1px] h-4 bg-[var(--border-rule-subtle)] mx-0.5 hidden xs:block" />
+          <div className="w-[1px] h-4 bg-[var(--border-rule-subtle)] mx-0.5 hidden xs:block shrink-0" />
 
           <button
             type="button"
             onClick={handleResetZoom}
-            className="p-1.5 min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 transition-all cursor-pointer"
+            className="size-10 inline-flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 transition-all cursor-pointer shrink-0"
             title="Ajustar à tela (Fit)"
             aria-label="Ajustar à tela"
           >
-            <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <Maximize2 className="size-4 shrink-0" />
           </button>
         </div>
 
         {/* Ações da Direita: Copiar Código e Fechar */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 shrink-0">
           {code && (
             <button
               type="button"
               onClick={handleCopyCode}
-              className="p-2 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer"
+              className="size-10 inline-flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer shrink-0"
               title="Copiar código Mermaid"
               aria-label="Copiar código Mermaid"
             >
               {copied ? (
-                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-signal)]" />
+                <Check className="size-4 shrink-0 text-[var(--accent-signal)]" />
               ) : (
-                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Copy className="size-4 shrink-0" />
               )}
             </button>
           )}
@@ -490,11 +490,11 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer"
+            className="size-10 inline-flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer shrink-0"
             title="Fechar (Esc)"
             aria-label="Fechar visualizador de tela cheia"
           >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <X className="size-4 shrink-0" />
           </button>
         </div>
       </header>
