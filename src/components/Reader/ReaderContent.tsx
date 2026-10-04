@@ -272,9 +272,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           mermaid.initialize({
             startOnLoad: false,
             securityLevel: 'strict',
+            suppressErrorRendering: true,
             theme: mermaidTheme,
             fontFamily: preferences.fontFamily === 'mono' ? 'monospace' : 'inherit'
           });
+
+          // Nós órfãos que o Mermaid injeta no body em falha (id="d<uniqueId>").
+          const cleanMermaidOrphans = () => {
+            document.querySelectorAll('[id^="dmermaid-"]').forEach((el) => el.remove());
+          };
 
           mermaidContainers.forEach(async (container, idx) => {
             const rawCodeEncoded = container.getAttribute('data-mermaid');
@@ -284,6 +290,8 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
             try {
               const rawCode = decodeURIComponent(rawCodeEncoded);
               const uniqueId = `mermaid-svg-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`;
+              // Pré-validação: falha de sintaxe cai no catch antes de renderizar.
+              await mermaid.parse(rawCode);
               const { svg } = await mermaid.render(uniqueId, rawCode);
               target.innerHTML = svg;
               container.setAttribute('title', 'Clique para ver o diagrama em tela cheia');
@@ -297,11 +305,12 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
               }
             } catch (err: any) {
               console.warn('Erro ao renderizar diagrama Mermaid:', err);
+              cleanMermaidOrphans();
               const fallback = container.querySelector<HTMLElement>('.mermaid-fallback');
               if (fallback) {
                 fallback.classList.remove('hidden');
               }
-              target.innerHTML = `<span class="text-xs text-[var(--accent-signal)] font-mono">[Diagrama com erro de sintaxe]</span>`;
+              target.innerHTML = `<div class="rounded-md border border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] px-3 py-2.5 text-center"><p class="font-code text-[11px] text-[var(--text-muted)]">Diagrama indisponível — erro de sintaxe</p></div>`;
             }
           });
         })

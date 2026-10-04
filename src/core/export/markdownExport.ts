@@ -6,14 +6,17 @@ const COLOR_NAMES: Record<HighlightColor, string> = {
   muted: 'Cinza Muted (Vocabulário/Reflexão)'
 };
 
+const dateFormatter = new Intl.DateTimeFormat('pt-BR');
+const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
 /**
  * Converte a lista de destaques e anotações de um livro em um documento Markdown
  * formatado no padrão Zettelkasten / Obsidian com frontmatter YAML.
  */
 export function generateMarkdownExport(book: Book, highlights: Highlight[]): string {
   const exportDate = new Date();
-  const formattedDate = exportDate.toLocaleDateString('pt-BR');
-  const formattedTime = exportDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const formattedDate = dateFormatter.format(exportDate);
+  const formattedTime = timeFormatter.format(exportDate);
   const isoDate = exportDate.toISOString();
 
   // Agrupa destaques por capítulo/seção mantendo a ordem natural
@@ -85,8 +88,9 @@ export function generateMarkdownExport(book: Book, highlights: Highlight[]): str
 
     sec.items.forEach((item, idx) => {
       const colorLabel = COLOR_NAMES[item.color] || item.color;
-      const itemDate = new Date(item.createdAt).toLocaleDateString('pt-BR');
-      const itemTime = new Date(item.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const createdDate = new Date(item.createdAt);
+      const itemDate = dateFormatter.format(createdDate);
+      const itemTime = timeFormatter.format(createdDate);
 
       // Citação em Blockquote
       lines.push(`> ${item.text.replace(/\n+/g, '\n> ')}`);

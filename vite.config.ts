@@ -18,9 +18,18 @@ export default defineConfig({
     }
   },
   build: {
+    chunkSizeWarningLimit: 3500,
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/scheduler/') ||
+            id.includes('preload-helper')
+          ) {
+            return 'vendor-react';
+          }
           if (id.includes('pdfjs-dist')) {
             return 'vendor-pdf';
           }
@@ -35,9 +44,6 @@ export default defineConfig({
           }
           if (id.includes('mermaid')) {
             return 'vendor-mermaid';
-          }
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
-            return 'vendor-react';
           }
         }
       }

@@ -35,7 +35,7 @@ check(
 );
 check('slug vazio cai em heading', slugifyHeadingText('***') === 'heading');
 check('offset da linha de leitura em 80-120px', READING_LINE_OFFSET >= 80 && READING_LINE_OFFSET <= 120);
-check('tolerância de fim de página 32px', BOTTOM_SLOP === 32);
+check('tolerância de fim de página 24px', BOTTOM_SLOP === 24);
 
 // --- Reading line: último com top <= offset ---
 check(

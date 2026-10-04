@@ -7,7 +7,7 @@ import type { RefObject } from 'react';
  */
 export const READING_LINE_OFFSET = 96;
 /** Tolerância para detecção de fim de rolagem. */
-export const BOTTOM_SLOP = 32;
+export const BOTTOM_SLOP = 24;
 
 export interface ScrollSpyHeading {
   id: string;

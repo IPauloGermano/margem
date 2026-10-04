@@ -1,5 +1,12 @@
 import { Marked } from 'marked';
-import katex from 'katex';
+let _cachedKatex: any = null;
+export async function getKatexLib(): Promise<any> {
+  if (!_cachedKatex) {
+    const mod = await import('katex');
+    _cachedKatex = (mod as any).default || mod;
+  }
+  return _cachedKatex;
+}
 import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, TableOfContentsItem } from '../types/index.ts';
 import { sanitizeHtml } from './sanitize.ts';
@@ -30,8 +37,14 @@ function extractTocFromHtml(html: string, sectionIndex: number): TableOfContents
   return items;
 }
 
-function extractAndRenderMath(markdown: string): { processedMarkdown: string; mathMap: Map<string, string> } {
+function extractAndRenderMath(
+  markdown: string,
+  katexInstance?: any
+): { processedMarkdown: string; mathMap: Map<string, string> } {
   const mathMap = new Map<string, string>();
+  if (!katexInstance) {
+    return { processedMarkdown: markdown, mathMap };
+  }
   let blockCounter = 0;
   let inlineCounter = 0;
 
@@ -40,7 +53,7 @@ function extractAndRenderMath(markdown: string): { processedMarkdown: string; ma
     const trimmed = rawFormula.trim();
     if (!trimmed) return '';
     try {
-      const rendered = katex.renderToString(trimmed, {
+      const rendered = katexInstance.renderToString(trimmed, {
         displayMode: true,
         throwOnError: false,
         output: 'htmlAndMathml'
@@ -65,7 +78,7 @@ function extractAndRenderMath(markdown: string): { processedMarkdown: string; ma
     const trimmed = rawFormula.trim();
     if (!trimmed) return match;
     try {
-      const rendered = katex.renderToString(trimmed, {
+      const rendered = katexInstance.renderToString(trimmed, {
         displayMode: false,
         throwOnError: false,
         output: 'htmlAndMathml'
@@ -142,6 +155,10 @@ export class MarkdownParser implements DocumentParser {
     const h1Count = (body.match(/^#\s+/gm) || []).length;
     let sections: DocumentSection[] = [];
 
+    // Prepara KaTeX sob demanda apenas se o documento contiver sintaxe matemática ($)
+    const hasMath = body.includes('$');
+    const katexLib = hasMath ? await getKatexLib().catch(() => null) : null;
+
     if (h1Count > 1) {
       // Divide por H1 (Capítulos principais)
       const parts = body.split(/(?=^#\s+)/gm).filter((p) => p.trim().length > 0);
@@ -151,7 +168,7 @@ export class MarkdownParser implements DocumentParser {
           const partTitle = partTitleMatch ? partTitleMatch[1].replace(/[*_`]/g, '').trim() : `Seção ${idx + 1}`;
 
           // Preprocessa expressões matemáticas antes do Marked
-          const { processedMarkdown, mathMap } = extractAndRenderMath(part);
+          const { processedMarkdown, mathMap } = extractAndRenderMath(part, katexLib);
 
           // Renderiza markdown injetando id="${slug}" em cada <hN> e interceptando ```mermaid
           let renderHeadingIdx = 0;
@@ -198,7 +215,7 @@ export class MarkdownParser implements DocumentParser {
     } else {
       // Seção única contínua (seção 0)
       // Preprocessa expressões matemáticas antes do Marked
-      const { processedMarkdown, mathMap } = extractAndRenderMath(body);
+      const { processedMarkdown, mathMap } = extractAndRenderMath(body, katexLib);
 
       let renderHeadingIdx = 0;
       const markedInstance = new Marked();
