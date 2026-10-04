@@ -7,6 +7,7 @@ import { reconcileChapterFiles } from './core/parsers/chapterSync';
 import { Bookshelf } from './components/Library/Bookshelf';
 import { SAMPLE_ESSAY_MD, SAMPLE_TEXT_TXT } from './core/samples';
 import { AppLoadingOverlay, AppSuspenseFallback, AppToast } from './components/UI/AppFeedback';
+import { ErrorBoundary } from './components/UI/ErrorBoundary';
 import { TitleBar } from './components/Window/TitleBar';
 
 const ReaderView = React.lazy(() =>
@@ -25,6 +26,9 @@ const LOADING_DELAY_MS = 200;
 
 /** Livro aberto persiste ao reload: guardado ao abrir, removido ao voltar à estante. */
 const ACTIVE_BOOK_KEY = 'margem_active_book_id';
+
+/** Cache em memória de documentos já parseados na sessão para abertura instantânea (0ms). */
+const parsedDocCache = new Map<string, ParsedDocument>();
 
 export const App: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
@@ -312,6 +316,7 @@ export const App: React.FC = () => {
 
       await db.saveBook(newBook, buffer);
       setBooks((prev) => [newBook, ...prev.filter((b) => b.id !== newBook.id)]);
+      parsedDocCache.set(bookId, parsed);
       setActiveBook(newBook);
       setParsedDoc(parsed);
     } catch (err: any) {
@@ -458,6 +463,14 @@ export const App: React.FC = () => {
     setLoadingMessage('Abrindo livro...');
     setErrorMessage(null);
 
+    const cachedParsed = parsedDocCache.get(book.id);
+    if (cachedParsed) {
+      setActiveBook(book);
+      setParsedDoc(cachedParsed);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // 1. Caso especial: Livro em Pasta / Composto por Múltiplos Arquivos
       if (book.isFolderBook || book.format === 'folder') {
@@ -489,13 +502,14 @@ export const App: React.FC = () => {
         book.progress.totalSections = parsed.sections.length;
         await db.saveBook(book);
 
+        parsedDocCache.set(book.id, parsed);
         setActiveBook(book);
         setParsedDoc(parsed);
         setIsLoading(false);
         return;
       }
 
-      // 2. Livro padrão de arquivo único (MD, TXT, EPUB)
+      // 2. Livro padrão de arquivo único (MD, TXT, EPUB, PDF)
       let buffer: ArrayBuffer | null = null;
       buffer = await db.getCachedFileBuffer(book.id);
 
@@ -515,6 +529,7 @@ export const App: React.FC = () => {
         : `${book.title}.${book.format}`;
 
       const parsed = await defaultParserRegistry.parse(buffer, filename, book.format);
+      parsedDocCache.set(book.id, parsed);
       setActiveBook(book);
       setParsedDoc(parsed);
     } catch (err: any) {
@@ -685,6 +700,7 @@ export const App: React.FC = () => {
       undoTimeoutRef.current = null;
     }
     await db.deleteBook(bookId);
+    parsedDocCache.delete(bookId);
     setBooks((prev) => prev.filter((b) => b.id !== bookId));
     if (activeBook?.id === bookId) {
       setActiveBook(null);
@@ -716,6 +732,21 @@ export const App: React.FC = () => {
       return next;
     });
     setDeletedUndo(null);
+  };
+
+  const handleBackToBookshelf = () => {
+    setActiveBook(null);
+    setParsedDoc(null);
+    try {
+      localStorage.removeItem(ACTIVE_BOOK_KEY);
+    } catch {
+      // storage indisponível
+    }
+  };
+
+  const handleUpdateBook = (updated: Book) => {
+    setActiveBook((current) => (current && current.id === updated.id ? updated : current));
+    setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
   };
 
   const isDesktop = Boolean(
@@ -772,40 +803,36 @@ export const App: React.FC = () => {
 
       {/* Renderização Condicional: Leitor ou Estante */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {activeBook && parsedDoc ? (
-          <React.Suspense
-            fallback={<AppSuspenseFallback />}
-          >
-            <ReaderView
-              book={activeBook}
-              document={parsedDoc}
-              preferences={preferences}
-              onUpdatePreferences={handleUpdatePreferences}
-              onBackToBookshelf={() => {
-                setActiveBook(null);
-                setParsedDoc(null);
-              }}
-              onUpdateBook={(updated) => {
-                setActiveBook(updated);
-                setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
-              }}
-            />
-          </React.Suspense>
-        ) : isRestoringSession ? (
-          <AppSuspenseFallback />
-        ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <Bookshelf
-              books={books}
-              onOpenBook={handleOpenBook}
-              onOpenFile={handleOpenFile}
-              onOpenFolderModal={handleOpenFolder}
-              onDeleteBook={handleDeleteBook}
-              onDropFiles={handleDropFiles}
-              onLoadSample={loadSampleContent}
-            />
-          </div>
-        )}
+        <ErrorBoundary onReset={handleBackToBookshelf}>
+          {activeBook && parsedDoc ? (
+            <React.Suspense
+              fallback={<AppSuspenseFallback />}
+            >
+              <ReaderView
+                book={activeBook}
+                document={parsedDoc}
+                preferences={preferences}
+                onUpdatePreferences={handleUpdatePreferences}
+                onBackToBookshelf={handleBackToBookshelf}
+                onUpdateBook={handleUpdateBook}
+              />
+            </React.Suspense>
+          ) : isRestoringSession ? (
+            <AppSuspenseFallback />
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <Bookshelf
+                books={books}
+                onOpenBook={handleOpenBook}
+                onOpenFile={handleOpenFile}
+                onOpenFolderModal={handleOpenFolder}
+                onDeleteBook={handleDeleteBook}
+                onDropFiles={handleDropFiles}
+                onLoadSample={loadSampleContent}
+              />
+            </div>
+          )}
+        </ErrorBoundary>
       </div>
 
       {/* Modal de Importação de Pasta */}
