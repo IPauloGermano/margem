@@ -164,6 +164,11 @@ class ReaderDatabase {
     });
   }
 
+  /** Buffer original do livro (salvo em saveBook sob o book.id). Alimenta o PdfViewer. */
+  async getBookBuffer(bookId: string): Promise<ArrayBuffer | null> {
+    return this.getCachedFileBuffer(bookId);
+  }
+
   async saveCachedFileBuffer(key: string, buffer: ArrayBuffer): Promise<void> {
     const isDetached = (buffer as any).detached || buffer.byteLength === 0;
     if (isDetached) return;

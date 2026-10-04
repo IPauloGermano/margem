@@ -523,6 +523,118 @@ textarea,
   flex-shrink: 0;
 }
 
+/* Camada de texto e renderização do PdfViewer (pdfjs-dist) */
+.pdf-page-host {
+  contain: layout paint;
+  box-sizing: border-box;
+  background-color: var(--bg-surface);
+  transition: background-color 0.2s ease;
+  user-select: text;
+  -webkit-user-select: text;
+  position: relative;
+  --user-unit: 1;
+  --total-scale-factor: calc(var(--scale-factor, 1) * var(--user-unit, 1));
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+}
+.pdf-page-host .textLayer {
+  color-scheme: only light;
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  -moz-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 2;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  pointer-events: auto;
+  cursor: text;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor, 1) * var(--min-font-size, 1));
+  --min-font-size-inv: calc(1 / var(--min-font-size, 1));
+}
+.pdf-page-host .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  pointer-events: auto;
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor, 1) * var(--font-height, 12px));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate, 0deg)) scaleX(var(--scale-x, 1)) scale(var(--min-font-size-inv, 1));
+}
+.pdf-page-host .textLayer .markedContent {
+  display: contents;
+}
+.pdf-page-host .textLayer ::selection {
+  background: color-mix(in srgb, var(--accent-signal) 40%, transparent);
+  color: transparent;
+}
+.pdf-page-host .textLayer br::selection {
+  background: transparent;
+}
+/* Destaques e Grifos dentro da textLayer do PDF */
+.pdf-page-host .textLayer .reader-highlight {
+  color: transparent !important;
+  cursor: pointer;
+  pointer-events: auto;
+  border-radius: 2px;
+  position: relative;
+  z-index: 3;
+}
+.pdf-page-host .textLayer .reader-highlight-amber {
+  background-color: rgba(217, 119, 6, 0.40) !important;
+}
+.pdf-page-host .textLayer .reader-highlight-sage {
+  background-color: rgba(5, 150, 105, 0.40) !important;
+}
+.pdf-page-host .textLayer .reader-highlight-muted {
+  background-color: rgba(120, 113, 108, 0.42) !important;
+}
+.pdf-dark .pdf-page-host .textLayer .reader-highlight-amber {
+  background-color: rgba(245, 158, 11, 0.45) !important;
+}
+.pdf-dark .pdf-page-host .textLayer .reader-highlight-sage {
+  background-color: rgba(16, 185, 129, 0.45) !important;
+}
+.pdf-dark .pdf-page-host .textLayer .reader-highlight-muted {
+  background-color: rgba(168, 162, 158, 0.45) !important;
+}
+/* Aceleração de hardware e isolamento de composição para o canvas */
+.pdf-page-canvas {
+  display: block;
+  transform: translateZ(0);
+  will-change: transform;
+  contain: paint;
+  pointer-events: none;
+  user-select: none;
+}
+/* Temas escuros: inversão linear de canais RGB acelerada por hardware (eliminando gargalo de GPU/stuttering) */
+.pdf-dark .pdf-page-canvas {
+  filter: invert(0.9) contrast(0.95);
+  transform: translateZ(0);
+  will-change: transform;
+  contain: paint;
+}
+.pdf-dark .pdf-page-host {
+  background-color: var(--bg-surface);
+}
+
 /* Diagramas Mermaid */
 .reader-mermaid-container {
   position: relative;
