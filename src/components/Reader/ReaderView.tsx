@@ -7,7 +7,8 @@ import {
   HighlightColor,
   ParsedDocument,
   ReaderPreferences,
-  ReadingProgress
+  ReadingProgress,
+  TableOfContentsItem
 } from '../../core/types';
 import { db } from '../../core/storage/db';
 import { smoothScrollBehavior, triggerHaptic } from '../../core/motion/fluid';
@@ -27,6 +28,8 @@ interface ReaderViewProps {
   onUpdatePreferences: (prefs: Partial<ReaderPreferences>) => void;
   onBackToBookshelf: () => void;
   onUpdateBook: (book: Book) => void;
+  books?: Book[];
+  onOpenBook?: (book: Book) => void;
 }
 
 export const ReaderView: React.FC<ReaderViewProps> = ({
@@ -35,7 +38,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   preferences,
   onUpdatePreferences,
   onBackToBookshelf,
-  onUpdateBook
+  onUpdateBook,
+  books,
+  onOpenBook
 }) => {
   const [currentSectionIndex, setCurrentSectionIndex] = useState<number>(
     book.progress?.currentSectionIndex ?? 0
@@ -165,16 +170,173 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
   };
 
-  const handleSelectSection = (index: number, anchor?: string) => {
-    if (index >= 0 && index < sections.length) {
-      setCurrentSectionIndex(index);
-      setScrollPercentage(0);
-      setTargetAnchor(anchor);
-      setActiveAnchor(anchor ?? null);
-      setTargetAnchorKey((k) => k + 1);
-      saveProgress(index, 0);
-    }
-  };
+  const handleSelectSection = useCallback(
+    (index: number, anchor?: string) => {
+      if (index >= 0 && index < sections.length) {
+        setCurrentSectionIndex(index);
+        setScrollPercentage(0);
+        setTargetAnchor(anchor);
+        setActiveAnchor(anchor ?? null);
+        setTargetAnchorKey((k) => k + 1);
+        saveProgress(index, 0);
+      }
+    },
+    [sections.length, saveProgress]
+  );
+
+  // Resolução inteligente de links de páginas, artigos, âncoras e outros livros
+  const handleNavigateLink = useCallback(
+    (href: string) => {
+      const trimmed = (href || '').trim();
+      if (!trimmed || trimmed === '#') {
+        return;
+      }
+
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('mailto:')) {
+        if (window.cadernoAPI?.openExternal) {
+          window.cadernoAPI.openExternal(trimmed);
+        } else {
+          window.open(trimmed, '_blank', 'noopener,noreferrer');
+        }
+        return;
+      }
+
+      let targetPath = '';
+      let targetAnchor: string | undefined = undefined;
+
+      if (trimmed.startsWith('#')) {
+        targetAnchor = trimmed.slice(1).trim();
+      } else if (trimmed.includes('#')) {
+        const parts = trimmed.split('#');
+        targetPath = parts[0].trim();
+        targetAnchor = parts[1].trim();
+      } else {
+        targetPath = trimmed;
+      }
+
+      let cleanPath = '';
+      try {
+        cleanPath = decodeURIComponent(targetPath).toLowerCase().replace(/^\.?\/+/, '');
+      } catch {
+        cleanPath = targetPath.toLowerCase().replace(/^\.?\/+/, '');
+      }
+
+      let cleanAnchor: string | undefined = undefined;
+      if (targetAnchor) {
+        try {
+          cleanAnchor = decodeURIComponent(targetAnchor).toLowerCase().replace(/^#/, '');
+        } catch {
+          cleanAnchor = targetAnchor.toLowerCase().replace(/^#/, '');
+        }
+      }
+
+      // 1. Busca por âncora nas seções e no TOC recursivamente
+      if (cleanAnchor) {
+        const matchInToc = (items: TableOfContentsItem[]): TableOfContentsItem | undefined => {
+          for (const item of items) {
+            const anchorMatches =
+              item.anchor?.toLowerCase() === cleanAnchor ||
+              item.id.toLowerCase() === cleanAnchor ||
+              item.anchor?.toLowerCase().endsWith(cleanAnchor);
+            if (anchorMatches) return item;
+            if (item.children && item.children.length > 0) {
+              const subMatch = matchInToc(item.children);
+              if (subMatch) return subMatch;
+            }
+          }
+          return undefined;
+        };
+
+        const tocMatch = matchInToc(document.toc);
+        if (tocMatch && typeof tocMatch.sectionIndex === 'number') {
+          handleSelectSection(tocMatch.sectionIndex, targetAnchor);
+          return;
+        }
+
+        for (let i = 0; i < sections.length; i++) {
+          const sec = sections[i];
+          if (
+            sec.id.toLowerCase() === cleanAnchor ||
+            sec.content.toLowerCase().includes(`id="${cleanAnchor}"`) ||
+            sec.content.toLowerCase().includes(`name="${cleanAnchor}"`)
+          ) {
+            handleSelectSection(i, targetAnchor);
+            return;
+          }
+        }
+      }
+
+      // 2. Busca por caminho de arquivo/capítulo
+      if (cleanPath) {
+        const baseName = cleanPath.split('/').pop() || cleanPath;
+        const noExt = baseName.replace(/\.[^/.]+$/, '');
+
+        // 2a. Livros em pasta ou com chapterFiles
+        if (book.chapterFiles && book.chapterFiles.length > 0) {
+          const fileIdx = book.chapterFiles.findIndex((f) => {
+            const fName = f.filename.toLowerCase();
+            const fRel = (f.relativePath || '').toLowerCase();
+            const fNoExt = fName.replace(/\.[^/.]+$/, '');
+            return fName === baseName || fRel === cleanPath || fNoExt === noExt || cleanPath.endsWith(fName);
+          });
+          if (fileIdx >= 0) {
+            handleSelectSection(fileIdx, targetAnchor);
+            return;
+          }
+        }
+
+        // 2b. Seções do documento atual por id ou título
+        const secIdx = sections.findIndex((sec) => {
+          const sId = sec.id.toLowerCase();
+          const sTitle = sec.title.toLowerCase();
+          return (
+            sId === cleanPath ||
+            sId === baseName ||
+            sId.includes(noExt) ||
+            sTitle === baseName ||
+            sTitle === noExt ||
+            sTitle.includes(noExt)
+          );
+        });
+        if (secIdx >= 0) {
+          handleSelectSection(secIdx, targetAnchor);
+          return;
+        }
+
+        // 2c. Padrões numéricos (ex: capitulo-2, page-3, sec-1)
+        const numMatch = cleanPath.match(/(?:page|pagina|sec|secao|cap|chapter|capitulo)[_-]?([0-9]+)/i);
+        if (numMatch) {
+          const targetIndex = parseInt(numMatch[1], 10) - 1;
+          if (targetIndex >= 0 && targetIndex < sections.length) {
+            handleSelectSection(targetIndex, targetAnchor);
+            return;
+          }
+        }
+
+        // 2d. Outro livro da estante
+        if (books && onOpenBook) {
+          const matchedBook = books.find((b) => {
+            if (b.id === book.id) return false;
+            const bTitle = b.title.toLowerCase();
+            const bPath = (b.filePath || '').toLowerCase();
+            const bRel = (b.relativePath || '').toLowerCase();
+            return (
+              bTitle === baseName ||
+              bTitle === noExt ||
+              bPath.endsWith(cleanPath) ||
+              bRel.endsWith(cleanPath) ||
+              bTitle.includes(noExt)
+            );
+          });
+          if (matchedBook) {
+            onOpenBook(matchedBook);
+            return;
+          }
+        }
+      }
+    },
+    [book, books, document.toc, handleSelectSection, onOpenBook, sections]
+  );
 
   const handleAddBookmark = async () => {
     if (!currentSection) return;
@@ -334,7 +496,16 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         }
         else if (isShortcutsOpen) setIsShortcutsOpen(false);
         else if (isSidebarOpen) setIsSidebarOpen(false);
-        else onBackToBookshelf();
+        else {
+          // Se houver algum diálogo, modal ou popover ativo no DOM (ex: DiagramFullscreenModal),
+          // ele possui precedência e gerencia seu próprio fechamento. ReaderView não deve retornar à estante.
+          const hasOpenModal =
+            typeof window !== 'undefined' &&
+            Boolean(window.document?.querySelector('[role="dialog"], [data-diagram-modal], .reader-diagram-modal'));
+          if (!hasOpenModal) {
+            onBackToBookshelf();
+          }
+        }
         return;
       }
 
@@ -478,6 +649,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             targetAnchor={targetAnchor}
             targetAnchorKey={targetAnchorKey}
             onActiveAnchorChange={setActiveAnchor}
+            onNavigateLink={handleNavigateLink}
             searchQuery={isSearchOpen ? searchQuery : undefined}
             activeSearchLocalIndex={
               isSearchOpen && currentMatch && currentMatch.sectionIndex === currentSectionIndex

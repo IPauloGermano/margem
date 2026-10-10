@@ -751,6 +751,8 @@ export const App: React.FC = () => {
                 setActiveBook(updated);
                 setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
               }}
+              books={books}
+              onOpenBook={handleOpenBook}
             />
           </React.Suspense>
         ) : (

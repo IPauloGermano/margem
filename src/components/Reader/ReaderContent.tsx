@@ -24,6 +24,7 @@ interface ReaderContentProps {
   searchQuery?: string;
   activeSearchLocalIndex?: number;
   onActiveAnchorChange?: (anchor: string | null) => void;
+  onNavigateLink?: (href: string) => void;
 }
 
 interface ToolbarState {
@@ -50,7 +51,8 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   targetAnchorKey,
   searchQuery,
   activeSearchLocalIndex,
-  onActiveAnchorChange
+  onActiveAnchorChange,
+  onNavigateLink
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -451,27 +453,17 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       return;
     }
 
-    // 2. Interceptação de links gerais (âncoras internas e links externos)
+    // 2. Interceptação de links gerais (âncoras internas, links relativos e externos)
     const anchor = target.closest('a') as HTMLAnchorElement | null;
-    if (anchor && anchor.getAttribute('href')) {
-      const href = anchor.getAttribute('href')!;
-
-      // Âncora interna do documento (ex: #pdf-page-2 ou #heading-1)
-      if (href.startsWith('#')) {
-        e.preventDefault();
-        const anchorId = href.slice(1);
-        const targetElement =
-          containerRef.current?.querySelector(`#${CSS.escape(anchorId)}`) ||
-          containerRef.current?.querySelector(`[name="${CSS.escape(anchorId)}"]`);
-        if (targetElement) {
-          targetElement.scrollIntoView({ behavior: smoothScrollBehavior() });
-        }
+    if (anchor && anchor.hasAttribute('href')) {
+      e.preventDefault();
+      const href = (anchor.getAttribute('href') || '').trim();
+      if (!href || href === '#') {
         return;
       }
 
       // Link externo (YouTube, arXiv, GitHub, etc.)
       if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:')) {
-        e.preventDefault();
         if (window.cadernoAPI?.openExternal) {
           window.cadernoAPI.openExternal(href);
         } else {
@@ -479,6 +471,28 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         }
         return;
       }
+
+      // Âncora interna do documento na seção atual
+      if (href.startsWith('#')) {
+        const anchorId = href.slice(1).trim();
+        if (anchorId) {
+          try {
+            const targetElement =
+              containerRef.current?.querySelector(`#${CSS.escape(anchorId)}`) ||
+              containerRef.current?.querySelector(`[name="${CSS.escape(anchorId)}"]`);
+            if (targetElement) {
+              targetElement.scrollIntoView({ behavior: smoothScrollBehavior() });
+              return;
+            }
+          } catch {}
+        }
+      }
+
+      // Delega resolução inteligente de links entre seções, páginas ou artigos para o ReaderView
+      if (onNavigateLink) {
+        onNavigateLink(href);
+      }
+      return;
     }
 
     // 3. Interceptação de clique em diagramas Mermaid para visualização em tela cheia
