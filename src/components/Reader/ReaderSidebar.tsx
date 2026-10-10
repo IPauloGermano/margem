@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bookmark,
   Check,
+  ChevronDown,
+  ChevronRight,
   Copy,
   Download,
   Edit3,
@@ -31,7 +33,12 @@ import {
 import { SearchMatchItem, HighlightedSnippet } from './SearchModal';
 import { prefersReducedMotion } from '../../core/motion/fluid';
 import { useDismissDrag } from '../../core/motion/useDismissDrag';
-import { resolveActiveTocItem, getTocItemVisualState } from '../../core/text/tocResolver';
+import {
+  resolveActiveTocItem,
+  getTocItemVisualState,
+  filterVisibleTocItems,
+  getSectionSubitemCount
+} from '../../core/text/tocResolver';
 
 interface ReaderSidebarProps {
   isOpen: boolean;
@@ -90,6 +97,25 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   const activeTocItem = useMemo(() => {
     return resolveActiveTocItem(toc, currentSectionIndex, activeAnchor);
   }, [toc, currentSectionIndex, activeAnchor]);
+
+  const [manuallyExpandedSections, setManuallyExpandedSections] = useState<Set<number>>(new Set());
+
+  const toggleSectionExpansion = (sectionIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setManuallyExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionIndex)) {
+        next.delete(sectionIndex);
+      } else {
+        next.add(sectionIndex);
+      }
+      return next;
+    });
+  };
+
+  const visibleToc = useMemo(() => {
+    return filterVisibleTocItems(toc, currentSectionIndex, manuallyExpandedSections);
+  }, [toc, currentSectionIndex, manuallyExpandedSections]);
 
   const activeItemRef = useRef<HTMLButtonElement | null>(null);
 
@@ -316,13 +342,18 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
               Capítulos e Seções
             </h3>
 
-            {toc.length > 0 ? (
-              toc.map((item) => {
+            {visibleToc.length > 0 ? (
+              visibleToc.map((item) => {
                 const { isActive, isCurrentSection, level } = getTocItemVisualState(
                   item,
                   activeTocItem,
                   currentSectionIndex
                 );
+
+                const subitemCount = getSectionSubitemCount(toc, item.sectionIndex);
+                const isSectionExpanded =
+                  item.sectionIndex === currentSectionIndex ||
+                  manuallyExpandedSections.has(item.sectionIndex);
 
                 const indentClass =
                   level === 1
@@ -385,6 +416,35 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                           Lendo
                         </span>
                       )}
+
+                      {level === 1 && subitemCount > 0 && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          title={isSectionExpanded ? 'Recolher subtópicos' : `Expandir ${subitemCount} subtópicos`}
+                          aria-label={isSectionExpanded ? 'Recolher subtópicos' : `Expandir ${subitemCount} subtópicos`}
+                          onClick={(e) => toggleSectionExpansion(item.sectionIndex, e)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleSectionExpansion(item.sectionIndex, e as any);
+                            }
+                          }}
+                          className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-canvas)]/60 cursor-pointer active:scale-90 transition-transform flex items-center gap-1 select-none"
+                        >
+                          {!isSectionExpanded && (
+                            <span className="font-code text-[9px] px-1 py-0.2 rounded bg-[var(--bg-canvas)] text-[var(--text-muted)] border border-[var(--border-rule-subtle)]">
+                              +{subitemCount}
+                            </span>
+                          )}
+                          {isSectionExpanded ? (
+                            <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                          ) : (
+                            <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                          )}
+                        </span>
+                      )}
+
                       <span className="font-code text-[10px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
                         #{item.sectionIndex + 1}
                       </span>

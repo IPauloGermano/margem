@@ -89,3 +89,50 @@ export function findActiveAnchorFromHeadings(
 
   return activeId;
 }
+
+/**
+ * Determina se um item específico do TOC deve estar visível:
+ * - Capítulos principais (nível 1) estão SEMPRE visíveis para permitir navegação rápida.
+ * - Subtítulos (nível > 1) aparecem apenas se pertencerem ao capítulo atualmente em leitura,
+ *   ou se o capítulo tiver sido explicitamente expandido pelo usuário.
+ */
+export function isTocItemVisible(
+  item: TableOfContentsItem,
+  currentSectionIndex: number,
+  expandedSections?: Set<number>
+): boolean {
+  if ((item.level || 1) <= 1) {
+    return true;
+  }
+
+  return (
+    item.sectionIndex === currentSectionIndex ||
+    (expandedSections?.has(item.sectionIndex) ?? false)
+  );
+}
+
+/**
+ * Retorna os itens do índice que devem ser renderizados, compactando capítulos inativos
+ * e mantendo expandida a seção em leitura ativa (ou seções expandidas manualmente).
+ */
+export function filterVisibleTocItems(
+  toc: TableOfContentsItem[],
+  currentSectionIndex: number,
+  expandedSections?: Set<number>
+): TableOfContentsItem[] {
+  if (!toc || toc.length === 0) return [];
+  return toc.filter((item) => isTocItemVisible(item, currentSectionIndex, expandedSections));
+}
+
+/**
+ * Retorna o número de subtópicos (nível > 1) que pertencem a uma seção específica.
+ * Útil para indicar ao usuário que o capítulo possui conteúdo recolhido (ex: "+3 tópicos").
+ */
+export function getSectionSubitemCount(
+  toc: TableOfContentsItem[],
+  sectionIndex: number
+): number {
+  if (!toc || toc.length === 0) return 0;
+  return toc.filter((item) => item.sectionIndex === sectionIndex && (item.level || 1) > 1).length;
+}
+
