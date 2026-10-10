@@ -173,6 +173,8 @@ const LANGUAGE_ALIASES: Record<string, string> = {
 
   py: 'python',
   python: 'python',
+  python3: 'python',
+  py3: 'python',
 
   json: 'json',
 
@@ -188,6 +190,8 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   bash: 'bash',
   zsh: 'bash',
   shell: 'bash',
+  terminal: 'bash',
+  console: 'bash',
 
   rs: 'rust',
   rust: 'rust',
@@ -204,7 +208,13 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   hpp: 'clike',
   java: 'clike',
   cs: 'clike',
-  csharp: 'clike'
+  csharp: 'clike',
+
+  codigo: 'codigo',
+  code: 'codigo',
+  texto: 'text',
+  text: 'text',
+  txt: 'text'
 };
 
 // Cache de regexes compiladas para performance instantânea
@@ -231,7 +241,7 @@ function getCompiledGrammar(canonicalLang: string): { regex: RegExp; rules: Gram
  */
 export function normalizeLanguage(lang?: string): string {
   if (!lang) return '';
-  const clean = lang.trim().toLowerCase().split(/\s+/)[0];
+  const clean = lang.trim().toLowerCase().split(/[\s:{]/)[0];
   return LANGUAGE_ALIASES[clean] || clean;
 }
 
@@ -240,7 +250,7 @@ export function normalizeLanguage(lang?: string): string {
  */
 export function getLanguageDisplayName(lang?: string): string {
   if (!lang) return '';
-  const clean = lang.trim().toLowerCase().split(/\s+/)[0];
+  const clean = lang.trim().toLowerCase().split(/[\s:{]/)[0];
   const canonical = LANGUAGE_ALIASES[clean] || clean;
 
   const names: Record<string, string> = {
@@ -253,10 +263,14 @@ export function getLanguageDisplayName(lang?: string): string {
     rust: 'Rust',
     go: 'Go',
     sql: 'SQL',
-    clike: clean.toUpperCase() === 'C' ? 'C' : clean.toUpperCase() === 'CPP' || clean === 'c++' ? 'C++' : clean
+    clike: clean.toUpperCase() === 'C' ? 'C' : clean.toUpperCase() === 'CPP' || clean === 'c++' ? 'C++' : clean,
+    codigo: 'CÓDIGO',
+    code: 'CÓDIGO',
+    text: 'TEXTO',
+    texto: 'TEXTO'
   };
 
-  return names[canonical] || clean.toUpperCase();
+  return names[canonical] || names[clean] || clean.toUpperCase();
 }
 
 /**
@@ -312,7 +326,7 @@ export function highlightCode(code: string, lang?: string): string {
  * Constrói o HTML estruturado do bloco de código com estética editorial e scroll horizontal contido
  */
 export function renderHighlightedCodeBlock(codeText: string, lang?: string): string {
-  const cleanLang = (lang || '').trim().toLowerCase();
+  const cleanLang = (lang || '').trim().toLowerCase().split(/[\s:{]/)[0];
   const highlighted = highlightCode(codeText, cleanLang);
   const displayLang = cleanLang ? getLanguageDisplayName(cleanLang) : '';
   const badgeText = (displayLang || 'CÓDIGO').toUpperCase();
