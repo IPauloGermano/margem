@@ -3,6 +3,7 @@ import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '.
 import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
 import { isSameTitle } from '../../core/text/titles';
 import { smoothScrollBehavior } from '../../core/motion/fluid';
+import { findActiveAnchorFromHeadings } from '../../core/text/tocResolver';
 import { applyHighlights, getSelectionOffsets } from '../../core/highlights/highlightEngine';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
@@ -22,6 +23,7 @@ interface ReaderContentProps {
   targetAnchorKey?: number;
   searchQuery?: string;
   activeSearchLocalIndex?: number;
+  onActiveAnchorChange?: (anchor: string | null) => void;
 }
 
 interface ToolbarState {
@@ -47,13 +49,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   targetAnchor,
   targetAnchorKey,
   searchQuery,
-  activeSearchLocalIndex
+  activeSearchLocalIndex,
+  onActiveAnchorChange
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const isRestoringScroll = useRef(false);
   const lastKnownScrollTop = useRef<number>(0);
   const currentScrollPercentageRef = useRef<number>(initialScrollPercentage);
+  const currentActiveAnchorRef = useRef<string | null>(targetAnchor || null);
 
   const [toolbarState, setToolbarState] = useState<ToolbarState | null>(null);
   const [activeNotePopover, setActiveNotePopover] = useState<{
@@ -104,6 +108,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     currentScrollPercentageRef.current = initialScrollPercentage;
 
     if (targetAnchor) {
+      currentActiveAnchorRef.current = targetAnchor;
+      onActiveAnchorChange?.(targetAnchor);
+
       // Aguarda o DOM estar pronto com o conteúdo renderizado antes de buscar a âncora
       const tryScroll = () => {
         const targetElem =
@@ -123,6 +130,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       }
       return;
     }
+
+    currentActiveAnchorRef.current = null;
+    onActiveAnchorChange?.(null);
 
     if (initialScrollPercentage > 0) {
       isRestoringScroll.current = true;
@@ -280,6 +290,35 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     const currentProgress = Math.min(100, Math.max(0, (el.scrollTop / scrollHeight) * 100));
     currentScrollPercentageRef.current = currentProgress;
     onScrollProgress(currentProgress);
+
+    // ScrollSpy: rastreia qual cabeçalho/âncora está na linha de visão confortável de leitura
+    if (onActiveAnchorChange && bodyRef.current) {
+      const headingEls = bodyRef.current.querySelectorAll<HTMLElement>(
+        'h1[id], h2[id], h3[id], h4[id], [id^="pdf-page-"], [name]'
+      );
+      if (headingEls.length > 0) {
+        const containerTop = el.getBoundingClientRect().top;
+        const headings: { id: string; top: number }[] = [];
+        headingEls.forEach((h) => {
+          const id = h.id || h.getAttribute('name');
+          if (id) {
+            const rect = h.getBoundingClientRect();
+            headings.push({
+              id,
+              top: rect.top - containerTop + el.scrollTop
+            });
+          }
+        });
+        const active = findActiveAnchorFromHeadings(headings, el.scrollTop, 120);
+        if (active !== currentActiveAnchorRef.current) {
+          currentActiveAnchorRef.current = active;
+          onActiveAnchorChange(active);
+        }
+      } else if (currentActiveAnchorRef.current !== null) {
+        currentActiveAnchorRef.current = null;
+        onActiveAnchorChange(null);
+      }
+    }
   };
 
   // Captura seleção de texto do usuário

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bookmark,
   Check,
@@ -31,12 +31,14 @@ import {
 import { SearchMatchItem, HighlightedSnippet } from './SearchModal';
 import { prefersReducedMotion } from '../../core/motion/fluid';
 import { useDismissDrag } from '../../core/motion/useDismissDrag';
+import { resolveActiveTocItem, getTocItemVisualState } from '../../core/text/tocResolver';
 
 interface ReaderSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   toc: TableOfContentsItem[];
   currentSectionIndex: number;
+  activeAnchor?: string | null;
   onSelectSection: (sectionIndex: number, anchor?: string) => void;
   sections: DocumentSection[];
   book: Book;
@@ -59,6 +61,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   onClose,
   toc,
   currentSectionIndex,
+  activeAnchor,
   onSelectSection,
   sections,
   book,
@@ -83,6 +86,19 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   const [editingNoteText, setEditingNoteText] = useState<string>('');
   const [copiedHighlightId, setCopiedHighlightId] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+
+  const activeTocItem = useMemo(() => {
+    return resolveActiveTocItem(toc, currentSectionIndex, activeAnchor);
+  }, [toc, currentSectionIndex, activeAnchor]);
+
+  const activeItemRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'toc' && isOpen && activeItemRef.current) {
+      activeItemRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [activeTocItem?.id, activeTab, isOpen]);
+
   const sidebarDrag = useDismissDrag({
     axis: 'x',
     dimension: 384,
@@ -301,39 +317,105 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
             </h3>
 
             {toc.length > 0 ? (
-              toc.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onSelectSection(item.sectionIndex, item.anchor)}
-                  style={{ paddingLeft: `${Math.max(0.5, item.level * 0.75)}rem` }}
-                  className={`w-full text-left py-2 px-3 rounded text-xs transition-colors flex items-center justify-between group ${
-                    currentSectionIndex === item.sectionIndex
-                      ? 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] font-medium border-l-2 border-[var(--accent-signal)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
-                  }`}
-                >
-                  <span className="truncate">{item.title}</span>
-                  <span className="font-code text-[10px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
-                    #{item.sectionIndex + 1}
-                  </span>
-                </button>
-              ))
+              toc.map((item) => {
+                const { isActive, isCurrentSection, level } = getTocItemVisualState(
+                  item,
+                  activeTocItem,
+                  currentSectionIndex
+                );
+
+                const indentClass =
+                  level === 1
+                    ? 'pl-3'
+                    : level === 2
+                    ? 'pl-6'
+                    : 'pl-9';
+
+                const typographyClass =
+                  level === 1
+                    ? 'text-xs font-medium'
+                    : level === 2
+                    ? 'text-[11.5px] font-normal'
+                    : 'text-[11px] font-normal';
+
+                let itemThemeClass = '';
+                if (isActive) {
+                  itemThemeClass =
+                    'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] font-semibold border-l-2 border-[var(--accent-signal)] shadow-xs';
+                } else if (isCurrentSection) {
+                  itemThemeClass =
+                    level === 1
+                      ? 'text-[var(--text-primary)] font-medium border-l-2 border-[var(--accent-signal)]/40 hover:bg-[var(--bg-surface-hover)]'
+                      : 'text-[var(--text-secondary)] border-l-2 border-[var(--border-rule-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]';
+                } else {
+                  itemThemeClass =
+                    'text-[var(--text-muted)] border-l-2 border-transparent hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]';
+                }
+
+                return (
+                  <button
+                    key={item.id}
+                    ref={isActive ? activeItemRef : null}
+                    type="button"
+                    onClick={() => onSelectSection(item.sectionIndex, item.anchor)}
+                    className={`w-full text-left py-1.5 pr-2.5 rounded-r transition-all flex items-center justify-between group relative ${indentClass} ${typographyClass} ${itemThemeClass}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {isActive ? (
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-[var(--accent-signal)] shrink-0 animate-pulse"
+                          title="Lendo agora"
+                        />
+                      ) : level > 1 ? (
+                        <span
+                          className={`w-1 h-1 rounded-full shrink-0 ${
+                            isCurrentSection
+                              ? 'bg-[var(--text-muted)]'
+                              : 'bg-[var(--text-muted)]/40 group-hover:bg-[var(--text-muted)]'
+                          }`}
+                        />
+                      ) : null}
+
+                      <span className="truncate">{item.title}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      {isActive && (
+                        <span className="font-code text-[9px] px-1.5 py-0.5 rounded bg-[var(--accent-signal)]/15 text-[var(--accent-signal)] font-medium uppercase tracking-wider">
+                          Lendo
+                        </span>
+                      )}
+                      <span className="font-code text-[10px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
+                        #{item.sectionIndex + 1}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
             ) : (
-              sections.map((sec, idx) => (
-                <button
-                  key={sec.id}
-                  type="button"
-                  onClick={() => onSelectSection(idx)}
-                  className={`w-full text-left py-2 px-3 rounded text-xs transition-colors ${
-                    currentSectionIndex === idx
-                      ? 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] font-medium border-l-2 border-[var(--accent-signal)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
-                  }`}
-                >
-                  <span className="truncate">{sec.title || `Seção ${idx + 1}`}</span>
-                </button>
-              ))
+              sections.map((sec, idx) => {
+                const isActive = currentSectionIndex === idx;
+                return (
+                  <button
+                    key={sec.id}
+                    ref={isActive ? activeItemRef : null}
+                    type="button"
+                    onClick={() => onSelectSection(idx)}
+                    className={`w-full text-left py-2 px-3 rounded text-xs transition-colors flex items-center justify-between ${
+                      isActive
+                        ? 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] font-medium border-l-2 border-[var(--accent-signal)]'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
+                    }`}
+                  >
+                    <span className="truncate">{sec.title || `Seção ${idx + 1}`}</span>
+                    {isActive && (
+                      <span className="font-code text-[9px] px-1.5 py-0.5 rounded bg-[var(--accent-signal)]/15 text-[var(--accent-signal)] font-medium uppercase tracking-wider">
+                        Lendo
+                      </span>
+                    )}
+                  </button>
+                );
+              })
             )}
           </div>
         )}

@@ -45,6 +45,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   );
   const [targetAnchor, setTargetAnchor] = useState<string | undefined>(undefined);
   const [targetAnchorKey, setTargetAnchorKey] = useState(0);
+  const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -169,6 +170,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       setCurrentSectionIndex(index);
       setScrollPercentage(0);
       setTargetAnchor(anchor);
+      setActiveAnchor(anchor ?? null);
       setTargetAnchorKey((k) => k + 1);
       saveProgress(index, 0);
     }
@@ -437,6 +439,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           onClose={() => setIsSidebarOpen(false)}
           toc={document.toc}
           currentSectionIndex={currentSectionIndex}
+          activeAnchor={activeAnchor}
           onSelectSection={(idx, anchor) => {
             handleSelectSection(idx, anchor);
             // Fecha apenas em mobile; em desktop a sidebar permanece visível
@@ -474,6 +477,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             initialScrollPercentage={scrollPercentage}
             targetAnchor={targetAnchor}
             targetAnchorKey={targetAnchorKey}
+            onActiveAnchorChange={setActiveAnchor}
             searchQuery={isSearchOpen ? searchQuery : undefined}
             activeSearchLocalIndex={
               isSearchOpen && currentMatch && currentMatch.sectionIndex === currentSectionIndex
