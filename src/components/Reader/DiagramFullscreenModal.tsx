@@ -135,33 +135,51 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         onClose();
-      } else if (e.key === '+' || e.key === '=') {
+        return;
+      }
+      if (e.key === '+' || e.key === '=') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         handleZoomIn();
       } else if (e.key === '-' || e.key === '_') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         handleZoomOut();
       } else if (e.key === '0') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         handleResetZoom();
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setPan((p) => ({ ...p, x: p.x + 40 }));
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setPan((p) => ({ ...p, x: p.x - 40 }));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setPan((p) => ({ ...p, y: p.y + 40 }));
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setPan((p) => ({ ...p, y: p.y - 40 }));
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isOpen, onClose, fitZoom]);
 
   if (!isOpen || !svgHtml) return null;
@@ -346,6 +364,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
+      data-diagram-modal="true"
       aria-label="Visualização do Diagrama em Tela Cheia"
       className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-canvas)]/95 backdrop-blur-md select-none animate-in fade-in duration-150 box-border text-[var(--text-primary)]"
     >
