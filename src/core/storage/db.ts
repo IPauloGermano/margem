@@ -1,4 +1,5 @@
 import { Book, Bookmark, Highlight, ReaderPreferences, ReadingProgress } from '../types';
+import { sortBooks } from './bookSorting';
 
 const DB_NAME = 'caderno_reader_db';
 const DB_VERSION = 2;
@@ -67,12 +68,19 @@ class ReaderDatabase {
       const req = store.getAll();
       req.onsuccess = () => {
         const books = (req.result as Book[]) || [];
-        // Ordena pelos lidos mais recentemente
-        books.sort((a, b) => b.lastReadAt - a.lastReadAt);
-        resolve(books);
+        resolve(sortBooks(books));
       };
       req.onerror = () => reject(req.error);
     });
+  }
+
+  async toggleFavorite(bookId: string): Promise<boolean> {
+    const book = await this.getBook(bookId);
+    if (!book) return false;
+    const newFav = !book.favorite;
+    book.favorite = newFav;
+    await this.saveBook(book);
+    return newFav;
   }
 
   async getBook(id: string): Promise<Book | null> {

@@ -98,6 +98,7 @@ export interface Book {
   estimatedMinutes: number;
   isFolderBook?: boolean;
   chapterFiles?: ScannedFileItem[];
+  favorite?: boolean;
 }
 
 export type ReaderTheme = 'dark' | 'light' | 'sepia' | 'oled';

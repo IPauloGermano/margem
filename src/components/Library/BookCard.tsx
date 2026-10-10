@@ -1,15 +1,16 @@
 import React from 'react';
 import { Book } from '../../core/types';
-import { Clock, Folder, Layers, Trash2 } from 'lucide-react';
+import { Clock, Folder, Layers, Star, Trash2 } from 'lucide-react';
 
 interface BookCardProps {
   book: Book;
   index: number;
   onOpen: (book: Book) => void;
   onDelete: (bookId: string) => void;
+  onToggleFavorite?: (bookId: string) => void;
 }
 
-export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelete }) => {
+export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelete, onToggleFavorite }) => {
   const isReading = book.progress.scrollPercentage > 0 && !book.progress.completed;
   const isCompleted = book.progress.completed;
   const isFolder = Boolean(book.isFolderBook || book.format === 'folder');
@@ -31,16 +32,52 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
   return (
     <article
       onClick={() => onOpen(book)}
-      className="group relative flex flex-col justify-between p-3 sm:p-5 rounded-md border border-[var(--border-rule)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] transition-all duration-200 cursor-pointer hover:border-[var(--text-muted)] select-none"
+      className={`group relative flex flex-col justify-between p-3 sm:p-5 rounded-md border bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] transition-all duration-200 cursor-pointer select-none ${
+        book.favorite
+          ? 'border-amber-500/40 shadow-xs hover:border-amber-500/60'
+          : 'border-[var(--border-rule)] hover:border-[var(--text-muted)]'
+      }`}
     >
       <div className="space-y-2 sm:space-y-3">
-        {/* Top bar com índice e badges */}
+        {/* Top bar com índice, favorito e badges */}
         <div className="flex items-center justify-between font-code text-xs">
-          <span className="tabular-nums text-[var(--text-muted)] text-[10px] sm:text-xs">
-            #{String(index + 1).padStart(2, '0')}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="tabular-nums text-[var(--text-muted)] text-[10px] sm:text-xs">
+              #{String(index + 1).padStart(2, '0')}
+            </span>
+
+            {onToggleFavorite && (
+              <button
+                type="button"
+                title={book.favorite ? 'Remover dos favoritos' : 'Favoritar livro (fixar no topo)'}
+                aria-label={book.favorite ? `Desfavoritar ${book.title}` : `Favoritar ${book.title}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite(book.id);
+                }}
+                className={`p-1 rounded-sm transition-all cursor-pointer active:scale-90 flex items-center justify-center ${
+                  book.favorite
+                    ? 'text-amber-400 hover:text-amber-300'
+                    : 'text-[var(--text-muted)]/60 hover:text-amber-400 opacity-100 sm:opacity-0 sm:group-hover:opacity-100'
+                }`}
+              >
+                <Star
+                  className={`w-3.5 h-3.5 ${
+                    book.favorite ? 'fill-amber-400 text-amber-400 drop-shadow-xs' : ''
+                  }`}
+                />
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            {book.favorite && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                <Star className="w-2.5 h-2.5 fill-amber-300" />
+                Fixado
+              </span>
+            )}
+
             <span
               className={`px-1.5 py-0.5 sm:px-2 rounded text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider border ${badgeClass}`}
             >

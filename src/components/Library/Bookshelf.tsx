@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Book } from '../../core/types';
+import { sortBooks } from '../../core/storage/bookSorting';
 import { BookCard } from './BookCard';
 import {
   BookOpen,
@@ -8,6 +9,7 @@ import {
   FolderPlus,
   Search,
   Sparkles,
+  Star,
   UploadCloud
 } from 'lucide-react';
 
@@ -17,6 +19,7 @@ interface BookshelfProps {
   onOpenFile: () => void;
   onOpenFolderModal: () => void;
   onDeleteBook: (bookId: string) => void;
+  onToggleFavorite?: (bookId: string) => void;
   onDropFiles: (files: FileList) => void;
   onLoadSample: (type: 'md' | 'txt' | 'epub') => void;
 }
@@ -27,6 +30,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
   onOpenFile,
   onOpenFolderModal,
   onDeleteBook,
+  onToggleFavorite,
   onDropFiles,
   onLoadSample
 }) => {
@@ -82,13 +86,19 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
       book.author.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesFormat =
-      formatFilter === 'all' || book.format.toLowerCase() === formatFilter.toLowerCase();
+      formatFilter === 'all'
+        ? true
+        : formatFilter === 'favorites'
+        ? Boolean(book.favorite)
+        : book.format.toLowerCase() === formatFilter.toLowerCase();
 
     const matchesFolder =
       folderFilter === 'all' || book.folderName === folderFilter;
 
     return matchesSearch && matchesFormat && matchesFolder;
   });
+
+  const sortedBooks = sortBooks(filteredBooks);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -214,6 +224,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
               <span className="text-[var(--text-muted)] mr-1 hidden lg:inline shrink-0">Formato:</span>
               {[
                 { id: 'all', label: 'Todos' },
+                { id: 'favorites', label: 'Favoritos' },
                 { id: 'epub', label: 'EPUB' },
                 { id: 'pdf', label: 'PDF' },
                 { id: 'md', label: 'Markdown' },
@@ -223,12 +234,13 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
                   key={f.id}
                   type="button"
                   onClick={() => setFormatFilter(f.id)}
-                  className={`px-3.5 py-1.5 min-h-[38px] sm:min-h-[36px] rounded text-xs transition-colors shrink-0 cursor-pointer whitespace-nowrap active:scale-95 ${
+                  className={`px-3.5 py-1.5 min-h-[38px] sm:min-h-[36px] rounded text-xs transition-colors shrink-0 cursor-pointer whitespace-nowrap active:scale-95 flex items-center gap-1.5 ${
                     formatFilter === f.id
                       ? 'bg-[var(--accent-signal)] text-white font-medium shadow-xs'
                       : 'bg-[var(--bg-surface)] border border-[var(--border-rule)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]'
                   }`}
                 >
+                  {f.id === 'favorites' && <Star className={`w-3 h-3 ${formatFilter === 'favorites' ? 'fill-white text-white' : 'text-amber-400'}`} />}
                   {f.label}
                 </button>
               ))}
@@ -239,15 +251,16 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
 
       {/* Conteúdo Principal */}
       <main className="max-w-6xl mx-auto px-4 py-6 sm:px-12 sm:py-8 pl-safe pr-safe">
-        {filteredBooks.length > 0 ? (
+        {sortedBooks.length > 0 ? (
           <div className="grid grid-cols-1 min-[340px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6">
-            {filteredBooks.map((book, idx) => (
+            {sortedBooks.map((book, idx) => (
               <BookCard
                 key={book.id}
                 book={book}
                 index={idx}
                 onOpen={onOpenBook}
                 onDelete={onDeleteBook}
+                onToggleFavorite={onToggleFavorite}
               />
             ))}
           </div>

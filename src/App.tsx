@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Book, ParsedDocument, ReaderPreferences, ScannedItem } from './core/types';
 import { db } from './core/storage/db';
+import { sortBooks } from './core/storage/bookSorting';
 import { defaultParserRegistry } from './core/parsers/ParserRegistry';
 import { loadFolderBook } from './core/parsers/FolderBookLoader';
 import { reconcileChapterFiles } from './core/parsers/chapterSync';
@@ -664,6 +665,21 @@ export const App: React.FC = () => {
     setDeletedUndo(null);
   };
 
+  const handleToggleFavorite = async (bookId: string) => {
+    try {
+      const isFav = await db.toggleFavorite(bookId);
+      setBooks((prev) => {
+        const updated = prev.map((b) => (b.id === bookId ? { ...b, favorite: isFav } : b));
+        return sortBooks(updated);
+      });
+      if (activeBook && activeBook.id === bookId) {
+        setActiveBook((prev) => (prev ? { ...prev, favorite: isFav } : null));
+      }
+    } catch (err) {
+      console.error('Erro ao alternar favorito:', err);
+    }
+  };
+
   const isDesktop = Boolean(
     typeof window !== 'undefined' &&
     (window.cadernoAPI?.isDesktop || window.location.search.includes('desktop'))
@@ -745,6 +761,7 @@ export const App: React.FC = () => {
               onOpenFile={handleOpenFile}
               onOpenFolderModal={handleOpenFolder}
               onDeleteBook={handleDeleteBook}
+              onToggleFavorite={handleToggleFavorite}
               onDropFiles={handleDropFiles}
               onLoadSample={loadSampleContent}
             />
