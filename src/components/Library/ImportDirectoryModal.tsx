@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   BookOpen,
@@ -35,11 +35,45 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
   const [isImporting, setIsImporting] = useState(false);
   const [scannedResult, setScannedResult] = useState<FolderScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [serverRoots, setServerRoots] = useState<string[]>([]);
 
   const folderInputRef = useRef<HTMLInputElement>(null);
   const isDesktop = Boolean(window.cadernoAPI?.isDesktop);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    if (window.cadernoAPI?.getRoots) {
+      window.cadernoAPI.getRoots().then((roots) => {
+        if (roots && roots.length > 0) {
+          setServerRoots(roots);
+          if (!manualPath) {
+            setManualPath(roots[0]);
+          }
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const scanPathDirectly = async (path: string) => {
+    if (!path.trim() || !window.cadernoAPI?.scanDirectoryPath) return;
+    setError(null);
+    setIsScanning(true);
+    try {
+      const res = await window.cadernoAPI.scanDirectoryPath(path.trim());
+      if (res.items.length === 0) {
+        setError(`Nenhum documento ou livro encontrado em "${res.folderPath}".`);
+      } else {
+        setScannedResult(res);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro ao escanear o caminho informado.');
+      setScannedResult(null);
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   const handleSelectFolderDialog = async () => {
     setError(null);
@@ -399,10 +433,41 @@ export const ImportDirectoryModal: React.FC<ImportDirectoryModalProps> = ({
 
         {!scannedResult ? (
           <div className="space-y-5">
+            {/* Opção Rápida: Pastas Configuradas no Servidor */}
+            {serverRoots.length > 0 && (
+              <div className="space-y-2 p-3.5 rounded-lg border border-[var(--border-rule)] bg-[var(--bg-canvas)]">
+                <label className="text-xs font-code text-[var(--accent-signal)] uppercase tracking-wider block font-semibold">
+                  Pastas Disponíveis no Servidor (1-Clique)
+                </label>
+                <div className="flex flex-col gap-2">
+                  {serverRoots.map((root) => (
+                    <button
+                      key={root}
+                      type="button"
+                      disabled={isScanning}
+                      onClick={() => {
+                        setManualPath(root);
+                        scanPathDirectly(root);
+                      }}
+                      className="flex items-center justify-between px-3 py-2.5 rounded border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-xs font-code text-left transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Folder className="w-4 h-4 text-[var(--accent-signal)] shrink-0 group-hover:scale-110 transition-transform" />
+                        <span className="font-semibold text-[var(--text-primary)] truncate">{root}</span>
+                      </div>
+                      <span className="text-[11px] text-[var(--accent-signal)] shrink-0 font-medium ml-2">
+                        {isScanning && manualPath === root ? 'Lendo...' : 'Escanear →'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Opção 1: Botão Seletor Nativo */}
             <div className="space-y-2">
               <label className="text-xs font-code text-[var(--text-secondary)] uppercase tracking-wider block">
-                Opção 1 · Escolher Pasta Graficamente
+                {serverRoots.length > 0 ? 'Ou Escolha uma Pasta Local' : 'Opção 1 · Escolher Pasta Graficamente'}
               </label>
 
               <button

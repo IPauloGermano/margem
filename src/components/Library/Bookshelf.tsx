@@ -7,6 +7,7 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  RefreshCw,
   Search,
   Sparkles,
   Star,
@@ -22,6 +23,7 @@ interface BookshelfProps {
   onToggleFavorite?: (bookId: string) => void;
   onDropFiles: (files: FileList) => void;
   onLoadSample: (type: 'md' | 'txt' | 'epub') => void;
+  onSyncServerArticles?: () => void;
 }
 
 export const Bookshelf: React.FC<BookshelfProps> = ({
@@ -32,7 +34,8 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
   onDeleteBook,
   onToggleFavorite,
   onDropFiles,
-  onLoadSample
+  onLoadSample,
+  onSyncServerArticles
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [formatFilter, setFormatFilter] = useState<string>('all');
@@ -152,6 +155,18 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
 
             {/* Botões de Ação Primária */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              {onSyncServerArticles && (
+                <button
+                  type="button"
+                  onClick={onSyncServerArticles}
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-[var(--accent-signal)]/40 bg-[var(--accent-signal-bg)] hover:bg-[var(--accent-signal-bg)]/80 text-[var(--accent-signal)] px-4 py-2.5 min-h-[44px] font-code text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-95 cursor-pointer"
+                  title="Sincronizar artigos com o servidor local (/home/ubunt/I/artigos)"
+                >
+                  <RefreshCw className="w-4 h-4 shrink-0" />
+                  <span>Sincronizar Artigos</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={onOpenFolderModal}
@@ -284,13 +299,24 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
 
             {books.length === 0 && (
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                {onSyncServerArticles && (
+                  <button
+                    type="button"
+                    onClick={onSyncServerArticles}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-[var(--accent-signal)] text-white px-5 py-2.5 font-code text-xs font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Carregar Artigos do Servidor</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={onOpenFolderModal}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-[var(--accent-signal)] text-white px-5 py-2.5 font-code text-xs font-semibold hover:opacity-90 transition-opacity"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-[var(--border-rule)] bg-[var(--bg-surface)] px-5 py-2.5 font-code text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
-                  <FolderPlus className="w-4 h-4" />
-                  <span>Adicionar Pasta com Documentos</span>
+                  <FolderPlus className="w-4 h-4 text-[var(--accent-signal)]" />
+                  <span>Adicionar Pasta</span>
                 </button>
 
                 <button
@@ -299,7 +325,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-[var(--text-primary)] text-[var(--bg-canvas)] px-5 py-2.5 font-code text-xs font-semibold hover:opacity-90 transition-opacity"
                 >
                   <FolderOpen className="w-4 h-4" />
-                  <span>Escolher Arquivo do Disco</span>
+                  <span>Escolher Arquivo</span>
                 </button>
 
                 <button
@@ -308,7 +334,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-[var(--border-rule)] bg-[var(--bg-surface)] px-4 py-2.5 font-code text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-[var(--accent-signal)]" />
-                  <span>Carregar Amostra</span>
+                  <span>Amostra</span>
                 </button>
               </div>
             )}

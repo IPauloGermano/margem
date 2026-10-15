@@ -47,6 +47,32 @@ export const App: React.FC = () => {
         const storedBooks = await db.getBooks();
         setBooks(storedBooks);
 
+        // Se estiver no ambiente Web (navegador/mobile) e não houver artigos do servidor na estante:
+        if (!window.cadernoAPI?.isDesktop && window.cadernoAPI?.scanDirectoryPath) {
+          const hasServerBooks = storedBooks.some(
+            (b) =>
+              (b.folderPath && b.folderPath.includes('artigos')) ||
+              (b.filePath && b.filePath.includes('artigos'))
+          );
+
+          if (!hasServerBooks) {
+            try {
+              let roots: string[] = [];
+              if (window.cadernoAPI.getRoots) {
+                roots = await window.cadernoAPI.getRoots();
+              }
+              const targetRoot = roots[0] || '/home/ubunt/I/artigos';
+              const scanRes = await window.cadernoAPI.scanDirectoryPath(targetRoot);
+              if (scanRes && scanRes.items.length > 0) {
+                await handleImportResult(scanRes.folderPath, scanRes.items);
+                return;
+              }
+            } catch (e) {
+              console.warn('[Web API] Auto-carregamento inicial de artigos ignorado:', e);
+            }
+          }
+        }
+
         // Se a estante estiver vazia na primeira vez, carrega amostra em segundo plano sem bloquear a UI
         if (storedBooks.length === 0) {
           loadSampleContent('md', false);
@@ -343,7 +369,7 @@ export const App: React.FC = () => {
           let buffer: ArrayBuffer | null = null;
           if (fileItem.fileRef) {
             buffer = await fileItem.fileRef.arrayBuffer();
-          } else if (window.cadernoAPI) {
+          } else if (window.cadernoAPI?.readFileByPath) {
             const res = await window.cadernoAPI.readFileByPath(fileItem.filePath);
             buffer = res.buffer;
           }
@@ -379,7 +405,7 @@ export const App: React.FC = () => {
             }
           };
 
-          await db.saveBook(book, fileItem.fileRef ? buffer : undefined);
+          await db.saveBook(book, buffer || undefined);
           newBooks.push(book);
           importedSinglesCount++;
         } catch (e) {
@@ -403,6 +429,40 @@ export const App: React.FC = () => {
     }
 
     setIsLoading(false);
+  };
+
+  // Sincronização de Artigos com o Servidor (Tailscale / Local)
+  const handleSyncServerArticles = async () => {
+    if (!window.cadernoAPI?.scanDirectoryPath) return;
+    setIsLoading(true);
+    setLoadingMessage('Buscando artigos no servidor...');
+    setErrorMessage(null);
+    try {
+      let targetRoots: string[] = [];
+      if (window.cadernoAPI.getRoots) {
+        targetRoots = await window.cadernoAPI.getRoots();
+      }
+      if (targetRoots.length === 0) {
+        targetRoots = ['/home/ubunt/I/artigos'];
+      }
+
+      let totalImported = 0;
+      for (const root of targetRoots) {
+        const scanRes = await window.cadernoAPI.scanDirectoryPath(root);
+        if (scanRes && scanRes.items.length > 0) {
+          await handleImportResult(scanRes.folderPath, scanRes.items);
+          totalImported += scanRes.items.length;
+        }
+      }
+      if (totalImported === 0) {
+        setErrorMessage('Nenhum artigo encontrado nas pastas configuradas no servidor.');
+      }
+    } catch (err: any) {
+      console.error('Falha ao sincronizar artigos:', err);
+      setErrorMessage(err.message || 'Falha ao sincronizar artigos do servidor.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Abrir Livro da Estante
@@ -452,7 +512,7 @@ export const App: React.FC = () => {
       let buffer: ArrayBuffer | null = null;
       buffer = await db.getCachedFileBuffer(book.id);
 
-      if (!buffer && window.cadernoAPI && book.filePath) {
+      if (!buffer && window.cadernoAPI?.readFileByPath && book.filePath) {
         const fileData = await window.cadernoAPI.readFileByPath(book.filePath);
         buffer = fileData.buffer;
       }
@@ -766,6 +826,7 @@ export const App: React.FC = () => {
               onToggleFavorite={handleToggleFavorite}
               onDropFiles={handleDropFiles}
               onLoadSample={loadSampleContent}
+              onSyncServerArticles={window.cadernoAPI?.scanDirectoryPath ? handleSyncServerArticles : undefined}
             />
           </div>
         )}

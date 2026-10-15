@@ -14,10 +14,11 @@ declare global {
   interface Window {
     cadernoAPI?: {
       isDesktop: boolean;
-      openFileDialog: () => Promise<FileData | null>;
-      openDirectoryDialog: () => Promise<FolderScanResult | null>;
-      scanDirectoryPath: (path: string) => Promise<FolderScanResult>;
-      readFileByPath: (filePath: string) => Promise<FileData>;
+      openFileDialog?: () => Promise<FileData | null>;
+      openDirectoryDialog?: () => Promise<FolderScanResult | null>;
+      scanDirectoryPath?: (path: string) => Promise<FolderScanResult>;
+      readFileByPath?: (filePath: string) => Promise<FileData>;
+      getRoots?: () => Promise<string[]>;
       openExternal: (url: string) => Promise<boolean>;
       minimize: () => Promise<void>;
       toggleMaximize: () => Promise<boolean>;
