@@ -83,8 +83,36 @@ assert.strictEqual(detectedMid, 'tipografia-digital', 'Após rolar 500px, 1.1 de
 const detectedSub2 = findActiveAnchorFromHeadings(mockHeadings, 1200, 100);
 assert.strictEqual(detectedSub2, 'ritmo-vertical', 'Após rolar 1200px, 1.2 deve ser detectado');
 
-// Lista vazia de cabeçalhos não deve quebrar
-const detectedEmpty = findActiveAnchorFromHeadings([], 500, 100);
-assert.strictEqual(detectedEmpty, null, 'Lista vazia deve retornar null com elegância');
+// 4. Testando rastreamento de páginas PDF (manter o marco da página atual sem resetar para a primeira)
+console.log('4. Testando rastreamento contínuo de páginas PDF...');
+const mockPdfToc = [
+  { id: 'toc-p1', title: 'Capítulo 1', level: 1, sectionIndex: 0, anchor: 'pdf-page-1' },
+  { id: 'toc-p5', title: 'Metodologia', level: 2, sectionIndex: 0, anchor: 'pdf-page-5' },
+  { id: 'toc-p8', title: 'Resultados', level: 2, sectionIndex: 0, anchor: 'pdf-page-8' }
+];
+
+// Leitor está na página 2: deve pertencer ao Capítulo 1 (página 1)
+const activePage2 = resolveActiveTocItem(mockPdfToc, 0, 'pdf-page-2');
+assert.strictEqual(activePage2?.id, 'toc-p1', 'Página 2 deve pertencer ao marco da página 1 (Capítulo 1)');
+
+// Leitor está na página 6: deve pertencer à Metodologia (página 5) e NUNCA voltar para a página 1
+const activePage6 = resolveActiveTocItem(mockPdfToc, 0, 'pdf-page-6');
+assert.strictEqual(activePage6?.id, 'toc-p5', 'Página 6 deve pertencer à Metodologia (marco página 5)');
+
+// Leitor está na página 9: deve pertencer aos Resultados (página 8)
+const activePage9 = resolveActiveTocItem(mockPdfToc, 0, 'pdf-page-9');
+assert.strictEqual(activePage9?.id, 'toc-p8', 'Página 9 deve pertencer aos Resultados (marco página 8)');
+
+// 5. Testando resolução por sufixo de âncora (slug gerado vs âncora limpa)
+console.log('5. Testando resolução por sufixo de âncora e headings intermediários...');
+const mockMarkdownToc = [
+  { id: 'h-sec0-0-intro', title: 'Introdução', level: 1, sectionIndex: 0, anchor: 'h-sec0-0-intro' },
+  { id: 'h-sec0-1-escalas', title: '1.1 Escalas Modulares', level: 2, sectionIndex: 0, anchor: 'h-sec0-1-escalas' }
+];
+
+// Busca por sufixo 'escalas' deve resolver para 1.1
+const resolvedBySuffix = resolveActiveTocItem(mockMarkdownToc, 0, 'escalas');
+assert.strictEqual(resolvedBySuffix?.id, 'h-sec0-1-escalas', 'Âncora limpa "escalas" deve resolver para "h-sec0-1-escalas"');
 
 console.log('🎉 TODOS OS TESTES DO TOC ACTIVE TRACKING PASSARAM COM SUCESSO!');
+

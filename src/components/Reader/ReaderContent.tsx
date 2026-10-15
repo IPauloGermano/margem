@@ -38,6 +38,81 @@ interface ToolbarState {
   existingNote?: string;
 }
 
+/**
+ * Localiza com precisão e flexibilidade o elemento correspondente a uma âncora no DOM.
+ * Suporta IDs exatos, names, páginas PDF (pdf-page-X) e sufixos de slugs gerados por parsers.
+ */
+function findAnchorTargetElement(container: HTMLElement, rawAnchor: string): HTMLElement | null {
+  if (!container || !rawAnchor) return null;
+  const clean = rawAnchor.trim().replace(/^#/, '');
+  if (!clean || clean.toLowerCase() === 'top' || clean === 'section-top') {
+    return container.firstElementChild as HTMLElement | null;
+  }
+
+  // 1. Busca exata por ID ou name
+  try {
+    const escaped = CSS.escape(clean);
+    const exact =
+      container.querySelector<HTMLElement>(`#${escaped}`) ||
+      container.querySelector<HTMLElement>(`[name="${escaped}"]`);
+    if (exact) return exact;
+  } catch {}
+
+  // 2. Busca por páginas (ex: "page-2", "pdf-page-2", "p-2", "2")
+  const pageMatch = clean.match(/(?:pdf-page-|page-|p-|^)(\d+)$/i);
+  if (pageMatch) {
+    const pageNum = pageMatch[1];
+    const pageElem =
+      container.querySelector<HTMLElement>(`#pdf-page-${pageNum}`) ||
+      container.querySelector<HTMLElement>(`[data-page="${pageNum}"]`);
+    if (pageElem) return pageElem;
+  }
+
+  // 3. Busca por sufixo de slug (ex: buscando "escala" encontra "h-sec0-1-escala")
+  try {
+    const lower = clean.toLowerCase();
+    const bySuffix =
+      container.querySelector<HTMLElement>(`[id$="-${CSS.escape(lower)}"]`) ||
+      container.querySelector<HTMLElement>(`[id$="_${CSS.escape(lower)}"]`) ||
+      container.querySelector<HTMLElement>(`[id*="${CSS.escape(lower)}"]`);
+    if (bySuffix) return bySuffix;
+  } catch {}
+
+  // 4. Comparação normalizada em todos os elementos com ID
+  const elementsWithId = container.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id], h4[id], [id]');
+  const cleanNorm = clean.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (cleanNorm) {
+    for (const el of Array.from(elementsWithId)) {
+      const elIdNorm = (el.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (elIdNorm === cleanNorm || elIdNorm.endsWith(cleanNorm) || cleanNorm.endsWith(elIdNorm)) {
+        return el;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Rola o contêiner de leitura suavemente até o elemento de destino,
+ * aplicando margem confortável no topo e garantindo comportamento estável no container flex/scroll.
+ */
+function scrollToTargetElement(container: HTMLElement, targetElem: HTMLElement, offsetPadding = 24): void {
+  const containerRect = container.getBoundingClientRect();
+  const targetRect = targetElem.getBoundingClientRect();
+  const targetOffset = targetRect.top - containerRect.top + container.scrollTop;
+  const finalScrollTop = Math.max(0, targetOffset - offsetPadding);
+
+  try {
+    container.scrollTo({
+      top: finalScrollTop,
+      behavior: smoothScrollBehavior()
+    });
+  } catch {
+    container.scrollTop = finalScrollTop;
+  }
+}
+
 export const ReaderContent: React.FC<ReaderContentProps> = ({
   section,
   preferences,
@@ -115,19 +190,21 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
       // Aguarda o DOM estar pronto com o conteúdo renderizado antes de buscar a âncora
       const tryScroll = () => {
-        const targetElem =
-          el.querySelector(`#${CSS.escape(targetAnchor)}`) ||
-          el.querySelector(`[name="${targetAnchor}"]`);
+        const targetElem = findAnchorTargetElement(el, targetAnchor);
         if (targetElem) {
-          targetElem.scrollIntoView({ behavior: smoothScrollBehavior(), block: 'start' });
+          scrollToTargetElement(el, targetElem);
           return true;
         }
         return false;
       };
 
       if (!tryScroll()) {
-        // Retry após microtask (DOM pode ainda estar sendo preenchido pelo useEffect de highlights)
-        const raf = requestAnimationFrame(() => tryScroll());
+        const raf = requestAnimationFrame(() => {
+          if (!tryScroll()) {
+            // Se a âncora correspondia ao topo ou não foi encontrada, garante rolagem para o início
+            el.scrollTo({ top: 0, behavior: smoothScrollBehavior() });
+          }
+        });
         return () => cancelAnimationFrame(raf);
       }
       return;
@@ -191,6 +268,14 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         firstHeading === bodyRef.current.firstElementChild &&
         isSameTitle(firstHeading.textContent, section.title)
       ) {
+        // Preserva o identificador da âncora do primeiro cabeçalho no topo
+        if (firstHeading.id) {
+          const topAnchor = document.createElement('div');
+          topAnchor.id = firstHeading.id;
+          topAnchor.className = 'reader-section-top-anchor';
+          topAnchor.setAttribute('data-section-top', 'true');
+          bodyRef.current.insertBefore(topAnchor, firstHeading);
+        }
         firstHeading.remove();
       }
     }
@@ -260,9 +345,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         activeElement.scrollIntoView({ behavior: smoothScrollBehavior(), block: 'center' });
       }
     } else {
-      // Preserva a posição exata de leitura ao recarregar a seção dinamicamente
+      // Preserva a posição exata de leitura ao recarregar a seção dinamicamente (se não houver âncora alvo)
       const el = containerRef.current;
-      if (el && lastKnownScrollTop.current > 0) {
+      if (el && !targetAnchor && lastKnownScrollTop.current > 0) {
         el.scrollTop = lastKnownScrollTop.current;
       }
     }
@@ -296,7 +381,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     // ScrollSpy: rastreia qual cabeçalho/âncora está na linha de visão confortável de leitura
     if (onActiveAnchorChange && bodyRef.current) {
       const headingEls = bodyRef.current.querySelectorAll<HTMLElement>(
-        'h1[id], h2[id], h3[id], h4[id], [id^="pdf-page-"], [name]'
+        'h1[id], h2[id], h3[id], h4[id], [id^="pdf-page-"], .reader-section-top-anchor, [name]'
       );
       if (headingEls.length > 0) {
         const containerTop = el.getBoundingClientRect().top;
@@ -311,7 +396,18 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
             });
           }
         });
-        const active = findActiveAnchorFromHeadings(headings, el.scrollTop, 120);
+
+        // Se estiver no topo absoluto (< 60px), ativa o primeiro cabeçalho (capítulo)
+        let active: string | null = null;
+        if (el.scrollTop < 60) {
+          active = headings[0].id;
+        } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 30) {
+          // Se estiver nos últimos pixels da seção, ativa o último cabeçalho
+          active = headings[headings.length - 1].id;
+        } else {
+          active = findActiveAnchorFromHeadings(headings, el.scrollTop, 120);
+        }
+
         if (active !== currentActiveAnchorRef.current) {
           currentActiveAnchorRef.current = active;
           onActiveAnchorChange(active);
@@ -459,6 +555,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       e.preventDefault();
       const href = (anchor.getAttribute('href') || '').trim();
       if (!href || href === '#') {
+        containerRef.current?.scrollTo({ top: 0, behavior: smoothScrollBehavior() });
         return;
       }
 
@@ -475,16 +572,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       // Âncora interna do documento na seção atual
       if (href.startsWith('#')) {
         const anchorId = href.slice(1).trim();
-        if (anchorId) {
-          try {
-            const targetElement =
-              containerRef.current?.querySelector(`#${CSS.escape(anchorId)}`) ||
-              containerRef.current?.querySelector(`[name="${CSS.escape(anchorId)}"]`);
-            if (targetElement) {
-              targetElement.scrollIntoView({ behavior: smoothScrollBehavior() });
-              return;
-            }
-          } catch {}
+        if (anchorId && containerRef.current) {
+          const targetElement = findAnchorTargetElement(containerRef.current, anchorId);
+          if (targetElement) {
+            scrollToTargetElement(containerRef.current, targetElement);
+            const resolvedAnchor = targetElement.id || anchorId;
+            currentActiveAnchorRef.current = resolvedAnchor;
+            onActiveAnchorChange?.(resolvedAnchor);
+            return;
+          }
         }
       }
 

@@ -7,6 +7,19 @@ export interface TocVisualState {
 }
 
 /**
+ * Extrai número de página se a âncora representar uma página (ex: "pdf-page-5", "page-5", "p-5")
+ */
+export function extractPageNumber(str?: string | null): number | null {
+  if (!str) return null;
+  const match = str.match(/(?:pdf-page-|page-|p-)(\d+)/i);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    return Number.isFinite(num) ? num : null;
+  }
+  return null;
+}
+
+/**
  * Resolve com precisão qual item do TOC corresponde à posição de leitura atual.
  * Prioriza a âncora/cabeçalho detectada no viewport; caso contrário, recai no topo da seção.
  */
@@ -21,15 +34,83 @@ export function resolveActiveTocItem(
   if (sectionItems.length === 0) return null;
 
   if (activeAnchor && activeAnchor.trim().length > 0) {
-    const cleanAnchor = activeAnchor.trim();
+    const cleanAnchor = activeAnchor.trim().toLowerCase();
+
     // 1. Busca exata por anchor ou id nos itens da seção atual
-    const matched = sectionItems.find(
-      (item) => item.anchor === cleanAnchor || item.id === cleanAnchor
-    );
+    const matched = sectionItems.find((item) => {
+      const a = (item.anchor || '').toLowerCase();
+      const id = (item.id || '').toLowerCase();
+      return a === cleanAnchor || id === cleanAnchor;
+    });
     if (matched) return matched;
+
+    // 2. Rastreamento contínuo para páginas PDF / documentos paginados
+    const targetPage = extractPageNumber(cleanAnchor);
+    if (targetPage !== null) {
+      let bestPageItem: TableOfContentsItem | null = null;
+      let bestPageDiff = Infinity;
+
+      for (const item of sectionItems) {
+        const itemPage = extractPageNumber(item.anchor) ?? extractPageNumber(item.id);
+        if (itemPage !== null && itemPage <= targetPage) {
+          const diff = targetPage - itemPage;
+          if (diff < bestPageDiff) {
+            bestPageDiff = diff;
+            bestPageItem = item;
+          }
+        }
+      }
+
+      if (bestPageItem) return bestPageItem;
+    }
+
+    // 3. Busca por sufixo ou terminação de slug (ex: "escalas" coincide com "h-sec0-1-escalas")
+    const matchedBySuffix = sectionItems.find((item) => {
+      const a = (item.anchor || '').toLowerCase();
+      const id = (item.id || '').toLowerCase();
+      return (
+        (a && (a.endsWith(`-${cleanAnchor}`) || a.endsWith(`_${cleanAnchor}`) || cleanAnchor.endsWith(`-${a}`) || cleanAnchor.endsWith(`_${a}`))) ||
+        (id && (id.endsWith(`-${cleanAnchor}`) || id.endsWith(`_${cleanAnchor}`) || cleanAnchor.endsWith(`-${id}`) || cleanAnchor.endsWith(`_${id}`)))
+      );
+    });
+    if (matchedBySuffix) return matchedBySuffix;
+
+    // 4. Proximidade por índice de heading (ex: h-sec0-4-detalhe dentro de h-sec0-1-secao)
+    const headingMatch = cleanAnchor.match(/h-sec\d+-(\d+)-/);
+    if (headingMatch) {
+      const targetHIdx = parseInt(headingMatch[1], 10);
+      let bestHeadingItem: TableOfContentsItem | null = null;
+      let bestHDiff = Infinity;
+
+      for (const item of sectionItems) {
+        const itemHMatch = (item.anchor || item.id || '').match(/h-sec\d+-(\d+)-/);
+        if (itemHMatch) {
+          const itemHIdx = parseInt(itemHMatch[1], 10);
+          if (itemHIdx <= targetHIdx) {
+            const diff = targetHIdx - itemHIdx;
+            if (diff < bestHDiff) {
+              bestHDiff = diff;
+              bestHeadingItem = item;
+            }
+          }
+        }
+      }
+      if (bestHeadingItem) return bestHeadingItem;
+    }
+
+    // 5. Se a âncora pertencer comprovadamente a OUTRA seção no TOC, recai no topo da seção corrente
+    const belongsToOtherSection = toc.some(
+      (item) =>
+        item.sectionIndex !== currentSectionIndex &&
+        ((item.anchor && item.anchor.toLowerCase() === cleanAnchor) ||
+          (item.id && item.id.toLowerCase() === cleanAnchor))
+    );
+    if (belongsToOtherSection) {
+      return sectionItems[0];
+    }
   }
 
-  // 2. Fallback: o primeiro item da seção atual (topo do capítulo)
+  // 6. Fallback: o primeiro item da seção atual (topo do capítulo)
   return sectionItems[0];
 }
 

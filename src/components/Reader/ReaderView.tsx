@@ -237,7 +237,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             const anchorMatches =
               item.anchor?.toLowerCase() === cleanAnchor ||
               item.id.toLowerCase() === cleanAnchor ||
-              item.anchor?.toLowerCase().endsWith(cleanAnchor);
+              (item.anchor && item.anchor.toLowerCase().endsWith(cleanAnchor)) ||
+              (item.anchor && cleanAnchor.endsWith(item.anchor.toLowerCase()));
             if (anchorMatches) return item;
             if (item.children && item.children.length > 0) {
               const subMatch = matchInToc(item.children);
@@ -249,8 +250,23 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
         const tocMatch = matchInToc(document.toc);
         if (tocMatch && typeof tocMatch.sectionIndex === 'number') {
-          handleSelectSection(tocMatch.sectionIndex, targetAnchor);
+          handleSelectSection(tocMatch.sectionIndex, tocMatch.anchor || tocMatch.id || targetAnchor);
           return;
+        }
+
+        // Busca por páginas (ex: page-2, pdf-page-2, p-2) em documentos PDF ou paginados
+        const pageMatch = cleanAnchor.match(/(?:pdf-page-|page-|p-|^)(\d+)$/i);
+        if (pageMatch) {
+          const pageNum = parseInt(pageMatch[1], 10);
+          if (pageNum > 0) {
+            const canonicalPageAnchor = `pdf-page-${pageNum}`;
+            for (let i = 0; i < sections.length; i++) {
+              if (sections[i].content.includes(`id="${canonicalPageAnchor}"`)) {
+                handleSelectSection(i, canonicalPageAnchor);
+                return;
+              }
+            }
+          }
         }
 
         for (let i = 0; i < sections.length; i++) {
@@ -258,7 +274,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           if (
             sec.id.toLowerCase() === cleanAnchor ||
             sec.content.toLowerCase().includes(`id="${cleanAnchor}"`) ||
-            sec.content.toLowerCase().includes(`name="${cleanAnchor}"`)
+            sec.content.toLowerCase().includes(`name="${cleanAnchor}"`) ||
+            sec.content.toLowerCase().includes(`id="h-sec${i}-`)
           ) {
             handleSelectSection(i, targetAnchor);
             return;

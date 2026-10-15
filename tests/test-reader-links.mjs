@@ -87,10 +87,29 @@ function resolveReaderLink(href, currentSectionIndex, doc, book) {
       (item) =>
         item.anchor?.toLowerCase() === cleanAnchor ||
         item.id.toLowerCase() === cleanAnchor ||
-        item.anchor?.toLowerCase().endsWith(cleanAnchor)
+        (item.anchor && item.anchor.toLowerCase().endsWith(cleanAnchor)) ||
+        (item.anchor && cleanAnchor.endsWith(item.anchor.toLowerCase()))
     );
     if (tocMatch) {
-      return { action: 'navigate_section', sectionIndex: tocMatch.sectionIndex, anchor: targetAnchor };
+      return {
+        action: 'navigate_section',
+        sectionIndex: tocMatch.sectionIndex,
+        anchor: tocMatch.anchor || tocMatch.id || targetAnchor
+      };
+    }
+
+    // Busca por páginas PDF (ex: page-2, pdf-page-2, 2)
+    const pageMatch = cleanAnchor.match(/(?:pdf-page-|page-|p-|^)(\d+)$/i);
+    if (pageMatch) {
+      const pageNum = parseInt(pageMatch[1], 10);
+      if (pageNum > 0) {
+        const canonicalAnchor = `pdf-page-${pageNum}`;
+        for (let i = 0; i < doc.sections.length; i++) {
+          if (doc.sections[i].content.includes(`id="${canonicalAnchor}"`)) {
+            return { action: 'navigate_section', sectionIndex: i, anchor: canonicalAnchor };
+          }
+        }
+      }
     }
 
     for (let i = 0; i < doc.sections.length; i++) {
@@ -98,7 +117,8 @@ function resolveReaderLink(href, currentSectionIndex, doc, book) {
       if (
         sec.id.toLowerCase() === cleanAnchor ||
         sec.content.toLowerCase().includes(`id="${cleanAnchor}"`) ||
-        sec.content.toLowerCase().includes(`name="${cleanAnchor}"`)
+        sec.content.toLowerCase().includes(`name="${cleanAnchor}"`) ||
+        sec.content.toLowerCase().includes(`id="h-sec${i}-`)
       ) {
         return { action: 'navigate_section', sectionIndex: i, anchor: targetAnchor };
       }
@@ -157,6 +177,28 @@ assert.strictEqual(res2.sectionIndex, 1, 'Deve identificar que a âncora pertenc
 assert.strictEqual(res2.anchor, 'h-sec1-0-arquitetura');
 console.log('✓ Âncora entre seções resolvida para a seção correta com targetAnchor.');
 
+// Mock com seção contendo página PDF
+mockDocument.sections.push({
+  id: 'sec-2',
+  title: 'Capítulo 3: Páginas',
+  content: '<div id="pdf-page-2" class="pdf-page-anchor" data-page="2"></div><p>Página 2</p>',
+  wordCount: 50
+});
+
+console.log('\n2b. Testando link com âncora limpa (#arquitetura) para heading com slug completo...');
+const resCleanAnchor = resolveReaderLink('#arquitetura', 0, mockDocument, mockBook);
+assert.strictEqual(resCleanAnchor.action, 'navigate_section');
+assert.strictEqual(resCleanAnchor.sectionIndex, 1, 'Deve encontrar a seção 1');
+assert.strictEqual(resCleanAnchor.anchor, 'h-sec1-0-arquitetura', 'Deve mapear para a âncora canônica h-sec1-0-arquitetura');
+console.log('✓ Âncora limpa #arquitetura mapeada para âncora canônica do TOC.');
+
+console.log('\n2c. Testando link para página de PDF (#page-2)...');
+const resPage2 = resolveReaderLink('#page-2', 0, mockDocument, mockBook);
+assert.strictEqual(resPage2.action, 'navigate_section');
+assert.strictEqual(resPage2.sectionIndex, 2, 'Deve encontrar a seção contendo a página 2');
+assert.strictEqual(resPage2.anchor, 'pdf-page-2', 'Deve normalizar para pdf-page-2');
+console.log('✓ Link #page-2 resolvido com sucesso para pdf-page-2.');
+
 console.log('\n3. Testando link vazio ou hash puro (#)...');
 const res3 = resolveReaderLink('#', 0, mockDocument, mockBook);
 assert.strictEqual(res3.action, 'none');
@@ -166,6 +208,7 @@ console.log('\n4. Testando link externo (https://example.com)...');
 const res4 = resolveReaderLink('https://example.com', 0, mockDocument, mockBook);
 assert.strictEqual(res4.action, 'external');
 console.log('✓ Link externo identificado corretamente.');
+
 
 // 3. Verificação estática nos arquivos reais
 console.log('\n5. Verificando proteção em ReaderContent.tsx e ReaderView.tsx...');
