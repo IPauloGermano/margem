@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Maximize2, Move, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { clampZoomToRange, computeFitZoom, maxZoomForFit, recenterPanIfOutside } from '../../core/media/diagramZoom';
 
 interface DiagramFullscreenModalProps {
   isOpen: boolean;
@@ -84,16 +85,51 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   const hasDraggedRef = useRef<boolean>(false);
   const lastTapRef = useRef<number>(0);
   const touchDistRef = useRef<number | null>(null);
+  // Zoom aplicado pelo usuário: true após qualquer gesto de zoom. Resize do
+  // container só recontém (clamp) — nunca reseta para o fit (era o bug: o
+  // ResizeObserver apagava o zoom a cada resize).
+  const userZoomedRef = useRef<boolean>(false);
+  // Espelho do zoom para leitura em callbacks assíncronos do observer.
+  const zoomRef = useRef<number>(1);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+  // Espelho do pan: o pointerUp fecha sobre o valor renderizado, não o do closure.
+  const panRef = useRef<{ x: number; y: number }>(pan);
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
 
   // Dimensões intrínsecas e SVG limpo
   const dimensions = useMemo(() => parseSvgDimensions(svgHtml), [svgHtml]);
   const cleanedSvgHtml = useMemo(() => cleanMermaidSvg(svgHtml), [svgHtml]);
 
-  // Zoom adaptativo inicial (Fit-to-Screen) calculado dinamicamente
+  // Fit inicial: ao abrir ou trocar de diagrama, segue o fit e zera o pan.
   useEffect(() => {
     if (!isOpen || !containerRef.current) return;
 
-    const calculateFit = () => {
+    const { clientWidth, clientHeight } = containerRef.current;
+    if (clientWidth <= 0 || clientHeight <= 0) return;
+
+    const mobile =
+      clientWidth < 768 ||
+      (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
+    setIsMobile(mobile);
+    const fit = computeFitZoom(clientWidth, clientHeight, dimensions.width, dimensions.height, mobile);
+
+    userZoomedRef.current = false;
+    setFitZoom(fit);
+    setZoom(fit);
+    zoomRef.current = fit;
+    setPan({ x: 0, y: 0 });
+  }, [isOpen, dimensions.width, dimensions.height]);
+
+  // Resize do container: atualiza a base (fit) mas preserva o zoom do usuário
+  // contido no novo range; só zera o pan se o zoom colar no piso.
+  useEffect(() => {
+    if (!isOpen || !containerRef.current) return;
+
+    const onResize = () => {
       if (!containerRef.current) return;
       const { clientWidth, clientHeight } = containerRef.current;
       if (clientWidth <= 0 || clientHeight <= 0) return;
@@ -102,28 +138,24 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
         clientWidth < 768 ||
         (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
       setIsMobile(mobile);
-      const padX = mobile ? 24 : 56;
-      const padY = mobile ? 24 : 56;
+      const fit = computeFitZoom(clientWidth, clientHeight, dimensions.width, dimensions.height, mobile);
 
-      const availWidth = Math.max(60, clientWidth - padX * 2);
-      const availHeight = Math.max(60, clientHeight - padY * 2);
-
-      const scaleX = availWidth / dimensions.width;
-      const scaleY = availHeight / dimensions.height;
-      const initialScale = Math.min(scaleX, scaleY);
-
-      // Limita zoom fit para não esticar além de 1.25x se for pequeno, nem ficar microscópico
-      const clampedFit = Math.max(0.05, Math.min(initialScale, 1.25));
-      const roundedFit = +clampedFit.toFixed(3);
-
-      setFitZoom(roundedFit);
-      setZoom(roundedFit);
-      setPan({ x: 0, y: 0 });
+      setFitZoom(fit);
+      if (!userZoomedRef.current) {
+        setZoom(fit);
+        zoomRef.current = fit;
+        setPan({ x: 0, y: 0 });
+      } else {
+        const next = clampZoomToRange(zoomRef.current, fit, mobile);
+        if (next !== zoomRef.current) {
+          zoomRef.current = next;
+          setZoom(next);
+        }
+        if (next <= fit + 0.001) setPan({ x: 0, y: 0 });
+      }
     };
 
-    calculateFit();
-
-    const observer = new ResizeObserver(calculateFit);
+    const observer = new ResizeObserver(onResize);
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, [isOpen, dimensions.width, dimensions.height]);
@@ -178,22 +210,29 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       }
     };
 
+<<<<<<< HEAD
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isOpen, onClose, fitZoom]);
+=======
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, fitZoom, isMobile]);
+>>>>>>> origin/dev
 
   if (!isOpen || !svgHtml) return null;
 
   const minZoom = fitZoom;
-  const maxZoomMultiplier = isMobile ? 3 : 2;
-  const maxZoom = +(fitZoom * maxZoomMultiplier).toFixed(3);
+  const maxZoom = maxZoomForFit(fitZoom, isMobile);
   const maxPercent = isMobile ? 300 : 200;
 
   const handleZoomIn = () => {
+    userZoomedRef.current = true;
     setZoom((z) => Math.min(maxZoom, +(z + fitZoom * 0.25).toFixed(3)));
   };
 
   const handleZoomOut = () => {
+    userZoomedRef.current = true;
     setZoom((z) => {
       const next = +(z - fitZoom * 0.25).toFixed(3);
       if (next <= minZoom + 0.001) {
@@ -205,6 +244,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
   };
 
   const handleResetZoom = () => {
+    userZoomedRef.current = false;
     setZoom(fitZoom);
     setPan({ x: 0, y: 0 });
   };
@@ -214,13 +254,38 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
     if (zoom > minZoom + 0.01) {
       handleResetZoom();
     } else {
+      userZoomedRef.current = true;
       setZoom(maxZoom);
+    }
+  };
+
+  // Snap de soltura: se o diagrama ficou com menos que o mínimo visível em
+  // qualquer eixo, volta ao centro seguro (com transição suave, pois o
+  // arrasto já terminou). Sem isso o diagrama strandava fora da tela.
+  const snapPanToVisible = () => {
+    if (!containerRef.current) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    if (clientWidth <= 0 || clientHeight <= 0) return;
+    const snapped = recenterPanIfOutside(
+      panRef.current,
+      clientWidth,
+      clientHeight,
+      dimensions.width,
+      dimensions.height,
+      zoomRef.current
+    );
+    if (snapped.x !== panRef.current.x || snapped.y !== panRef.current.y) {
+      panRef.current = snapped;
+      setPan(snapped);
     }
   };
 
   // Pointer Events para Pan / Drag suave
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    // Interativos (ex: botão Fit flutuante) têm gesto próprio: não inicia drag
+    // nem captura o pointer (capture retargetearia o click para o main).
+    if ((e.target as HTMLElement | null)?.closest?.('button')) return;
 
     isDraggingRef.current = true;
     setIsDragging(true);
@@ -286,6 +351,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
           lastTapRef.current = now;
         }
       }
+      snapPanToVisible();
     }
   };
 
@@ -305,6 +371,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
       const factor = newDist / touchDistRef.current;
       if (Math.abs(factor - 1) > 0.02) {
+        userZoomedRef.current = true;
         setZoom((z) => {
           const next = Math.min(maxZoom, Math.max(minZoom, +(z * factor).toFixed(3)));
           if (next <= minZoom + 0.001) {
@@ -319,6 +386,8 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
   const handleTouchEnd = () => {
     touchDistRef.current = null;
+    // Fim de pinça também pode strandar o diagrama: aplica o mesmo snap.
+    snapPanToVisible();
   };
 
   // Zoom via roda do mouse ou trackpad
@@ -334,6 +403,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
     const direction = e.deltaY < 0 ? 1 : -1;
     const factor = e.ctrlKey || e.metaKey ? 1.05 : 1.12;
+    userZoomedRef.current = true;
     setZoom((z) => {
       const next =
         direction > 0
@@ -359,6 +429,11 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
   const currentScalePct = Math.round((zoom / fitZoom) * 100);
   const clampedScalePct = Math.min(maxPercent, Math.max(100, currentScalePct));
+  // Fit visível só com zoom ativo (tolerância p/ arredondamento de ponto flutuante).
+  const isZoomed = Math.abs(zoom - fitZoom) > 0.01;
+  // Flutuante aparece com zoom OU deslocamento (pan) ativo.
+  const isPanned = pan.x !== 0 || pan.y !== 0;
+  const showFloatingFit = isZoomed || isPanned;
 
   return (
     <div
@@ -369,34 +444,34 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-canvas)]/95 backdrop-blur-md select-none animate-in fade-in duration-150 box-border text-[var(--text-primary)]"
     >
       {/* Barra de Ferramentas Superior Editorial */}
-      <header className="w-full h-14 header-compact-landscape pt-safe px-3 sm:px-6 pl-safe pr-safe flex items-center justify-between border-b border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20">
+      <header className="w-full h-[calc(4rem+var(--sat))] header-compact-landscape pt-safe px-3 sm:px-6 pl-safe pr-safe grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)]/85 backdrop-blur-sm shrink-0 z-20">
         {/* Identificação e Título */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <span className="font-editorial text-sm sm:text-base font-medium tracking-tight text-[var(--text-primary)] truncate">
+        <div className="flex items-center gap-2 min-w-0 justify-self-start">
+          <span className="font-editorial text-sm sm:text-base font-medium leading-tight tracking-tight text-[var(--text-primary)] truncate">
             Diagrama
           </span>
-          <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-wider uppercase hidden sm:inline">
+          <span className="text-[11px] font-mono leading-none text-[var(--text-muted)] tracking-wider uppercase hidden sm:inline shrink-0">
             · Tela Cheia
           </span>
         </div>
 
         {/* Controles Centrais com Estética Editorial */}
-        <div className="flex items-center gap-0.5 sm:gap-1 bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] px-1 py-0.5 rounded-full shadow-xs">
+        <div className="diagram-pill flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] px-1 py-0.5 rounded-full shadow-xs justify-self-center">
           <button
             type="button"
             onClick={handleZoomOut}
             disabled={zoom <= minZoom + 0.001}
-            className="p-1.5 min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+            className="size-10 inline-flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
             title="Diminuir Zoom (-)"
             aria-label="Diminuir Zoom"
           >
-            <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <ZoomOut className="size-4 shrink-0" />
           </button>
 
           <button
             type="button"
             onClick={handleResetZoom}
-            className="px-2 sm:px-2.5 py-1 min-h-[32px] sm:min-h-[36px] flex items-center justify-center rounded-full font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer tabular-nums"
+            className="pill-pct h-10 min-w-[3rem] px-2 inline-flex items-center justify-center rounded-full font-mono text-xs leading-none text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer tabular-nums shrink-0"
             title="Ajustar ao padrão 100% (0)"
             aria-label="Ajustar ao padrão 100%"
           >
@@ -407,40 +482,28 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
             type="button"
             onClick={handleZoomIn}
             disabled={zoom >= maxZoom - 0.001}
-            className="p-1.5 min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+            className="size-10 inline-flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
             title="Aumentar Zoom (+)"
             aria-label="Aumentar Zoom"
           >
-            <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </button>
-
-          <div className="w-[1px] h-4 bg-[var(--border-rule-subtle)] mx-0.5 hidden xs:block" />
-
-          <button
-            type="button"
-            onClick={handleResetZoom}
-            className="p-1.5 min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 transition-all cursor-pointer"
-            title="Ajustar à tela (Fit)"
-            aria-label="Ajustar à tela"
-          >
-            <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <ZoomIn className="size-4 shrink-0" />
           </button>
         </div>
 
         {/* Ações da Direita: Copiar Código e Fechar */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 justify-self-end">
           {code && (
             <button
               type="button"
               onClick={handleCopyCode}
-              className="p-2 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer"
+              className="size-10 hidden sm:inline-flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer shrink-0"
               title="Copiar código Mermaid"
               aria-label="Copiar código Mermaid"
             >
               {copied ? (
-                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-signal)]" />
+                <Check className="size-4 shrink-0 text-[var(--accent-signal)]" />
               ) : (
-                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Copy className="size-4 shrink-0" />
               )}
             </button>
           )}
@@ -448,11 +511,11 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer"
+            className="size-10 inline-flex items-center justify-center rounded-full border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer shrink-0"
             title="Fechar (Esc)"
             aria-label="Fechar visualizador de tela cheia"
           >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <X className="size-4 shrink-0" />
           </button>
         </div>
       </header>
@@ -489,6 +552,18 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
           className="bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] rounded-xl shadow-lg p-3 sm:p-6 [&_svg]:!w-full [&_svg]:!h-full [&_svg]:!max-w-none [&_svg]:block select-none pointer-events-none"
           dangerouslySetInnerHTML={{ __html: cleanedSvgHtml }}
         />
+        {/* Fit flutuante: visível só com zoom ou pan ativo; reseta ambos. */}
+        <button
+          type="button"
+          onClick={handleResetZoom}
+          aria-label="Ajustar diagrama à tela"
+          title="Ajustar à tela (Fit)"
+          aria-hidden={!showFloatingFit}
+          tabIndex={showFloatingFit ? 0 : -1}
+          className={`absolute bottom-3 right-3 z-10 size-10 inline-flex items-center justify-center rounded-full bg-[var(--bg-surface)]/80 backdrop-blur-sm border border-[var(--border-rule-subtle)] shadow-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-90 transition-opacity duration-200 cursor-pointer ${showFloatingFit ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        >
+          <Maximize2 className="size-4 shrink-0" />
+        </button>
       </main>
 
       {/* Rodapé Editorial Informativo */}

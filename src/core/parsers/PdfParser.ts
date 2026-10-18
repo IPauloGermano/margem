@@ -22,14 +22,14 @@ import {
 } from './pdfTableEngine.ts';
 
 let _cachedPdfJs: any = null;
-async function getPdfJsLib(): Promise<any> {
+export async function getPdfJsLib(): Promise<any> {
   if (!_cachedPdfJs) {
     _cachedPdfJs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   }
   return _cachedPdfJs;
 }
 
-async function ensureWorkerConfigured(pdfjsLib: any): Promise<void> {
+export async function ensureWorkerConfigured(pdfjsLib: any): Promise<void> {
   if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
       try {
@@ -47,133 +47,12 @@ async function ensureWorkerConfigured(pdfjsLib: any): Promise<void> {
 }
 
 /**
- * Extrai figuras/imagens rasterizadas da página para embutir na leitura editorial
+ * Extrai figuras/imagens rasterizadas da página para embutir na leitura editorial.
+ * Desabilitado por padrão para evitar decodificação pesada e bloqueio da thread principal,
+ * pois o PdfViewer nativo renderiza os gráficos e vetores diretamente via canvas de alta fidelidade.
  */
-async function extractImagesFromPage(page: any, pageNum: number): Promise<string[]> {
-  if (typeof document === 'undefined' || typeof window === 'undefined') {
-    return [];
-  }
-  const figures: string[] = [];
-  try {
-    const pdfjsLib = await getPdfJsLib();
-    const ops = await page.getOperatorList();
-    const OPS = (pdfjsLib as any).OPS;
-    for (let i = 0; i < ops.fnArray.length; i++) {
-      const fn = ops.fnArray[i];
-      if (OPS && (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject || fn === OPS.paintImageMaskXObject)) {
-        const imgName = ops.argsArray[i][0];
-        const imgObj = await new Promise<any>((resolve) => {
-          const timer = setTimeout(() => resolve(null), 500);
-          try {
-            if (page.objs && typeof page.objs.get === 'function') {
-              page.objs.get(imgName, (obj: any) => {
-                clearTimeout(timer);
-                resolve(obj);
-              });
-            } else {
-              clearTimeout(timer);
-              resolve(null);
-            }
-          } catch {
-            clearTimeout(timer);
-            resolve(null);
-          }
-        });
-
-        if (imgObj && imgObj.width >= 60 && imgObj.height >= 60) {
-          console.warn('[PDF_IMG_DEBUG]', {
-            width: imgObj.width,
-            height: imgObj.height,
-            kind: imgObj.kind,
-            hasData: !!imgObj.data,
-            dataLen: imgObj.data?.length,
-            hasBitmap: !!imgObj.bitmap,
-            constructor: imgObj.constructor?.name
-          });
-
-          const canvas = document.createElement('canvas');
-          canvas.width = imgObj.width;
-          canvas.height = imgObj.height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            // Fundo branco sólido por padrão para imagens técnicas
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            if (typeof ImageBitmap !== 'undefined' && imgObj instanceof ImageBitmap) {
-              ctx.drawImage(imgObj, 0, 0);
-            } else if (imgObj.bitmap) {
-              ctx.drawImage(imgObj.bitmap, 0, 0);
-            } else if (typeof HTMLImageElement !== 'undefined' && imgObj instanceof HTMLImageElement) {
-              ctx.drawImage(imgObj, 0, 0);
-            } else {
-              const imgData = ctx.createImageData(imgObj.width, imgObj.height);
-            if (imgObj.kind === 2 && imgObj.data) {
-              // RGB 24bpp -> RGBA 32bpp
-              for (let src = 0, dst = 0; src < imgObj.data.length; src += 3, dst += 4) {
-                imgData.data[dst] = imgObj.data[src];
-                imgData.data[dst + 1] = imgObj.data[src + 1];
-                imgData.data[dst + 2] = imgObj.data[src + 2];
-                imgData.data[dst + 3] = 255;
-              }
-            } else if (imgObj.kind === 3 && imgObj.data) {
-              // RGBA 32bpp: compõe canal alpha sobre fundo branco sólido
-              for (let i = 0; i < imgObj.data.length; i += 4) {
-                const a = imgObj.data[i + 3];
-                if (a === 255) {
-                  imgData.data[i] = imgObj.data[i];
-                  imgData.data[i + 1] = imgObj.data[i + 1];
-                  imgData.data[i + 2] = imgObj.data[i + 2];
-                  imgData.data[i + 3] = 255;
-                } else if (a === 0) {
-                  imgData.data[i] = 255;
-                  imgData.data[i + 1] = 255;
-                  imgData.data[i + 2] = 255;
-                  imgData.data[i + 3] = 255;
-                } else {
-                  const alpha = a / 255;
-                  const inv = 1 - alpha;
-                  imgData.data[i] = Math.round(imgObj.data[i] * alpha + 255 * inv);
-                  imgData.data[i + 1] = Math.round(imgObj.data[i + 1] * alpha + 255 * inv);
-                  imgData.data[i + 2] = Math.round(imgObj.data[i + 2] * alpha + 255 * inv);
-                  imgData.data[i + 3] = 255;
-                }
-              }
-            } else if (imgObj.kind === 1 && imgObj.data) {
-              // Grayscale 1bpp / 8bpp
-              for (let src = 0, dst = 0; src < imgObj.data.length; src++, dst += 4) {
-                const val = imgObj.data[src];
-                imgData.data[dst] = val;
-                imgData.data[dst + 1] = val;
-                imgData.data[dst + 2] = val;
-                imgData.data[dst + 3] = 255;
-              }
-              } else if (imgObj.data) {
-                if (imgObj.data.length === imgObj.width * imgObj.height * 3) {
-                  for (let src = 0, dst = 0; src < imgObj.data.length; src += 3, dst += 4) {
-                    imgData.data[dst] = imgObj.data[src];
-                    imgData.data[dst + 1] = imgObj.data[src + 1];
-                    imgData.data[dst + 2] = imgObj.data[src + 2];
-                    imgData.data[dst + 3] = 255;
-                  }
-                } else if (imgObj.data.length === imgObj.width * imgObj.height * 4) {
-                  imgData.data.set(imgObj.data);
-                }
-              }
-              ctx.putImageData(imgData, 0, 0);
-            }
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
-            figures.push(
-              `<figure class="my-6 text-center"><img src="${dataUrl}" class="max-w-full h-auto mx-auto rounded-lg shadow-md border border-[var(--border-rule-subtle)] bg-white p-2" alt="Figura da Página ${pageNum}" /></figure>`
-            );
-          }
-        }
-      }
-    }
-  } catch (err) {
-    // Falha silenciosa em extração de imagem não bloqueia o fluxo de texto
-  }
-  return figures;
+async function extractImagesFromPage(_page: any, _pageNum: number): Promise<string[]> {
+  return [];
 }
 
 export class PdfParser implements DocumentParser {
@@ -223,22 +102,30 @@ export class PdfParser implements DocumentParser {
         console.warn('Não foi possível ler metadados do PDF:', e);
       }
 
-      // 2. Extração de Texto com Reflow página por página
+      // 2. Extração Concorrente de Texto em Lotes (Batch) para máxima performance de I/O e Worker
       const pageSections: { pageNum: number; html: string; rawText: string; words: number; headings: string[] }[] = [];
       let totalWordCount = 0;
 
-      for (let p = 1; p <= numPages; p++) {
-        const page = await pdf.getPage(p);
-        const { html, rawText, words, headings } = await this.reflowPageText(page, p);
-
-        pageSections.push({
-          pageNum: p,
-          html,
-          rawText,
-          words,
-          headings
-        });
-        totalWordCount += words;
+      const BATCH_SIZE = 8;
+      for (let i = 1; i <= numPages; i += BATCH_SIZE) {
+        const batchPageNums: number[] = [];
+        for (let p = i; p < Math.min(i + BATCH_SIZE, numPages + 1); p++) {
+          batchPageNums.push(p);
+        }
+        const batchResults = await Promise.all(
+          batchPageNums.map(async (p) => {
+            const page = await pdf.getPage(p);
+            const reflow = await this.reflowPageText(page, p);
+            return {
+              pageNum: p,
+              ...reflow
+            };
+          })
+        );
+        for (const item of batchResults) {
+          pageSections.push(item);
+          totalWordCount += item.words;
+        }
       }
 
       // 3. Extração ou Construção do Sumário (Outline / TOC)

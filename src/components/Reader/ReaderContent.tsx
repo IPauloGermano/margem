@@ -3,8 +3,13 @@ import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '.
 import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
 import { isSameTitle } from '../../core/text/titles';
 import { smoothScrollBehavior } from '../../core/motion/fluid';
+<<<<<<< HEAD
 import { findActiveAnchorFromHeadings } from '../../core/text/tocResolver';
 import { applyHighlights, getSelectionOffsets } from '../../core/highlights/highlightEngine';
+=======
+import { applyHighlights, clearHighlightMarks, getSelectionOffsets } from '../../core/highlights/highlightEngine';
+import { useScrollSpy } from '../../core/hooks/useScrollSpy';
+>>>>>>> origin/dev
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 import { DiagramFullscreenModal } from './DiagramFullscreenModal';
@@ -23,8 +28,15 @@ interface ReaderContentProps {
   targetAnchorKey?: number;
   searchQuery?: string;
   activeSearchLocalIndex?: number;
+<<<<<<< HEAD
   onActiveAnchorChange?: (anchor: string | null) => void;
   onNavigateLink?: (href: string) => void;
+=======
+  /** Âncoras do TOC para a seção atual (inclui não-headings, ex: páginas de PDF). */
+  headingAnchors?: string[];
+  /** ScrollSpy: id da âncora visível (ou null). */
+  onActiveHeadingChange?: (anchorId: string | null) => void;
+>>>>>>> origin/dev
 }
 
 interface ToolbarState {
@@ -126,15 +138,35 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   targetAnchorKey,
   searchQuery,
   activeSearchLocalIndex,
+<<<<<<< HEAD
   onActiveAnchorChange,
   onNavigateLink
+=======
+  headingAnchors,
+  onActiveHeadingChange
+>>>>>>> origin/dev
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const isRestoringScroll = useRef(false);
   const lastKnownScrollTop = useRef<number>(0);
   const currentScrollPercentageRef = useRef<number>(initialScrollPercentage);
+<<<<<<< HEAD
   const currentActiveAnchorRef = useRef<string | null>(targetAnchor || null);
+=======
+  const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 'hover' = aberto por mouseenter (fecha ao sair de mark+popover);
+  // 'click' = fixado por clique (só fecha por scroll/Esc/clique-fora/toggle).
+  const popoverOpenedBy = useRef<'hover' | 'click' | null>(null);
+  // Restauração de scroll: aplicada 1x por seção, APÓS o corpo preenchido.
+  const restoredSectionRef = useRef<string | null>(null);
+  const lastSeenSectionRef = useRef<string | null>(null);
+  const pendingRestoreRaf = useRef<number | null>(null);
+  const userScrolledRef = useRef(false);
+  // Travessia de navegação por âncora em voo: observer pausado (não rouba o clique).
+  const isAnchorNavigating = useRef(false);
+  const anchorNavTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+>>>>>>> origin/dev
 
   const [toolbarState, setToolbarState] = useState<ToolbarState | null>(null);
   const [activeNotePopover, setActiveNotePopover] = useState<{
@@ -177,17 +209,39 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     };
   }, []);
 
-  // Restauração de posição inicial ao trocar de seção ou forçar scroll para âncora
+  // Posição inicial ao trocar de seção ou forçar scroll para âncora.
+  // NOTA: restore por porcentagem NÃO acontece aqui — neste ponto do commit o
+  // corpo ainda está vazio (innerHTML é preenchido no effect abaixo) e medir
+  // scrollHeight agora retorna ~0 (no-op em prod; em dev o StrictMode mascara
+  // com a 2ª passada). A restauração roda no effect de preenchimento.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     currentScrollPercentageRef.current = initialScrollPercentage;
 
+    // Nova seção: libera 1 restore e devolve o "voto" ao usuário.
+    if (lastSeenSectionRef.current !== section.id) {
+      lastSeenSectionRef.current = section.id;
+      restoredSectionRef.current = null;
+      userScrolledRef.current = false;
+    }
+
     if (targetAnchor) {
+<<<<<<< HEAD
       currentActiveAnchorRef.current = targetAnchor;
       onActiveAnchorChange?.(targetAnchor);
 
+=======
+      // Navegação programática: o observer ignora a travessia até o destino
+      // (cabeçalhos no caminho não roubam o ativo do clique).
+      isAnchorNavigating.current = true;
+      if (anchorNavTimer.current) clearTimeout(anchorNavTimer.current);
+      anchorNavTimer.current = setTimeout(() => {
+        isAnchorNavigating.current = false;
+        anchorNavTimer.current = null;
+      }, 1200);
+>>>>>>> origin/dev
       // Aguarda o DOM estar pronto com o conteúdo renderizado antes de buscar a âncora
       const tryScroll = () => {
         const targetElem = findAnchorTargetElement(el, targetAnchor);
@@ -210,6 +264,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       return;
     }
 
+<<<<<<< HEAD
     currentActiveAnchorRef.current = null;
     onActiveAnchorChange?.(null);
 
@@ -223,17 +278,40 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         isRestoringScroll.current = false;
       }, 100);
     } else {
+=======
+    if (initialScrollPercentage <= 0) {
+>>>>>>> origin/dev
       el.scrollTop = 0;
     }
+    // pct > 0: aplicado pelo effect de preenchimento (scrollHeight real).
   }, [section.id, targetAnchor, targetAnchorKey]);
 
+  const cancelScheduledHoverClose = () => {
+    if (hoverCloseTimer.current) {
+      clearTimeout(hoverCloseTimer.current);
+      hoverCloseTimer.current = null;
+    }
+  };
+
+  // Fecha o popover ao desmontar com timer pendente
+  useEffect(() => {
+    return () => {
+      if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+      if (pendingRestoreRaf.current) cancelAnimationFrame(pendingRestoreRaf.current);
+      if (anchorNavTimer.current) clearTimeout(anchorNavTimer.current);
+    };
+  }, []);
+
   const handleHighlightClick = (clickedHl: Highlight, rect: DOMRect) => {
+    cancelScheduledHoverClose();
     if (clickedHl.note) {
       // Toggle: se clicar no mesmo destaque já aberto, fecha
       if (activeNotePopover?.highlight.id === clickedHl.id) {
         setActiveNotePopover(null);
+        popoverOpenedBy.current = null;
         return;
       }
+      popoverOpenedBy.current = 'click';
       setActiveNotePopover({
         position: { top: rect.top, bottom: rect.bottom, left: rect.left + rect.width / 2 },
         highlight: clickedHl
@@ -241,6 +319,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       setToolbarState(null);
     } else {
       setActiveNotePopover(null);
+      popoverOpenedBy.current = null;
       setToolbarState({
         isOpen: true,
         position: { top: rect.top, bottom: rect.bottom, left: rect.left + rect.width / 2 },
@@ -252,7 +331,35 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
   };
 
-  // Aplicação dos grifos no DOM
+  // Hover desktop: passar o cursor sobre grifo COM nota abre o popover.
+  // Grifo sem nota não abre nada no hover (clique continua abrindo a toolbar).
+  const handleHighlightHover = (hoveredHl: Highlight, rect: DOMRect) => {
+    if (!hoveredHl.note) return;
+    cancelScheduledHoverClose();
+    popoverOpenedBy.current = 'hover';
+    setToolbarState(null);
+    setActiveNotePopover({
+      position: { top: rect.top, bottom: rect.bottom, left: rect.left + rect.width / 2 },
+      highlight: hoveredHl
+    });
+  };
+
+  // Saída do cursor: fecha com delay para dar tempo de alcançar os botões
+  // do popover (copiar/editar/excluir). Cancelado se o cursor entrar no popover.
+  // setState funcional evita closure obsoleta do effect de highlights.
+  const handleHighlightLeave = (highlightId: string) => {
+    // Popover fixado por clique não fecha por hover-out (só scroll/Esc/clique-fora/toggle).
+    if (popoverOpenedBy.current !== 'hover') return;
+    cancelScheduledHoverClose();
+    hoverCloseTimer.current = setTimeout(() => {
+      setActiveNotePopover((prev) => (prev?.highlight.id === highlightId ? null : prev));
+    }, 250);
+  };
+
+  // Preenchimento do corpo: roda 1x por conteúdo/tema (reset real do DOM).
+  // Reaplicações de grifo/busca NÃO passam por aqui (ver effect abaixo) —
+  // resetar `innerHTML` a cada nota salva recriava imagens, re-renderizava
+  // Mermaid e fazia a UI piscar.
   useEffect(() => {
     if (!bodyRef.current) return;
 
@@ -280,11 +387,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       }
     }
 
-    const sectionHighlights = highlights.filter((h) => h.sectionId === section.id);
-    if (sectionHighlights.length > 0) {
-      applyHighlights(bodyRef.current!, sectionHighlights, handleHighlightClick);
-    }
-
     // Renderização dinâmica dos diagramas Mermaid
     const mermaidContainers = bodyRef.current.querySelectorAll<HTMLElement>('.reader-mermaid-container');
     if (mermaidContainers.length > 0) {
@@ -296,9 +398,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           mermaid.initialize({
             startOnLoad: false,
             securityLevel: 'strict',
+            suppressErrorRendering: true,
             theme: mermaidTheme,
             fontFamily: preferences.fontFamily === 'mono' ? 'monospace' : 'inherit'
           });
+
+          // Nós órfãos que o Mermaid injeta no body em falha (id="d<uniqueId>").
+          const cleanMermaidOrphans = () => {
+            document.querySelectorAll('[id^="dmermaid-"]').forEach((el) => el.remove());
+          };
 
           mermaidContainers.forEach(async (container, idx) => {
             const rawCodeEncoded = container.getAttribute('data-mermaid');
@@ -308,6 +416,8 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
             try {
               const rawCode = decodeURIComponent(rawCodeEncoded);
               const uniqueId = `mermaid-svg-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`;
+              // Pré-validação: falha de sintaxe cai no catch antes de renderizar.
+              await mermaid.parse(rawCode);
               const { svg } = await mermaid.render(uniqueId, rawCode);
               target.innerHTML = svg;
               container.setAttribute('title', 'Clique para ver o diagrama em tela cheia');
@@ -321,17 +431,72 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
               }
             } catch (err: any) {
               console.warn('Erro ao renderizar diagrama Mermaid:', err);
+              cleanMermaidOrphans();
               const fallback = container.querySelector<HTMLElement>('.mermaid-fallback');
               if (fallback) {
                 fallback.classList.remove('hidden');
               }
-              target.innerHTML = `<span class="text-xs text-[var(--accent-signal)] font-mono">[Diagrama com erro de sintaxe]</span>`;
+              target.innerHTML = `<div class="rounded-md border border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] px-3 py-2.5 text-center"><p class="font-code text-[11px] text-[var(--text-muted)]">Diagrama indisponível — erro de sintaxe</p></div>`;
             }
           });
         })
         .catch((err) => {
           console.warn('Não foi possível carregar o motor Mermaid:', err);
         });
+    }
+
+    // Restauração de posição: só aqui o scrollHeight é real (body preenchido +
+    // grifos aplicados). 1x por seção; scroll do usuário cancela (handleScroll).
+    if (!targetAnchor && initialScrollPercentage > 0 && restoredSectionRef.current !== section.id) {
+      if (pendingRestoreRaf.current) cancelAnimationFrame(pendingRestoreRaf.current);
+      isRestoringScroll.current = true;
+      const applyRestore = () => {
+        pendingRestoreRaf.current = null;
+        const cont = containerRef.current;
+        if (cont && !userScrolledRef.current) {
+          const max = cont.scrollHeight - cont.clientHeight;
+          if (max > 0) {
+            cont.scrollTop = (initialScrollPercentage / 100) * max;
+            lastKnownScrollTop.current = cont.scrollTop;
+            currentScrollPercentageRef.current = initialScrollPercentage;
+          }
+        }
+        restoredSectionRef.current = section.id;
+        isRestoringScroll.current = false;
+      };
+      // 2 frames: mede após layout (fonte/KaTeX) resolvido, antes do paint visível.
+      pendingRestoreRaf.current = requestAnimationFrame(() => {
+        pendingRestoreRaf.current = requestAnimationFrame(applyRestore);
+      });
+    }
+  }, [section.id, section.content, preferences.theme, preferences.fontFamily]);
+
+  // ScrollSpy por linha de leitura (hook dedicado): reporta a âncora visível
+  // para o TOC. Pausado durante travessia de navegação programática.
+  // contentKey espelha os gatilhos do preenchimento (innerHTML recria os nós).
+  useScrollSpy(containerRef, bodyRef, {
+    anchors: headingAnchors ?? [],
+    onChange: (id) => onActiveHeadingChange?.(id),
+    pausedRef: isAnchorNavigating,
+    contentKey: `${section.id}|${preferences.theme}|${preferences.fontFamily}|${section.content.length}`
+  });
+
+  // Grifos + busca sobre o DOM já preenchido: desfaz só os marks e reaplica,
+  // sem `innerHTML` (preserva imagens, Mermaid renderizado e posição de scroll).
+  useEffect(() => {
+    if (!bodyRef.current) return;
+
+    clearHighlightMarks(bodyRef.current);
+
+    const sectionHighlights = highlights.filter((h) => h.sectionId === section.id);
+    if (sectionHighlights.length > 0) {
+      applyHighlights(
+        bodyRef.current!,
+        sectionHighlights,
+        handleHighlightClick,
+        handleHighlightHover,
+        handleHighlightLeave
+      );
     }
 
     // Aplicação dos destaques de busca em tempo real no corpo da leitura
@@ -344,18 +509,27 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       if (activeElement) {
         activeElement.scrollIntoView({ behavior: smoothScrollBehavior(), block: 'center' });
       }
+<<<<<<< HEAD
     } else {
       // Preserva a posição exata de leitura ao recarregar a seção dinamicamente (se não houver âncora alvo)
       const el = containerRef.current;
       if (el && !targetAnchor && lastKnownScrollTop.current > 0) {
         el.scrollTop = lastKnownScrollTop.current;
       }
+=======
+>>>>>>> origin/dev
     }
-  }, [section.id, section.content, highlights, searchQuery, activeSearchLocalIndex, preferences.theme, preferences.fontFamily]);
+  }, [section.id, section.content, highlights, searchQuery, activeSearchLocalIndex]);
 
   // Listener de Scroll para atualizar o progresso de leitura
   const handleScroll = () => {
     if (isRestoringScroll.current) return;
+    // Scroll do usuário cancela restore pendente: gesto explícito sempre vence.
+    userScrolledRef.current = true;
+    if (pendingRestoreRaf.current) {
+      cancelAnimationFrame(pendingRestoreRaf.current);
+      pendingRestoreRaf.current = null;
+    }
     const el = containerRef.current;
     if (!el) return;
 
@@ -363,6 +537,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
     if (activeNotePopover) {
       setActiveNotePopover(null);
+      popoverOpenedBy.current = null;
     }
     if (toolbarState) {
       setToolbarState(null);
@@ -674,12 +849,21 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
       {/* Popover de Visualização e Ações da Nota de Margem */}
       {activeNotePopover && !toolbarState?.isOpen && (
+        <div
+          onMouseEnter={cancelScheduledHoverClose}
+          onMouseLeave={() => {
+            if (popoverOpenedBy.current === 'hover') {
+              handleHighlightLeave(activeNotePopover.highlight.id);
+            }
+          }}
+        >
         <NotePopover
           position={activeNotePopover.position}
           highlight={activeNotePopover.highlight}
           onEdit={(hl) => {
             const pos = activeNotePopover.position;
             setActiveNotePopover(null);
+            popoverOpenedBy.current = null;
             setToolbarState({
               isOpen: true,
               position: pos,
@@ -698,9 +882,14 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
               });
             }
             setActiveNotePopover(null);
+            popoverOpenedBy.current = null;
           }}
-          onClose={() => setActiveNotePopover(null)}
+          onClose={() => {
+            setActiveNotePopover(null);
+            popoverOpenedBy.current = null;
+          }}
         />
+        </div>
       )}
 
       {/* Floating Toolbar para Seleção de Texto e Edição */}

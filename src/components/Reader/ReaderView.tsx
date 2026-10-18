@@ -15,6 +15,8 @@ import { smoothScrollBehavior, triggerHaptic } from '../../core/motion/fluid';
 import { ReaderHeader } from './ReaderHeader';
 import { ReaderSidebar } from './ReaderSidebar';
 import { ReaderContent } from './ReaderContent';
+import { PdfViewer } from './PdfViewer';
+import { calculatePdfProgress } from '../../core/pdf/pdfZoom';
 import { ReaderFooter } from './ReaderFooter';
 import { AppearanceModal } from './AppearanceModal';
 import { SearchModal, SearchMatchItem } from './SearchModal';
@@ -59,6 +61,45 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeMatchGlobalIndex, setActiveMatchGlobalIndex] = useState(0);
+  // ScrollSpy do sumário: âncora visível (null = nenhuma / sem headings).
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
+
+  // PDFs abrem no visualizador nativo (canvas + TextLayer) em vez do texto fluido.
+  const isPdf = book.format === 'pdf';
+  const [pdfBuffer, setPdfBuffer] = useState<ArrayBuffer | null>(null);
+  const [pdfJump, setPdfJump] = useState<{ page: number; key: number } | null>(null);
+  const pdfSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (pdfSaveTimeoutRef.current) {
+        clearTimeout(pdfSaveTimeoutRef.current);
+        pdfSaveTimeoutRef.current = null;
+      }
+    };
+  }, []);
+  useEffect(() => {
+    if (!isPdf) {
+      setPdfBuffer(null);
+      return;
+    }
+    let cancelled = false;
+    setPdfBuffer(null);
+    void db
+      .getBookBuffer(book.id)
+      .then((buf) => {
+        if (!cancelled) setPdfBuffer(buf);
+      })
+      .catch(() => {
+        if (!cancelled) setPdfBuffer(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isPdf, book.id]);
 
   const sections = document.sections;
   const [searchScope, setSearchScope] = useState<'section' | 'book'>('section');
@@ -125,6 +166,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   // Salva o progresso automaticamente com debounce
   const saveProgress = useCallback(
     async (secIdx: number, pct: number) => {
+      if (!isMountedRef.current) return;
       const isCompleted = secIdx === sections.length - 1 && pct >= 95;
       const newProgress: ReadingProgress = {
         currentSectionId: sections[secIdx]?.id || 'sec-0',
@@ -135,14 +177,80 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         updatedAt: Date.now()
       };
 
-      await db.updateReadingProgress(book.id, newProgress);
-      onUpdateBook({
-        ...book,
-        progress: newProgress,
-        lastReadAt: Date.now()
-      });
+      try {
+        await db.updateReadingProgress(book.id, newProgress);
+        if (!isMountedRef.current) return;
+        onUpdateBook({
+          ...book,
+          progress: newProgress,
+          lastReadAt: Date.now()
+        });
+      } catch (err) {
+        console.warn('Falha ao salvar progresso de leitura:', err);
+      }
     },
     [book, sections, onUpdateBook]
+  );
+
+  const savePdfProgress = useCallback(
+    async (page: number, total: number) => {
+      if (!isMountedRef.current) return;
+      const { scrollPercentage: pct, completed: isCompleted } = calculatePdfProgress(page, total);
+      const resolvedSecIdx =
+        sections.length > 0
+          ? Math.min(sections.length - 1, Math.floor(((page - 1) / Math.max(total, 1)) * sections.length))
+          : 0;
+
+      const newProgress: ReadingProgress = {
+        currentSectionId: sections[resolvedSecIdx]?.id || 'sec-0',
+        currentSectionIndex: resolvedSecIdx,
+        scrollPercentage: pct,
+        totalSections: sections.length || total,
+        completed: isCompleted,
+        updatedAt: Date.now(),
+        currentPage: page,
+        totalPages: total
+      };
+
+      try {
+        await db.updateReadingProgress(book.id, newProgress);
+        if (!isMountedRef.current) return;
+        onUpdateBook({
+          ...book,
+          progress: newProgress,
+          lastReadAt: Date.now()
+        });
+      } catch (err) {
+        console.warn('Falha ao salvar progresso do PDF:', err);
+      }
+    },
+    [book, sections, onUpdateBook]
+  );
+
+  const handlePdfPageChange = useCallback(
+    (page: number, total: number) => {
+      if (total <= 0) return;
+      const { scrollPercentage: pct } = calculatePdfProgress(page, total);
+      setScrollPercentage(pct);
+
+      // ScrollSpy para o TOC lateral do PDF: encontra o item de sumário com maior pdf-page-N <= page
+      const matchingItem = [...document.toc]
+        .reverse()
+        .find((item) => {
+          if (!item.anchor) return false;
+          const m = /pdf-page-(\d+)/.exec(item.anchor);
+          return m ? parseInt(m[1], 10) <= page : false;
+        });
+      if (matchingItem?.anchor) {
+        setActiveHeadingId(matchingItem.anchor);
+      }
+
+      if (pdfSaveTimeoutRef.current) clearTimeout(pdfSaveTimeoutRef.current);
+      pdfSaveTimeoutRef.current = setTimeout(() => {
+        void savePdfProgress(page, total);
+      }, 300);
+    },
+    [document.toc, savePdfProgress]
   );
 
   const handleScrollProgress = (pct: number) => {
@@ -156,6 +264,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       setCurrentSectionIndex(nextIdx);
       setScrollPercentage(0);
       setTargetAnchor(undefined);
+      setActiveHeadingId(null);
       saveProgress(nextIdx, 0);
     }
   };
@@ -166,10 +275,12 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       setCurrentSectionIndex(nextIdx);
       setScrollPercentage(0);
       setTargetAnchor(undefined);
+      setActiveHeadingId(null);
       saveProgress(nextIdx, 0);
     }
   };
 
+<<<<<<< HEAD
   const handleSelectSection = useCallback(
     (index: number, anchor?: string) => {
       if (index >= 0 && index < sections.length) {
@@ -354,6 +465,39 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     },
     [book, books, document.toc, handleSelectSection, onOpenBook, sections]
   );
+=======
+  const handleSelectSection = (index: number, anchor?: string) => {
+    if (index >= 0 && index < sections.length) {
+      setCurrentSectionIndex(index);
+      if (isPdf) {
+        // No canvas não há scroll fluido: âncora pdf-page-N vira jump de página.
+        const m = anchor ? /pdf-page-(\d+)/.exec(anchor) : null;
+        if (m) {
+          const page = parseInt(m[1], 10);
+          setPdfJump((prev) => ({ page, key: (prev?.key ?? 0) + 1 }));
+          void savePdfProgress(page, book.progress?.totalPages || sections.length || 1);
+        }
+        setActiveHeadingId(anchor ?? null);
+        return;
+      }
+      setScrollPercentage(0);
+      setTargetAnchor(anchor);
+      setTargetAnchorKey((k) => k + 1);
+      // Clique no sumário atualiza o ativo imediatamente (sem esperar o observer).
+      setActiveHeadingId(anchor ?? null);
+      saveProgress(index, 0);
+    }
+  };
+>>>>>>> origin/dev
+
+  // Âncoras do TOC para a seção atual (guia o observer do ScrollSpy).
+  const currentSectionAnchors = useMemo(
+    () =>
+      document.toc
+        .filter((item) => item.sectionIndex === currentSectionIndex && item.anchor)
+        .map((item) => item.anchor as string),
+    [document.toc, currentSectionIndex]
+  );
 
   const handleAddBookmark = async () => {
     if (!currentSection) return;
@@ -392,16 +536,28 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     text: string,
     color: HighlightColor,
     note?: string,
-    offsets?: { start: number; end: number }
+    offsets?: { start: number; end: number },
+    pageNum?: number
   ) => {
-    if (!currentSection) return;
+    if (!currentSection && !isPdf) return;
+
+    const sectionId = pageNum
+      ? `pdf-page-${pageNum}`
+      : currentSection?.id || `sec-${currentSectionIndex}`;
+    const sectionTitle = pageNum
+      ? `Página ${pageNum}`
+      : currentSection?.title || `Seção ${currentSectionIndex + 1}`;
+    const resolvedSecIdx = pageNum
+      ? Math.max(0, pageNum - 1)
+      : currentSectionIndex;
 
     const newHighlight: Highlight = {
       id: `hl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       bookId: book.id,
-      sectionId: currentSection.id,
-      sectionTitle: currentSection.title || `Seção ${currentSectionIndex + 1}`,
-      sectionIndex: currentSectionIndex,
+      sectionId,
+      sectionTitle,
+      sectionIndex: resolvedSecIdx,
+      pageNum,
       text,
       color,
       note,
@@ -425,6 +581,16 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   };
 
   const handleSelectHighlight = (hl: Highlight) => {
+    if (isPdf) {
+      const pageFromId = hl.sectionId ? /pdf-page-(\d+)/.exec(hl.sectionId) : null;
+      const targetPage =
+        hl.pageNum || (pageFromId ? parseInt(pageFromId[1], 10) : hl.sectionIndex + 1);
+      if (targetPage >= 1) {
+        setPdfJump((prev) => ({ page: targetPage, key: (prev?.key ?? 0) + 1 }));
+        setIsSidebarOpen(false);
+        return;
+      }
+    }
     handleSelectSection(hl.sectionIndex);
     setIsSidebarOpen(false);
   };
@@ -504,7 +670,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         return;
       }
 
-      // Escape: fecha modais ou retorna à estante
+      // Escape: fecha overlays. Nunca navega à estante sozinho — voltar à
+      // home é gesto explícito (botão voltar). Antes, um Esc com popover de
+      // nota aberto disparava onClose (document) + onBackToBookshelf (window).
       if (e.key === 'Escape') {
         if (isAppearanceOpen) setIsAppearanceOpen(false);
         else if (isSearchOpen) {
@@ -513,6 +681,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         }
         else if (isShortcutsOpen) setIsShortcutsOpen(false);
         else if (isSidebarOpen) setIsSidebarOpen(false);
+<<<<<<< HEAD
         else {
           // Se houver algum diálogo, modal ou popover ativo no DOM (ex: DiagramFullscreenModal),
           // ele possui precedência e gerencia seu próprio fechamento. ReaderView não deve retornar à estante.
@@ -523,6 +692,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             onBackToBookshelf();
           }
         }
+=======
+>>>>>>> origin/dev
         return;
       }
 
@@ -556,11 +727,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       }
 
       if (e.key === '[' || e.key === 'ArrowLeft') {
+        if (isPdf) return;
         handlePrevSection();
         return;
       }
 
       if (e.key === ']' || e.key === 'ArrowRight') {
+        if (isPdf) return;
         handleNextSection();
         return;
       }
@@ -597,13 +770,22 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     handleToggleSearch
   ]);
 
+  const handleBackToBookshelf = useCallback(() => {
+    isMountedRef.current = false;
+    if (pdfSaveTimeoutRef.current) {
+      clearTimeout(pdfSaveTimeoutRef.current);
+      pdfSaveTimeoutRef.current = null;
+    }
+    onBackToBookshelf();
+  }, [onBackToBookshelf]);
+
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)] transition-colors duration-200 select-none">
       {/* Top Header */}
       <ReaderHeader
         book={book}
         currentSection={currentSection}
-        onBackToBookshelf={onBackToBookshelf}
+        onBackToBookshelf={handleBackToBookshelf}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         onOpenAppearance={() => setIsAppearanceOpen(true)}
         onOpenSearch={handleToggleSearch}
@@ -627,7 +809,11 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           onClose={() => setIsSidebarOpen(false)}
           toc={document.toc}
           currentSectionIndex={currentSectionIndex}
+<<<<<<< HEAD
           activeAnchor={activeAnchor}
+=======
+          activeHeadingId={activeHeadingId}
+>>>>>>> origin/dev
           onSelectSection={(idx, anchor) => {
             handleSelectSection(idx, anchor);
             // Fecha apenas em mobile; em desktop a sidebar permanece visível
@@ -642,17 +828,28 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           onSelectHighlight={handleSelectHighlight}
           onDeleteHighlight={handleDeleteHighlight}
           onUpdateHighlight={handleUpdateHighlight}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          searchMatches={allSearchMatches}
-          currentSearchMatchIndex={activeMatchGlobalIndex}
-          onSelectSearchMatch={(idx) => {
-            handleSelectMatch(idx);
-            setIsSearchOpen(true);
-          }}
         />
 
-        {currentSection ? (
+        {isPdf ? (
+          pdfBuffer ? (
+            <PdfViewer
+              buffer={pdfBuffer}
+              preferences={preferences}
+              initialPage={book.progress?.currentPage || 1}
+              onPageChange={handlePdfPageChange}
+              gotoPage={pdfJump?.page}
+              gotoPageKey={pdfJump?.key ?? 0}
+              highlights={highlights}
+              onAddHighlight={handleAddHighlight}
+              onUpdateHighlight={handleUpdateHighlight}
+              onDeleteHighlight={handleDeleteHighlight}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8 text-xs font-code text-[var(--text-muted)]">
+              <span className="animate-pulse">Carregando PDF…</span>
+            </div>
+          )
+        ) : currentSection ? (
           <ReaderContent
             key={currentSection.id}
             section={currentSection}
@@ -665,8 +862,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             initialScrollPercentage={scrollPercentage}
             targetAnchor={targetAnchor}
             targetAnchorKey={targetAnchorKey}
+<<<<<<< HEAD
             onActiveAnchorChange={setActiveAnchor}
             onNavigateLink={handleNavigateLink}
+=======
+            headingAnchors={currentSectionAnchors}
+            onActiveHeadingChange={setActiveHeadingId}
+>>>>>>> origin/dev
             searchQuery={isSearchOpen ? searchQuery : undefined}
             activeSearchLocalIndex={
               isSearchOpen && currentMatch && currentMatch.sectionIndex === currentSectionIndex
@@ -696,21 +898,23 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         />
       </div>
 
-      {/* Bottom Footer com progresso e navegação */}
-      <ReaderFooter
-        progress={{
-          currentSectionId: currentSection?.id || '',
-          currentSectionIndex,
-          scrollPercentage,
-          totalSections: sections.length,
-          completed: false,
-          updatedAt: Date.now()
-        }}
-        totalSections={sections.length}
-        currentSectionTitle={currentSection?.title || ''}
-        onPrevSection={handlePrevSection}
-        onNextSection={handleNextSection}
-      />
+      {/* Bottom Footer com progresso e navegação (apenas texto fluido; PDF possui barra própria) */}
+      {!isPdf && (
+        <ReaderFooter
+          progress={{
+            currentSectionId: currentSection?.id || '',
+            currentSectionIndex,
+            scrollPercentage,
+            totalSections: sections.length,
+            completed: false,
+            updatedAt: Date.now()
+          }}
+          totalSections={sections.length}
+          currentSectionTitle={currentSection?.title || ''}
+          onPrevSection={handlePrevSection}
+          onNextSection={handleNextSection}
+        />
+      )}
 
       {/* Modais de Ajuste e Ajuda */}
       <AppearanceModal

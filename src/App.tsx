@@ -8,6 +8,7 @@ import { reconcileChapterFiles } from './core/parsers/chapterSync';
 import { Bookshelf } from './components/Library/Bookshelf';
 import { SAMPLE_ESSAY_MD, SAMPLE_TEXT_TXT } from './core/samples';
 import { AppLoadingOverlay, AppSuspenseFallback, AppToast } from './components/UI/AppFeedback';
+import { ErrorBoundary } from './components/UI/ErrorBoundary';
 import { TitleBar } from './components/Window/TitleBar';
 
 const ReaderView = React.lazy(() =>
@@ -24,6 +25,12 @@ function preloadReaderView(): void {
 
 const LOADING_DELAY_MS = 200;
 
+/** Livro aberto persiste ao reload: guardado ao abrir, removido ao voltar à estante. */
+const ACTIVE_BOOK_KEY = 'margem_active_book_id';
+
+/** Cache em memória de documentos já parseados na sessão para abertura instantânea (0ms). */
+const parsedDocCache = new Map<string, ParsedDocument>();
+
 export const App: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
@@ -38,7 +45,34 @@ export const App: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didRestoreActiveBookRef = useRef(false);
+  const hasHadActiveBookRef = useRef(false);
+  // Sessão a restaurar (leitura síncrona da chave): enquanto true, mostra o
+  // skeleton do leitor em vez da estante — sem flash da home no reload.
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(ACTIVE_BOOK_KEY) !== null;
+    } catch {
+      return false;
+    }
+  });
   const [deletedUndo, setDeletedUndo] = useState<{ book: Book; buffer: ArrayBuffer | null; index: number } | null>(null);
+
+  // Sincroniza o livro aberto com localStorage (reload volta ao mesmo livro).
+  // O guarda `hasHadActiveBookRef` impede o mount inicial (activeBook=null)
+  // de apagar a chave antes do restore do init ler.
+  useEffect(() => {
+    try {
+      if (activeBook) {
+        hasHadActiveBookRef.current = true;
+        localStorage.setItem(ACTIVE_BOOK_KEY, activeBook.id);
+      } else if (hasHadActiveBookRef.current) {
+        localStorage.removeItem(ACTIVE_BOOK_KEY);
+      }
+    } catch {
+      // storage indisponível: reload volta à estante (comportamento atual)
+    }
+  }, [activeBook]);
 
   // Inicialização instantânea: renderiza a estante imediatamente e carrega livros
   useEffect(() => {
@@ -77,8 +111,26 @@ export const App: React.FC = () => {
         if (storedBooks.length === 0) {
           loadSampleContent('md', false);
         }
+
+        // Restore: recarrega o livro que estava aberto antes do reload.
+        // Guarda anti-duplo (StrictMode dev remonta effects 2x).
+        if (!didRestoreActiveBookRef.current) {
+          didRestoreActiveBookRef.current = true;
+          let savedId: string | null = null;
+          try {
+            savedId = localStorage.getItem(ACTIVE_BOOK_KEY);
+          } catch {
+            savedId = null;
+          }
+          const saved = savedId ? storedBooks.find((b) => b.id === savedId) : undefined;
+          if (saved) {
+            await handleOpenBook(saved);
+          }
+        }
       } catch (err: any) {
         console.error('Falha ao inicializar banco de dados:', err);
+      } finally {
+        setIsRestoringSession(false);
       }
     }
     init();
@@ -291,6 +343,7 @@ export const App: React.FC = () => {
 
       await db.saveBook(newBook, buffer);
       setBooks((prev) => [newBook, ...prev.filter((b) => b.id !== newBook.id)]);
+      parsedDocCache.set(bookId, parsed);
       setActiveBook(newBook);
       setParsedDoc(parsed);
     } catch (err: any) {
@@ -471,6 +524,14 @@ export const App: React.FC = () => {
     setLoadingMessage('Abrindo livro...');
     setErrorMessage(null);
 
+    const cachedParsed = parsedDocCache.get(book.id);
+    if (cachedParsed) {
+      setActiveBook(book);
+      setParsedDoc(cachedParsed);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // 1. Caso especial: Livro em Pasta / Composto por Múltiplos Arquivos
       if (book.isFolderBook || book.format === 'folder') {
@@ -502,13 +563,14 @@ export const App: React.FC = () => {
         book.progress.totalSections = parsed.sections.length;
         await db.saveBook(book);
 
+        parsedDocCache.set(book.id, parsed);
         setActiveBook(book);
         setParsedDoc(parsed);
         setIsLoading(false);
         return;
       }
 
-      // 2. Livro padrão de arquivo único (MD, TXT, EPUB)
+      // 2. Livro padrão de arquivo único (MD, TXT, EPUB, PDF)
       let buffer: ArrayBuffer | null = null;
       buffer = await db.getCachedFileBuffer(book.id);
 
@@ -528,11 +590,18 @@ export const App: React.FC = () => {
         : `${book.title}.${book.format}`;
 
       const parsed = await defaultParserRegistry.parse(buffer, filename, book.format);
+      parsedDocCache.set(book.id, parsed);
       setActiveBook(book);
       setParsedDoc(parsed);
     } catch (err: any) {
       console.error('Erro ao abrir livro:', err);
       setErrorMessage(err.message || 'Erro ao carregar o livro.');
+      // Falha (ex: arquivo sumiu do disco): limpa chave p/ não errar a cada reload
+      try {
+        localStorage.removeItem(ACTIVE_BOOK_KEY);
+      } catch {
+        // ignora
+      }
     } finally {
       setIsLoading(false);
     }
@@ -692,6 +761,7 @@ export const App: React.FC = () => {
       undoTimeoutRef.current = null;
     }
     await db.deleteBook(bookId);
+    parsedDocCache.delete(bookId);
     setBooks((prev) => prev.filter((b) => b.id !== bookId));
     if (activeBook?.id === bookId) {
       setActiveBook(null);
@@ -725,6 +795,7 @@ export const App: React.FC = () => {
     setDeletedUndo(null);
   };
 
+<<<<<<< HEAD
   const handleToggleFavorite = async (bookId: string) => {
     try {
       const isFav = await db.toggleFavorite(bookId);
@@ -740,6 +811,23 @@ export const App: React.FC = () => {
     }
   };
 
+=======
+  const handleBackToBookshelf = () => {
+    setActiveBook(null);
+    setParsedDoc(null);
+    try {
+      localStorage.removeItem(ACTIVE_BOOK_KEY);
+    } catch {
+      // storage indisponível
+    }
+  };
+
+  const handleUpdateBook = (updated: Book) => {
+    setActiveBook((current) => (current && current.id === updated.id ? updated : current));
+    setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+  };
+
+>>>>>>> origin/dev
   const isDesktop = Boolean(
     typeof window !== 'undefined' &&
     (window.cadernoAPI?.isDesktop || window.location.search.includes('desktop'))
@@ -794,6 +882,7 @@ export const App: React.FC = () => {
 
       {/* Renderização Condicional: Leitor ou Estante */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+<<<<<<< HEAD
         {activeBook && parsedDoc ? (
           <React.Suspense
             fallback={<AppSuspenseFallback />}
@@ -830,6 +919,38 @@ export const App: React.FC = () => {
             />
           </div>
         )}
+=======
+        <ErrorBoundary onReset={handleBackToBookshelf}>
+          {activeBook && parsedDoc ? (
+            <React.Suspense
+              fallback={<AppSuspenseFallback />}
+            >
+              <ReaderView
+                book={activeBook}
+                document={parsedDoc}
+                preferences={preferences}
+                onUpdatePreferences={handleUpdatePreferences}
+                onBackToBookshelf={handleBackToBookshelf}
+                onUpdateBook={handleUpdateBook}
+              />
+            </React.Suspense>
+          ) : isRestoringSession ? (
+            <AppSuspenseFallback />
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <Bookshelf
+                books={books}
+                onOpenBook={handleOpenBook}
+                onOpenFile={handleOpenFile}
+                onOpenFolderModal={handleOpenFolder}
+                onDeleteBook={handleDeleteBook}
+                onDropFiles={handleDropFiles}
+                onLoadSample={loadSampleContent}
+              />
+            </div>
+          )}
+        </ErrorBoundary>
+>>>>>>> origin/dev
       </div>
 
       {/* Modal de Importação de Pasta */}

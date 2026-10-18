@@ -77,6 +77,8 @@ export interface ReadingProgress {
   totalSections: number;
   completed: boolean;
   updatedAt: number;
+  currentPage?: number;
+  totalPages?: number;
 }
 
 export interface Book {
@@ -152,5 +154,6 @@ export interface Highlight {
   end?: number;
   createdAt: number;
   updatedAt?: number;
+  pageNum?: number;
 }
 

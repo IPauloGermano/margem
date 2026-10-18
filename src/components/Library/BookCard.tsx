@@ -10,10 +10,19 @@ interface BookCardProps {
   onToggleFavorite?: (bookId: string) => void;
 }
 
+<<<<<<< HEAD
 export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelete, onToggleFavorite }) => {
   const isReading = book.progress.scrollPercentage > 0 && !book.progress.completed;
   const isCompleted = book.progress.completed;
   const isFolder = Boolean(book.isFolderBook || book.format === 'folder');
+=======
+export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelete }) => {
+  const scrollPct = book.progress?.scrollPercentage ?? 0;
+  const isCompleted = Boolean(book.progress?.completed);
+  const isReading = scrollPct > 0 && !isCompleted;
+  const formatLower = (book.format || '').toLowerCase();
+  const isFolder = Boolean(book.isFolderBook || formatLower === 'folder');
+>>>>>>> origin/dev
 
   const formatBadgeColors: Record<string, string> = {
     epub: 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] border-[var(--accent-signal)]/30',
@@ -24,10 +33,10 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
   };
 
   const badgeClass =
-    formatBadgeColors[book.format.toLowerCase()] ||
+    formatBadgeColors[formatLower] ||
     'bg-[var(--bg-surface-hover)] text-[var(--text-muted)] border-[var(--border-rule)]';
 
-  const formatLabel = isFolder ? 'Livro Pasta' : book.format;
+  const formatLabel = isFolder ? 'Livro Pasta' : (book.format || 'DOC');
 
   return (
     <article
@@ -101,7 +110,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
           <div className="h-24 sm:h-36 w-full overflow-hidden rounded border border-[var(--border-rule-subtle)] bg-[var(--bg-canvas)] flex items-center justify-center">
             <img
               src={book.coverImage}
-              alt={book.title}
+              alt={book.title || 'Capa do livro'}
               className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
           </div>
@@ -110,7 +119,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
         {/* Título e Autor */}
         <div>
           <h2 className="font-editorial text-sm sm:text-xl font-medium text-[var(--text-primary)] leading-snug line-clamp-2 group-hover:text-[var(--accent-signal)] transition-colors">
-            {book.title}
+            {book.title || 'Sem título'}
           </h2>
           <p className="font-code text-[11px] sm:text-xs text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">
             {book.author || 'Autor desconhecido'}
@@ -119,7 +128,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
             <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-code text-amber-400/90 mt-1 truncate">
               <Layers className="w-3 h-3 shrink-0 text-amber-400" />
               <span className="truncate">
-                {book.chapterFiles?.length || book.progress.totalSections} cap. • {book.folderName || 'Pasta'}
+                {book.chapterFiles?.length || book.progress?.totalSections || 1} cap. • {book.folderName || 'Pasta'}
               </span>
             </div>
           ) : book.folderName ? (
@@ -143,11 +152,11 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
         <div className="flex items-center justify-between text-[10px] sm:text-xs text-[var(--text-muted)] font-code">
           <span className="flex items-center gap-1 sm:gap-1.5">
             <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            {book.estimatedMinutes} min
+            {book.estimatedMinutes ?? 0} min
           </span>
 
           <span className="tabular-nums">
-            {Math.round(book.progress.scrollPercentage)}% concluído
+            {Math.round(scrollPct)}% concluído
           </span>
         </div>
 
@@ -155,7 +164,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
         <div className="w-full h-1 bg-[var(--bg-canvas)] rounded-full overflow-hidden">
           <div
             className="h-full bg-[var(--accent-signal)] transition-all duration-300"
-            style={{ width: `${Math.max(book.progress.scrollPercentage, 2)}%` }}
+            style={{ width: `${Math.max(scrollPct, 2)}%` }}
           />
         </div>
 
@@ -163,16 +172,18 @@ export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelet
         <div className="flex items-center justify-between pt-0.5 sm:pt-1">
           <span className="text-[10px] sm:text-[11px] font-code text-[var(--text-muted)] truncate pr-1 sm:pr-2">
             {isFolder
-              ? `Capítulo ${book.progress.currentSectionIndex + 1} de ${book.progress.totalSections}`
-              : book.progress.totalSections > 1
-              ? `Seção ${book.progress.currentSectionIndex + 1} de ${book.progress.totalSections}`
-              : `${book.wordCount.toLocaleString()} pal.`}
+              ? `Capítulo ${(book.progress?.currentSectionIndex ?? 0) + 1} de ${book.progress?.totalSections ?? 1}`
+              : book.format === 'pdf' || formatLower === 'pdf'
+              ? `Página ${book.progress?.currentPage || 1} de ${book.progress?.totalPages || book.progress?.totalSections || 1}`
+              : (book.progress?.totalSections ?? 1) > 1
+              ? `Seção ${(book.progress?.currentSectionIndex ?? 0) + 1} de ${book.progress?.totalSections ?? 1}`
+              : `${(book.wordCount ?? 0).toLocaleString()} pal.`}
           </span>
 
           <button
             type="button"
             title="Remover da estante"
-            aria-label={`Remover ${book.title} da estante`}
+            aria-label={`Remover ${book.title || 'livro'} da estante`}
             onClick={(e) => {
               e.stopPropagation();
               onDelete(book.id);

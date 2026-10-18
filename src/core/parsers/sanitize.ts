@@ -79,11 +79,9 @@ interface Purifier {
   addHook?: (hookName: string, cb: (node: any, data: any) => void) => void;
 }
 
-let hooksInstalled = false;
-
 function setupPurifierHooks(purifier: any) {
-  if (hooksInstalled || !purifier || typeof purifier.addHook !== 'function') return;
-  hooksInstalled = true;
+  if (!purifier || purifier._margemHooksInstalled || typeof purifier.addHook !== 'function') return;
+  purifier._margemHooksInstalled = true;
 
   // Filtra iframes permitindo estritamente players de vídeo autorizados (YouTube / Vimeo)
   purifier.addHook('uponSanitizeElement', (node: any, data: any) => {
@@ -112,18 +110,24 @@ function setupPurifierHooks(purifier: any) {
   });
 }
 
+let cachedPurifier: Purifier | null = null;
+
 function getPurifier(): Purifier | null {
+  if (cachedPurifier) return cachedPurifier;
+
   const lib = DOMPurify as unknown as Purifier | ((w: unknown) => Purifier);
   if (lib && typeof (lib as Purifier).sanitize === 'function') {
     setupPurifierHooks(lib);
-    return lib as Purifier;
+    cachedPurifier = lib as Purifier;
+    return cachedPurifier;
   }
   const win = (globalThis as Record<string, unknown>).window;
   if (win && typeof lib === 'function') {
     try {
       const instance = (lib as (w: unknown) => Purifier)(win);
       setupPurifierHooks(instance);
-      return instance;
+      cachedPurifier = instance;
+      return cachedPurifier;
     } catch {
       return null;
     }

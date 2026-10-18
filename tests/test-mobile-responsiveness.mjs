@@ -74,7 +74,8 @@ console.log('✓ Arquitetura de modais adaptativos e drawer validada com sucesso
 console.log('5. Testando ReaderHeader, ReaderFooter e ReaderContent (Fatia 3)...');
 const readerHeader = fs.readFileSync(path.resolve('src/components/Reader/ReaderHeader.tsx'), 'utf-8');
 assert.ok(readerHeader.includes('pt-safe'), 'ReaderHeader deve usar pt-safe para proteção superior');
-assert.ok(readerHeader.includes('min-w-[40px]'), 'ReaderHeader deve garantir touch targets de no mínimo 40px');
+assert.ok(readerHeader.includes('size-10'), 'ReaderHeader deve normalizar botões em size-10 (40px touch, sem py-2 altura variável)');
+assert.ok(!readerHeader.includes('Voltar à Estante (Esc)'), 'Título voltar não deve citar Esc (não navega mais à home)');
 
 const readerFooter = fs.readFileSync(path.resolve('src/components/Reader/ReaderFooter.tsx'), 'utf-8');
 assert.ok(readerFooter.includes('pb-safe'), 'ReaderFooter deve usar pb-safe para proteção inferior');
@@ -125,9 +126,14 @@ assert.ok(diagramModal.includes('handlePointerDown') && diagramModal.includes('h
 assert.ok(diagramModal.includes('fitZoom'), 'DiagramFullscreenModal deve calcular zoom adaptativo fitZoom');
 assert.ok(diagramModal.includes('var(--bg-canvas)') && diagramModal.includes('var(--bg-surface)'), 'DiagramFullscreenModal deve usar tokens de design system do Margem');
 assert.ok(diagramModal.includes('minZoom = fitZoom'), 'DiagramFullscreenModal deve definir zoom mínimo como fitZoom (100%)');
-assert.ok(diagramModal.includes('isMobile ? 3 : 2'), 'DiagramFullscreenModal deve permitir zoom de até 300% no mobile e 200% no desktop');
+assert.ok(diagramModal.includes('maxZoomForFit'), 'DiagramFullscreenModal deve usar helper maxZoomForFit (zoom até 300% mobile / 200% desktop)');
+const diagramZoom = fs.readFileSync(path.resolve('src/core/media/diagramZoom.ts'), 'utf-8');
+assert.ok(diagramZoom.includes('isMobile ? 3 : 2'), 'diagramZoom deve permitir zoom de até 300% no mobile e 200% no desktop');
 assert.ok(diagramModal.includes('disabled={zoom <= minZoom'), 'Botão de zoom out deve ser desativado no zoom mínimo de 100%');
 assert.ok(diagramModal.includes('disabled={zoom >= maxZoom'), 'Botão de zoom in deve ser desativado no zoom máximo suportado');
+assert.ok(diagramModal.includes('isZoomed'), 'Botão Fit deve ser condicional a zoom ativo (isZoomed)');
+assert.ok(diagramModal.includes('aria-label="Ajustar diagrama à tela"'), 'Botão Fit deve ter aria-label acessível');
+assert.ok(diagramModal.includes('bottom-3 right-3'), 'Botão Fit deve flutuar no canto inferior direito do palco');
 
 assert.ok(readerContent.includes('DiagramFullscreenModal'), 'ReaderContent deve importar DiagramFullscreenModal');
 assert.ok(readerContent.includes('reader-mermaid-container'), 'ReaderContent deve interceptar clique em reader-mermaid-container');

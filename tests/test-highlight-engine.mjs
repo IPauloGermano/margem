@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom';
-import { applyHighlights, getSelectionOffsets } from '../src/core/highlights/highlightEngine.ts';
+import { applyHighlights, clearHighlightMarks, getSelectionOffsets } from '../src/core/highlights/highlightEngine.ts';
 
 const COLORS = ['amber', 'sage', 'muted'];
 
@@ -114,6 +114,99 @@ function check(name, cond, extra = '') {
   check('helper extrai texto do range', sel?.text === 'casa', `obtido=${sel?.text}`);
   check('helper mede start exato da 2ª ocorrência', sel?.start === 11, `obtido=${sel?.start}`);
   check('helper mede end exato da 2ª ocorrência', sel?.end === 15, `obtido=${sel?.end}`);
+}
+
+// --- Fatia hover: mouseenter/mouseleave encaminhados pelo engine ---
+
+// Caso 7 (bug reportado): mouseenter no mark dispara onHover com o highlight e o rect
+{
+  const root = setupDom('<p>O rato roeu a roupa</p>');
+  let hovered = null;
+  applyHighlights(
+    root,
+    [{ ...makeHl('hl-1', 'rato', 'amber'), note: 'minha nota' }],
+    () => {},
+    (hl) => {
+      hovered = hl;
+    }
+  );
+  const mark = root.querySelector('mark.reader-highlight');
+  check('mark com nota existe para hover', !!mark);
+  mark.dispatchEvent(new root.ownerDocument.defaultView.MouseEvent('mouseenter', { bubbles: true }));
+  check('mouseenter dispara onHover', hovered?.id === 'hl-1', `obtido=${hovered?.id}`);
+  check('onHover recebe a nota', hovered?.note === 'minha nota', `obtido=${hovered?.note}`);
+}
+
+// Caso 8: mouseleave no mark dispara onLeave com o id
+{
+  const root = setupDom('<p>O rato roeu a roupa</p>');
+  let left = null;
+  applyHighlights(
+    root,
+    [{ ...makeHl('hl-1', 'rato', 'amber'), note: 'minha nota' }],
+    () => {},
+    () => {},
+    (id) => {
+      left = id;
+    }
+  );
+  const mark = root.querySelector('mark.reader-highlight');
+  mark.dispatchEvent(new root.ownerDocument.defaultView.MouseEvent('mouseleave', { bubbles: true }));
+  check('mouseleave dispara onLeave com o id', left === 'hl-1', `obtido=${left}`);
+}
+
+// Caso 9: sem callbacks de hover o clique continua funcionando (retrocompat)
+{
+  const root = setupDom('<p>O rato roeu a roupa</p>');
+  let clicked = null;
+  applyHighlights(root, [makeHl('hl-1', 'rato', 'amber')], (hl) => {
+    clicked = hl;
+  });
+  const mark = root.querySelector('mark.reader-highlight');
+  mark.dispatchEvent(new root.ownerDocument.defaultView.MouseEvent('click', { bubbles: true }));
+  check('clique sem hover segue funcionando', clicked?.id === 'hl-1', `obtido=${clicked?.id}`);
+}
+
+// --- Fatia no-flash: reaplicar grifos sem resetar o DOM ---
+
+// Caso 10 (bug reportado): clear desfaz marks sem destruir o resto do DOM
+{
+  const root = setupDom('<p>O rato roeu a roupa</p><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">');
+  applyHighlights(root, [makeHl('hl-1', 'rato', 'amber')], () => {});
+  const imgBefore = root.querySelector('img');
+  imgBefore.__token = 'mesmo-node';
+  check('1 mark aplicado antes do clear', root.querySelectorAll('mark.reader-highlight').length === 1);
+  clearHighlightMarks(root);
+  check('clear remove todos os marks', root.querySelectorAll('mark.reader-highlight').length === 0);
+  check(
+    'texto visível intacto após clear',
+    root.textContent === 'O rato roeu a roupa',
+    `obtido=${root.textContent}`
+  );
+  check(
+    'clear não recria <img> (sem reload)',
+    root.querySelector('img')?.__token === 'mesmo-node',
+    'node da imagem foi destruído'
+  );
+}
+
+// Caso 11: adicionar 2º grifo = clear + reaplica, sem duplicar nem aninhar
+{
+  const root = setupDom('<p>O rato roeu a roupa</p>');
+  const hls = [makeHl('hl-1', 'rato', 'amber')];
+  applyHighlights(root, hls, () => {});
+  clearHighlightMarks(root);
+  hls.push(makeHl('hl-2', 'roupa', 'sage'));
+  applyHighlights(root, hls, () => {});
+  const marks = root.querySelectorAll('mark.reader-highlight');
+  check('reaplicar após clear gera 2 marks', marks.length === 2, `obtido=${marks.length}`);
+  const nested = [...marks].some((m) => m.parentElement?.tagName === 'MARK');
+  check('reaplicação não aninha marks', !nested);
+  check(
+    'texto visível intacto após reaplicação',
+    root.textContent === 'O rato roeu a roupa',
+    `obtido=${root.textContent}`
+  );
 }
 
 if (failures > 0) {

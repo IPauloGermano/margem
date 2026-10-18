@@ -1,10 +1,18 @@
 import { Marked } from 'marked';
-import katex from 'katex';
+let _cachedKatex: any = null;
+export async function getKatexLib(): Promise<any> {
+  if (!_cachedKatex) {
+    const mod = await import('katex');
+    _cachedKatex = (mod as any).default || mod;
+  }
+  return _cachedKatex;
+}
 import type { DocumentParser } from './DocumentParser.ts';
 import type { DocumentSection, ParsedDocument, TableOfContentsItem } from '../types/index.ts';
 import { sanitizeHtml } from './sanitize.ts';
 import { transformContentMediaLinks } from '../media/linkEngine.ts';
 import { renderHighlightedCodeBlock } from '../syntax/syntaxHighlighter.ts';
+import { buildHeadingSlug } from '../text/slugs.ts';
 
 /**
  * Normaliza cercas de código com ''' ou """ para ``` garantindo compatibilidade editorial
@@ -118,6 +126,7 @@ export function splitSectionsAwareOfFences(markdown: string): { h1Count: number;
 
 /**
  * Extrai títulos H1 a H3 para o sumário apenas fora de blocos de código
+ * (Legacy: usado pelo extrator antigo; o novo usa extractTocFromHtml)
  */
 export function extractTocHeadings(
   sectionMarkdown: string,
@@ -165,8 +174,37 @@ export function extractTocHeadings(
   return items;
 }
 
-export function extractAndRenderMath(markdown: string): { processedMarkdown: string; mathMap: Map<string, string> } {
+/**
+ * Extrai o TOC do HTML renderizado (ordem e ids idênticos ao DOM por
+ * construção). Elimina o drift do extrator regex sobre markdown cru
+ * (ex: # dentro de code fence contava como heading no TOC, mas o
+ * Marked nunca o renderizava — todos os slugs seguintes divergiam).
+ */
+function extractTocFromHtml(html: string, sectionIndex: number): TableOfContentsItem[] {
+  const items: TableOfContentsItem[] = [];
+  const re = /<h([1-6])\s+id="([^"]+)"[^>]*>([\s\S]*?)<\/h\1>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const title = m[3].replace(/<[^>]+>/g, '').trim() || 'Seção';
+    items.push({
+      id: m[2],
+      title,
+      level: parseInt(m[1], 10),
+      sectionIndex,
+      anchor: m[2]
+    });
+  }
+  return items;
+}
+
+function extractAndRenderMath(
+  markdown: string,
+  katexInstance?: any
+): { processedMarkdown: string; mathMap: Map<string, string> } {
   const mathMap = new Map<string, string>();
+  if (!katexInstance) {
+    return { processedMarkdown: markdown, mathMap };
+  }
   let blockCounter = 0;
   let inlineCounter = 0;
 
@@ -193,7 +231,7 @@ export function extractAndRenderMath(markdown: string): { processedMarkdown: str
     const trimmed = rawFormula.trim();
     if (!trimmed) return '';
     try {
-      const rendered = katex.renderToString(trimmed, {
+      const rendered = katexInstance.renderToString(trimmed, {
         displayMode: true,
         throwOnError: false,
         output: 'htmlAndMathml'
@@ -218,7 +256,7 @@ export function extractAndRenderMath(markdown: string): { processedMarkdown: str
     const trimmed = rawFormula.trim();
     if (!trimmed) return match;
     try {
-      const rendered = katex.renderToString(trimmed, {
+      const rendered = katexInstance.renderToString(trimmed, {
         displayMode: false,
         throwOnError: false,
         output: 'htmlAndMathml'
@@ -340,18 +378,12 @@ export class MarkdownParser implements DocumentParser {
 
     // 2. Fatiamento em seções lógicas e extração do Sumário (TOC)
     const toc: TableOfContentsItem[] = [];
-    const slugifyHeading = (text: string, secIdx: number, hIdx: number): string => {
-      const clean = text
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[*_`#]/g, '')
-        .replace(/[^\w\s-]/g, '')
-        .trim()
-        .replace(/\s+/g, '-');
-      return `h-sec${secIdx}-${hIdx}-${clean || 'heading'}`;
-    };
 
+    // Prepara KaTeX sob demanda apenas se o documento contiver sintaxe matemática ($)
+    const hasMath = body.includes('$');
+    const katexLib = hasMath ? await getKatexLib().catch(() => null) : null;
+
+    // Usa splitSectionsAwareOfFences para respeitar cercas de código
     const { h1Count, parts } = splitSectionsAwareOfFences(body);
 
     const sections: DocumentSection[] = await Promise.all(
@@ -362,19 +394,39 @@ export class MarkdownParser implements DocumentParser {
           partTitle = partTitleMatch ? partTitleMatch[1].replace(/[*_`]/g, '').trim() : `Seção ${idx + 1}`;
         }
 
-        // Extrai cabeçalhos da seção para o TOC com segurança contra comentários
-        const sectionHeadings = extractTocHeadings(part, idx, slugifyHeading);
-        toc.push(...sectionHeadings);
+        // Preprocessa expressões matemáticas antes do Marked
+        const { processedMarkdown, mathMap } = extractAndRenderMath(part, katexLib);
 
-        // Preprocessa expressões matemáticas isolando blocos e código
-        const { processedMarkdown, mathMap } = extractAndRenderMath(part);
+        // Renderiza markdown injetando id="${slug}" em cada <hN> e interceptando ```mermaid
+        let renderHeadingIdx = 0;
+        const markedInstance = new Marked();
+        markedInstance.use({
+          renderer: {
+            heading({ tokens, depth, text }) {
+              const parsedText = this.parser.parseInline(tokens);
+              const cleanRaw = text.replace(/[*_`]/g, '').trim();
+              const slug = buildHeadingSlug(idx, renderHeadingIdx++, cleanRaw);
+              return `<h${depth} id="${slug}">${parsedText}</h${depth}>\n`;
+            },
+            code({ text, lang }) {
+              if (lang === 'mermaid') {
+                const cleanText = text.trim();
+                const encoded = encodeURIComponent(cleanText);
+                return `<div class="reader-mermaid-container my-6 p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] overflow-x-auto flex flex-col items-center justify-center text-center select-none" data-mermaid="${encoded}"><div class="mermaid-target w-full flex justify-center"><span class="text-xs font-mono text-[var(--text-muted)] animate-pulse">Carregando diagrama...</span></div><pre class="mermaid-fallback hidden font-mono text-xs text-[var(--text-muted)]">${cleanText}</pre></div>\n`;
+              }
+              return renderHighlightedCodeBlock(text, lang);
+            }
+          }
+        });
 
-        // Renderiza markdown com Marked e Syntax Highlighter
-        const markedInstance = createMarkedInstance(idx, slugifyHeading);
         const rawHtml = String(await markedInstance.parse(processedMarkdown));
         const withMath = restoreMathPlaceholders(rawHtml, mathMap);
         const html = transformContentMediaLinks(sanitizeHtml(withMath));
         const words = part.trim().split(/\s+/).length;
+
+        // Extrai o TOC do HTML renderizado (ordem e ids idênticos ao DOM)
+        const sectionToc = extractTocFromHtml(html, idx);
+        toc.push(...sectionToc);
 
         return {
           id: `sec-${idx}`,

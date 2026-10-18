@@ -80,20 +80,31 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
   }, [searchQuery]);
 
   const availableFolders = Array.from(
-    new Set(books.map((b) => b.folderName).filter(Boolean) as string[])
+    new Set(books.map((b) => b?.folderName).filter(Boolean) as string[])
   );
 
   const filteredBooks = books.filter((book) => {
+    if (!book) return false;
+    const title = (book.title || '').toLowerCase();
+    const author = (book.author || '').toLowerCase();
+    const format = (book.format || '').toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
+
     const matchesSearch =
-      book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      book.author.toLowerCase().includes(searchQuery.toLowerCase());
+      !query ||
+      title.includes(query) ||
+      author.includes(query);
 
     const matchesFormat =
+<<<<<<< HEAD
       formatFilter === 'all'
         ? true
         : formatFilter === 'favorites'
         ? Boolean(book.favorite)
         : book.format.toLowerCase() === formatFilter.toLowerCase();
+=======
+      formatFilter === 'all' || format === formatFilter.toLowerCase();
+>>>>>>> origin/dev
 
     const matchesFolder =
       folderFilter === 'all' || book.folderName === folderFilter;
