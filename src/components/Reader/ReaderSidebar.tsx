@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-=======
-import React, { useEffect, useRef, useState } from 'react';
->>>>>>> origin/dev
 import {
   Bookmark,
   Check,
@@ -46,12 +42,10 @@ interface ReaderSidebarProps {
   onClose: () => void;
   toc: TableOfContentsItem[];
   currentSectionIndex: number;
-<<<<<<< HEAD
+  /** @deprecated Use activeHeadingId for exact-match ScrollSpy */
   activeAnchor?: string | null;
-=======
   /** ScrollSpy: âncora visível — só o item exato recebe destaque. */
   activeHeadingId?: string | null;
->>>>>>> origin/dev
   onSelectSection: (sectionIndex: number, anchor?: string) => void;
   sections: DocumentSection[];
   book: Book;
@@ -69,11 +63,8 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
   onClose,
   toc,
   currentSectionIndex,
-<<<<<<< HEAD
   activeAnchor,
-=======
   activeHeadingId = null,
->>>>>>> origin/dev
   onSelectSection,
   sections,
   book,
@@ -307,9 +298,13 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
               Capítulos e Seções
             </h3>
 
-<<<<<<< HEAD
             {visibleToc.length > 0 ? (
               visibleToc.map((item) => {
+                // Exato: só a âncora visível (ScrollSpy exato) recebe destaque total.
+                const isExact = Boolean(item.anchor) && item.anchor === activeHeadingId;
+                // Na seção atual sem match exato: ênfase sutil de "aberto".
+                const isInSection = currentSectionIndex === item.sectionIndex;
+                // Estado visual legacy (para expand/collapse e "Lendo" badge)
                 const { isActive, isCurrentSection, level } = getTocItemVisualState(
                   item,
                   activeTocItem,
@@ -336,10 +331,15 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                     : 'text-[11px] font-normal';
 
                 let itemThemeClass = '';
-                if (isActive) {
+                if (isExact) {
+                  // ScrollSpy exato: destaque total (compatível com hook)
+                  itemThemeClass =
+                    'border-l-2 border-[var(--accent-signal)] bg-[var(--accent-signal)]/10 text-[var(--text-primary)] font-medium';
+                } else if (isActive) {
+                  // Legacy: item ativo por seção atual
                   itemThemeClass =
                     'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] font-semibold border-l-2 border-[var(--accent-signal)] shadow-xs';
-                } else if (isCurrentSection) {
+                } else if (isInSection || isCurrentSection) {
                   itemThemeClass =
                     level === 1
                       ? 'text-[var(--text-primary)] font-medium border-l-2 border-[var(--accent-signal)]/40 hover:bg-[var(--bg-surface-hover)]'
@@ -352,13 +352,23 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                 return (
                   <button
                     key={item.id}
-                    ref={isActive ? activeItemRef : null}
+                    ref={(el) => {
+                      if (!item.anchor) return;
+                      if (el) tocItemRefs.current.set(item.anchor, el);
+                      else tocItemRefs.current.delete(item.anchor);
+                    }}
                     type="button"
                     onClick={() => onSelectSection(item.sectionIndex, item.anchor)}
+                    data-toc-active={isExact ? 'true' : 'false'}
                     className={`w-full text-left py-1.5 pr-2.5 rounded-r transition-all flex items-center justify-between group relative ${indentClass} ${typographyClass} ${itemThemeClass}`}
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      {isActive ? (
+                      {isExact ? (
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-[var(--accent-signal)] shrink-0 animate-pulse"
+                          title="Lendo agora (ScrollSpy)"
+                        />
+                      ) : isActive ? (
                         <span
                           className="w-1.5 h-1.5 rounded-full bg-[var(--accent-signal)] shrink-0 animate-pulse"
                           title="Lendo agora"
@@ -366,7 +376,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                       ) : level > 1 ? (
                         <span
                           className={`w-1 h-1 rounded-full shrink-0 ${
-                            isCurrentSection
+                            isInSection || isCurrentSection
                               ? 'bg-[var(--text-muted)]'
                               : 'bg-[var(--text-muted)]/40 group-hover:bg-[var(--text-muted)]'
                           }`}
@@ -377,7 +387,7 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      {isActive && (
+                      {(isExact || isActive) && (
                         <span className="font-code text-[9px] px-1.5 py-0.5 rounded bg-[var(--accent-signal)]/15 text-[var(--accent-signal)] font-medium uppercase tracking-wider">
                           Lendo
                         </span>
@@ -415,38 +425,6 @@ export const ReaderSidebar: React.FC<ReaderSidebarProps> = ({
                         #{item.sectionIndex + 1}
                       </span>
                     </div>
-=======
-            {toc.length > 0 ? (
-              toc.map((item) => {
-                // Exato: só a âncora visível recebe destaque (fim da poluição macro).
-                const isExact = Boolean(item.anchor) && item.anchor === activeHeadingId;
-                // Na seção atual sem match exato: ênfase sutil de "aberto", sem caixa.
-                const isInSection = currentSectionIndex === item.sectionIndex;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    ref={(el) => {
-                      if (!item.anchor) return;
-                      if (el) tocItemRefs.current.set(item.anchor, el);
-                      else tocItemRefs.current.delete(item.anchor);
-                    }}
-                    data-toc-active={isExact ? 'true' : 'false'}
-                    onClick={() => onSelectSection(item.sectionIndex, item.anchor)}
-                    style={{ paddingLeft: `${Math.max(0.5, item.level * 0.75)}rem` }}
-                    className={`w-full text-left py-2 px-3 rounded text-xs transition-colors flex items-center justify-between group ${
-                      isExact
-                        ? 'border-l-2 border-[var(--accent-signal)] bg-[var(--accent-signal)]/10 text-[var(--text-primary)] font-medium'
-                        : isInSection
-                          ? 'text-[var(--text-primary)] font-medium'
-                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
-                    }`}
-                  >
-                    <span className="truncate">{item.title}</span>
-                    <span className="font-code text-[10px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
-                      #{item.sectionIndex + 1}
-                    </span>
->>>>>>> origin/dev
                   </button>
                 );
               })

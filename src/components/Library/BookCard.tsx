@@ -10,19 +10,12 @@ interface BookCardProps {
   onToggleFavorite?: (bookId: string) => void;
 }
 
-<<<<<<< HEAD
 export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelete, onToggleFavorite }) => {
-  const isReading = book.progress.scrollPercentage > 0 && !book.progress.completed;
-  const isCompleted = book.progress.completed;
-  const isFolder = Boolean(book.isFolderBook || book.format === 'folder');
-=======
-export const BookCard: React.FC<BookCardProps> = ({ book, index, onOpen, onDelete }) => {
   const scrollPct = book.progress?.scrollPercentage ?? 0;
   const isCompleted = Boolean(book.progress?.completed);
   const isReading = scrollPct > 0 && !isCompleted;
   const formatLower = (book.format || '').toLowerCase();
   const isFolder = Boolean(book.isFolderBook || formatLower === 'folder');
->>>>>>> origin/dev
 
   const formatBadgeColors: Record<string, string> = {
     epub: 'bg-[var(--accent-signal-bg)] text-[var(--accent-signal)] border-[var(--accent-signal)]/30',

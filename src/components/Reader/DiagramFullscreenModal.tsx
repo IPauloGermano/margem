@@ -210,15 +210,9 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
       }
     };
 
-<<<<<<< HEAD
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [isOpen, onClose, fitZoom]);
-=======
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, fitZoom, isMobile]);
->>>>>>> origin/dev
 
   if (!isOpen || !svgHtml) return null;
 

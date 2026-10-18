@@ -795,7 +795,6 @@ export const App: React.FC = () => {
     setDeletedUndo(null);
   };
 
-<<<<<<< HEAD
   const handleToggleFavorite = async (bookId: string) => {
     try {
       const isFav = await db.toggleFavorite(bookId);
@@ -811,7 +810,6 @@ export const App: React.FC = () => {
     }
   };
 
-=======
   const handleBackToBookshelf = () => {
     setActiveBook(null);
     setParsedDoc(null);
@@ -827,7 +825,6 @@ export const App: React.FC = () => {
     setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
   };
 
->>>>>>> origin/dev
   const isDesktop = Boolean(
     typeof window !== 'undefined' &&
     (window.cadernoAPI?.isDesktop || window.location.search.includes('desktop'))
@@ -882,44 +879,6 @@ export const App: React.FC = () => {
 
       {/* Renderização Condicional: Leitor ou Estante */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-<<<<<<< HEAD
-        {activeBook && parsedDoc ? (
-          <React.Suspense
-            fallback={<AppSuspenseFallback />}
-          >
-            <ReaderView
-              book={activeBook}
-              document={parsedDoc}
-              preferences={preferences}
-              onUpdatePreferences={handleUpdatePreferences}
-              onBackToBookshelf={() => {
-                setActiveBook(null);
-                setParsedDoc(null);
-              }}
-              onUpdateBook={(updated) => {
-                setActiveBook(updated);
-                setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
-              }}
-              books={books}
-              onOpenBook={handleOpenBook}
-            />
-          </React.Suspense>
-        ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <Bookshelf
-              books={books}
-              onOpenBook={handleOpenBook}
-              onOpenFile={handleOpenFile}
-              onOpenFolderModal={handleOpenFolder}
-              onDeleteBook={handleDeleteBook}
-              onToggleFavorite={handleToggleFavorite}
-              onDropFiles={handleDropFiles}
-              onLoadSample={loadSampleContent}
-              onSyncServerArticles={window.cadernoAPI?.scanDirectoryPath ? handleSyncServerArticles : undefined}
-            />
-          </div>
-        )}
-=======
         <ErrorBoundary onReset={handleBackToBookshelf}>
           {activeBook && parsedDoc ? (
             <React.Suspense
@@ -932,6 +891,8 @@ export const App: React.FC = () => {
                 onUpdatePreferences={handleUpdatePreferences}
                 onBackToBookshelf={handleBackToBookshelf}
                 onUpdateBook={handleUpdateBook}
+                books={books}
+                onOpenBook={handleOpenBook}
               />
             </React.Suspense>
           ) : isRestoringSession ? (
@@ -944,13 +905,14 @@ export const App: React.FC = () => {
                 onOpenFile={handleOpenFile}
                 onOpenFolderModal={handleOpenFolder}
                 onDeleteBook={handleDeleteBook}
+                onToggleFavorite={handleToggleFavorite}
                 onDropFiles={handleDropFiles}
                 onLoadSample={loadSampleContent}
+                onSyncServerArticles={window.cadernoAPI?.scanDirectoryPath ? handleSyncServerArticles : undefined}
               />
             </div>
           )}
         </ErrorBoundary>
->>>>>>> origin/dev
       </div>
 
       {/* Modal de Importação de Pasta */}

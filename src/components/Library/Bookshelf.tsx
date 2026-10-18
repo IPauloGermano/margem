@@ -96,15 +96,11 @@ export const Bookshelf: React.FC<BookshelfProps> = ({
       author.includes(query);
 
     const matchesFormat =
-<<<<<<< HEAD
       formatFilter === 'all'
         ? true
         : formatFilter === 'favorites'
         ? Boolean(book.favorite)
-        : book.format.toLowerCase() === formatFilter.toLowerCase();
-=======
-      formatFilter === 'all' || format === formatFilter.toLowerCase();
->>>>>>> origin/dev
+        : format === formatFilter.toLowerCase();
 
     const matchesFolder =
       folderFilter === 'all' || book.folderName === folderFilter;

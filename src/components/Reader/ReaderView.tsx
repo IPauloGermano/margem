@@ -280,19 +280,31 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
   };
 
-<<<<<<< HEAD
   const handleSelectSection = useCallback(
     (index: number, anchor?: string) => {
       if (index >= 0 && index < sections.length) {
         setCurrentSectionIndex(index);
+        if (isPdf) {
+          // No canvas não há scroll fluido: âncora pdf-page-N vira jump de página.
+          const m = anchor ? /pdf-page-(\d+)/.exec(anchor) : null;
+          if (m) {
+            const page = parseInt(m[1], 10);
+            setPdfJump((prev) => ({ page, key: (prev?.key ?? 0) + 1 }));
+            void savePdfProgress(page, book.progress?.totalPages || sections.length || 1);
+          }
+          setActiveHeadingId(anchor ?? null);
+          return;
+        }
         setScrollPercentage(0);
         setTargetAnchor(anchor);
         setActiveAnchor(anchor ?? null);
         setTargetAnchorKey((k) => k + 1);
+        // Clique no sumário atualiza o ativo imediatamente (sem esperar o observer).
+        setActiveHeadingId(anchor ?? null);
         saveProgress(index, 0);
       }
     },
-    [sections.length, saveProgress]
+    [sections.length, saveProgress, isPdf, book.progress?.totalPages, savePdfProgress]
   );
 
   // Resolução inteligente de links de páginas, artigos, âncoras e outros livros
@@ -465,30 +477,6 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     },
     [book, books, document.toc, handleSelectSection, onOpenBook, sections]
   );
-=======
-  const handleSelectSection = (index: number, anchor?: string) => {
-    if (index >= 0 && index < sections.length) {
-      setCurrentSectionIndex(index);
-      if (isPdf) {
-        // No canvas não há scroll fluido: âncora pdf-page-N vira jump de página.
-        const m = anchor ? /pdf-page-(\d+)/.exec(anchor) : null;
-        if (m) {
-          const page = parseInt(m[1], 10);
-          setPdfJump((prev) => ({ page, key: (prev?.key ?? 0) + 1 }));
-          void savePdfProgress(page, book.progress?.totalPages || sections.length || 1);
-        }
-        setActiveHeadingId(anchor ?? null);
-        return;
-      }
-      setScrollPercentage(0);
-      setTargetAnchor(anchor);
-      setTargetAnchorKey((k) => k + 1);
-      // Clique no sumário atualiza o ativo imediatamente (sem esperar o observer).
-      setActiveHeadingId(anchor ?? null);
-      saveProgress(index, 0);
-    }
-  };
->>>>>>> origin/dev
 
   // Âncoras do TOC para a seção atual (guia o observer do ScrollSpy).
   const currentSectionAnchors = useMemo(
@@ -681,7 +669,6 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         }
         else if (isShortcutsOpen) setIsShortcutsOpen(false);
         else if (isSidebarOpen) setIsSidebarOpen(false);
-<<<<<<< HEAD
         else {
           // Se houver algum diálogo, modal ou popover ativo no DOM (ex: DiagramFullscreenModal),
           // ele possui precedência e gerencia seu próprio fechamento. ReaderView não deve retornar à estante.
@@ -692,8 +679,6 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             onBackToBookshelf();
           }
         }
-=======
->>>>>>> origin/dev
         return;
       }
 
@@ -809,11 +794,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           onClose={() => setIsSidebarOpen(false)}
           toc={document.toc}
           currentSectionIndex={currentSectionIndex}
-<<<<<<< HEAD
           activeAnchor={activeAnchor}
-=======
           activeHeadingId={activeHeadingId}
->>>>>>> origin/dev
           onSelectSection={(idx, anchor) => {
             handleSelectSection(idx, anchor);
             // Fecha apenas em mobile; em desktop a sidebar permanece visível
@@ -862,13 +844,10 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             initialScrollPercentage={scrollPercentage}
             targetAnchor={targetAnchor}
             targetAnchorKey={targetAnchorKey}
-<<<<<<< HEAD
             onActiveAnchorChange={setActiveAnchor}
-            onNavigateLink={handleNavigateLink}
-=======
-            headingAnchors={currentSectionAnchors}
             onActiveHeadingChange={setActiveHeadingId}
->>>>>>> origin/dev
+            onNavigateLink={handleNavigateLink}
+            headingAnchors={currentSectionAnchors}
             searchQuery={isSearchOpen ? searchQuery : undefined}
             activeSearchLocalIndex={
               isSearchOpen && currentMatch && currentMatch.sectionIndex === currentSectionIndex

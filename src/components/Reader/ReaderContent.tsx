@@ -3,13 +3,9 @@ import { DocumentSection, Highlight, HighlightColor, ReaderPreferences } from '.
 import { isAllowedEmbedUrl } from '../../core/parsers/sanitize';
 import { isSameTitle } from '../../core/text/titles';
 import { smoothScrollBehavior } from '../../core/motion/fluid';
-<<<<<<< HEAD
 import { findActiveAnchorFromHeadings } from '../../core/text/tocResolver';
-import { applyHighlights, getSelectionOffsets } from '../../core/highlights/highlightEngine';
-=======
 import { applyHighlights, clearHighlightMarks, getSelectionOffsets } from '../../core/highlights/highlightEngine';
 import { useScrollSpy } from '../../core/hooks/useScrollSpy';
->>>>>>> origin/dev
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 import { DiagramFullscreenModal } from './DiagramFullscreenModal';
@@ -28,15 +24,14 @@ interface ReaderContentProps {
   targetAnchorKey?: number;
   searchQuery?: string;
   activeSearchLocalIndex?: number;
-<<<<<<< HEAD
-  onActiveAnchorChange?: (anchor: string | null) => void;
-  onNavigateLink?: (href: string) => void;
-=======
   /** Âncoras do TOC para a seção atual (inclui não-headings, ex: páginas de PDF). */
   headingAnchors?: string[];
-  /** ScrollSpy: id da âncora visível (ou null). */
+  /** ScrollSpy (TOC legacy): id da âncora visível (ou null). */
+  onActiveAnchorChange?: (anchor: string | null) => void;
+  /** ScrollSpy (hook): id da âncora visível (ou null). */
   onActiveHeadingChange?: (anchorId: string | null) => void;
->>>>>>> origin/dev
+  /** Delega resolução de links entre seções/páginas/artigos para o ReaderView. */
+  onNavigateLink?: (href: string) => void;
 }
 
 interface ToolbarState {
@@ -138,22 +133,17 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   targetAnchorKey,
   searchQuery,
   activeSearchLocalIndex,
-<<<<<<< HEAD
-  onActiveAnchorChange,
-  onNavigateLink
-=======
   headingAnchors,
-  onActiveHeadingChange
->>>>>>> origin/dev
+  onActiveAnchorChange,
+  onActiveHeadingChange,
+  onNavigateLink
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const isRestoringScroll = useRef(false);
   const lastKnownScrollTop = useRef<number>(0);
   const currentScrollPercentageRef = useRef<number>(initialScrollPercentage);
-<<<<<<< HEAD
   const currentActiveAnchorRef = useRef<string | null>(targetAnchor || null);
-=======
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 'hover' = aberto por mouseenter (fecha ao sair de mark+popover);
   // 'click' = fixado por clique (só fecha por scroll/Esc/clique-fora/toggle).
@@ -166,7 +156,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   // Travessia de navegação por âncora em voo: observer pausado (não rouba o clique).
   const isAnchorNavigating = useRef(false);
   const anchorNavTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
->>>>>>> origin/dev
 
   const [toolbarState, setToolbarState] = useState<ToolbarState | null>(null);
   const [activeNotePopover, setActiveNotePopover] = useState<{
@@ -228,11 +217,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
 
     if (targetAnchor) {
-<<<<<<< HEAD
       currentActiveAnchorRef.current = targetAnchor;
       onActiveAnchorChange?.(targetAnchor);
 
-=======
       // Navegação programática: o observer ignora a travessia até o destino
       // (cabeçalhos no caminho não roubam o ativo do clique).
       isAnchorNavigating.current = true;
@@ -241,7 +228,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         isAnchorNavigating.current = false;
         anchorNavTimer.current = null;
       }, 1200);
->>>>>>> origin/dev
+
       // Aguarda o DOM estar pronto com o conteúdo renderizado antes de buscar a âncora
       const tryScroll = () => {
         const targetElem = findAnchorTargetElement(el, targetAnchor);
@@ -264,7 +251,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       return;
     }
 
-<<<<<<< HEAD
     currentActiveAnchorRef.current = null;
     onActiveAnchorChange?.(null);
 
@@ -278,9 +264,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         isRestoringScroll.current = false;
       }, 100);
     } else {
-=======
-    if (initialScrollPercentage <= 0) {
->>>>>>> origin/dev
       el.scrollTop = 0;
     }
     // pct > 0: aplicado pelo effect de preenchimento (scrollHeight real).
@@ -471,16 +454,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
   }, [section.id, section.content, preferences.theme, preferences.fontFamily]);
 
-  // ScrollSpy por linha de leitura (hook dedicado): reporta a âncora visível
-  // para o TOC. Pausado durante travessia de navegação programática.
-  // contentKey espelha os gatilhos do preenchimento (innerHTML recria os nós).
-  useScrollSpy(containerRef, bodyRef, {
-    anchors: headingAnchors ?? [],
-    onChange: (id) => onActiveHeadingChange?.(id),
-    pausedRef: isAnchorNavigating,
-    contentKey: `${section.id}|${preferences.theme}|${preferences.fontFamily}|${section.content.length}`
-  });
-
   // Grifos + busca sobre o DOM já preenchido: desfaz só os marks e reaplica,
   // sem `innerHTML` (preserva imagens, Mermaid renderizado e posição de scroll).
   useEffect(() => {
@@ -509,17 +482,24 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       if (activeElement) {
         activeElement.scrollIntoView({ behavior: smoothScrollBehavior(), block: 'center' });
       }
-<<<<<<< HEAD
     } else {
       // Preserva a posição exata de leitura ao recarregar a seção dinamicamente (se não houver âncora alvo)
       const el = containerRef.current;
       if (el && !targetAnchor && lastKnownScrollTop.current > 0) {
         el.scrollTop = lastKnownScrollTop.current;
       }
-=======
->>>>>>> origin/dev
     }
   }, [section.id, section.content, highlights, searchQuery, activeSearchLocalIndex]);
+
+  // ScrollSpy por linha de leitura (hook dedicado): reporta a âncora visível
+  // para o TOC. Pausado durante travessia de navegação programática.
+  // contentKey espelha os gatilhos do preenchimento (innerHTML recria os nós).
+  useScrollSpy(containerRef, bodyRef, {
+    anchors: headingAnchors ?? [],
+    onChange: (id) => onActiveHeadingChange?.(id),
+    pausedRef: isAnchorNavigating,
+    contentKey: `${section.id}|${preferences.theme}|${preferences.fontFamily}|${section.content.length}`
+  });
 
   // Listener de Scroll para atualizar o progresso de leitura
   const handleScroll = () => {
@@ -553,7 +533,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     currentScrollPercentageRef.current = currentProgress;
     onScrollProgress(currentProgress);
 
-    // ScrollSpy: rastreia qual cabeçalho/âncora está na linha de visão confortável de leitura
+    // ScrollSpy (legacy TOC): rastreia qual cabeçalho/âncora está na linha de visão confortável de leitura
     if (onActiveAnchorChange && bodyRef.current) {
       const headingEls = bodyRef.current.querySelectorAll<HTMLElement>(
         'h1[id], h2[id], h3[id], h4[id], [id^="pdf-page-"], .reader-section-top-anchor, [name]'
