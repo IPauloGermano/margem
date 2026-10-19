@@ -62,6 +62,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const pageElsRef = useRef(new Map<number, HTMLDivElement>());
   const docRef = useRef<any>(null);
+  // pdfjs-dist v6 removeu PDFDocumentProxy.destroy(); o teardown suportado
+  // (transporte + worker) agora é feito pelo PDFDocumentLoadingTask.
+  const loadingTaskRef = useRef<any>(null);
   const renderedRef = useRef(new Set<string>());
   const inProgressRef = useRef(new Set<string>());
   const renderTasksRef = useRef(new Map<number, any>());
@@ -231,9 +234,11 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
       try {
         const pdfjsLib = await getPdfJsLib();
         await ensureWorkerConfigured(pdfjsLib);
-        const doc = await pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
+        const task = pdfjsLib.getDocument({ data: buffer.slice(0) });
+        loadingTaskRef.current = task;
+        const doc = await task.promise;
         if (cancelled) {
-          await doc.destroy();
+          await task.destroy().catch(() => {});
           return;
         }
         docRef.current = doc;
@@ -259,9 +264,10 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
 
     return () => {
       cancelled = true;
-      const doc = docRef.current;
+      const task = loadingTaskRef.current;
+      loadingTaskRef.current = null;
       docRef.current = null;
-      if (doc) void doc.destroy().catch(() => {});
+      if (task) void task.destroy().catch(() => {});
     };
   }, [buffer]);
 

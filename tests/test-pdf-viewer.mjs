@@ -80,6 +80,14 @@ check('PdfViewer escuta onMouseUp para captura de seleção', pdfViewerTsx.inclu
 check('PdfViewer integra HighlightToolbar e NotePopover', pdfViewerTsx.includes('<HighlightToolbar') && pdfViewerTsx.includes('<NotePopover'));
 check('PdfViewer suporta highlights por página (applyHighlightsToPage)', pdfViewerTsx.includes('applyHighlightsToPage'));
 check('PdfViewer instancia new pdfjsLib.TextLayer (compatível com pdfjs-dist v4)', pdfViewerTsx.includes('new pdfjsLib.TextLayer'));
+check(
+  'PdfViewer destrói via PDFDocumentLoadingTask (pdfjs v6 removeu PDFDocumentProxy.destroy)',
+  pdfViewerTsx.includes('loadingTaskRef') && pdfViewerTsx.includes('task.destroy(')
+);
+check(
+  'PdfViewer não chama doc.destroy() (causa do "destroy is not a function" ao voltar à Estante)',
+  !/doc\.destroy\s*\(/.test(pdfViewerTsx)
+);
 
 const readerViewTsx = fs.readFileSync(path.resolve('src/components/Reader/ReaderView.tsx'), 'utf-8');
 check('ReaderView suporta pageNum em handleAddHighlight', readerViewTsx.includes('pageNum?: number'));
@@ -111,7 +119,8 @@ document.createElement = function(tag) {
 };
 
 const pdfData = new Uint8Array(fs.readFileSync('tests/fixtures/pdf/dummy.pdf'));
-const pdfDoc = await getDocument({ data: pdfData }).promise;
+const pdfLoadingTask = getDocument({ data: pdfData });
+const pdfDoc = await pdfLoadingTask.promise;
 const pdfPage = await pdfDoc.getPage(1);
 const pdfViewport = pdfPage.getViewport({ scale: 1 });
 const testContainer = document.getElementById('textLayer');
@@ -125,6 +134,12 @@ await testTl.render();
 
 check('TextLayer renderiza spans de texto no DOM real (não fica vazio)', testContainer.children.length > 0);
 check('TextLayer extrai texto exato da página ("Dummy PDF file")', testContainer.textContent.includes('Dummy PDF file'));
+
+// Regressão "g.destroy is not a function" ao voltar à Estante com PDF aberto:
+// na v6 do pdfjs-dist o teardown é do loadingTask; o documento não tem destroy().
+check('pdfjs v6 não expõe PDFDocumentProxy.destroy()', typeof pdfDoc.destroy !== 'function');
+check('PDFDocumentLoadingTask expõe destroy() para teardown do worker', typeof pdfLoadingTask.destroy === 'function');
+await pdfLoadingTask.destroy();
 
 if (failures > 0) {
   console.error(`\n❌ TESTE DE PDF-VIEWER: ${failures} falha(s)`);
