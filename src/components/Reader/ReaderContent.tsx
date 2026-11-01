@@ -10,6 +10,8 @@ import { copyTextToClipboard } from '../../core/clipboard/clipboard';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 import { DiagramFullscreenModal } from './DiagramFullscreenModal';
+import { DictionaryModal } from './DictionaryModal';
+import { lookupDictionary, DictionaryLookupResult } from '../../core/dictionary/dictionaryEngine';
 
 interface ReaderContentProps {
   section: DocumentSection;
@@ -167,6 +169,13 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     svgHtml: string;
     code?: string;
   } | null>(null);
+  const [dictionaryResult, setDictionaryResult] = useState<DictionaryLookupResult | null>(null);
+
+  const handleLookupDictionary = (rawText: string) => {
+    const res = lookupDictionary(rawText);
+    setDictionaryResult(res);
+    setToolbarState(null);
+  };
 
   // Mapeamento de famílias de fonte
   const fontClassMap = {
@@ -901,6 +910,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           activeColor={toolbarState.activeColor}
           onApplyHighlight={handleApplyHighlight}
           onRemoveHighlight={toolbarState.highlightId ? handleRemoveHighlight : undefined}
+          onLookupDictionary={handleLookupDictionary}
           onClose={() => setToolbarState(null)}
         />
       )}
@@ -912,6 +922,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           svgHtml={activeDiagram.svgHtml}
           code={activeDiagram.code}
           onClose={() => setActiveDiagram(null)}
+        />
+      )}
+
+      {/* Modal de Dicionário & Consulta Rápida Offline */}
+      {dictionaryResult && (
+        <DictionaryModal
+          isOpen={Boolean(dictionaryResult)}
+          result={dictionaryResult}
+          onClose={() => setDictionaryResult(null)}
         />
       )}
     </main>

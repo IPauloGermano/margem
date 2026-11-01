@@ -20,6 +20,7 @@ import { calculatePdfProgress } from '../../core/pdf/pdfZoom';
 import { ReaderFooter } from './ReaderFooter';
 import { AppearanceModal } from './AppearanceModal';
 import { SearchModal, SearchMatchItem } from './SearchModal';
+import { searchSectionText } from '../../core/text/searchEngine';
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
 import 'katex/dist/katex.min.css';
 
@@ -105,10 +106,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [searchScope, setSearchScope] = useState<'section' | 'book'>('section');
   const currentSection: DocumentSection | undefined = sections[currentSectionIndex];
 
-  // Computa as correspondências da obra ou da página ativa conforme o escopo selecionado
+  // Computa as correspondências da obra ou da página ativa conforme o escopo selecionado (com suporte a acentos e fuzzy search)
   const allSearchMatches = useMemo<SearchMatchItem[]>(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) return [];
-    const q = searchQuery.toLowerCase();
     const list: SearchMatchItem[] = [];
 
     const targetSections =
@@ -119,30 +119,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         : sections.map((s, idx) => ({ sec: s, secIdx: idx }));
 
     targetSections.forEach(({ sec, secIdx }) => {
-      const raw = sec.rawText || sec.content.replace(/<[^>]+>/g, ' ');
-      const cleanContent = raw.replace(/[*#_`>]/g, ' ').replace(/\s+/g, ' ');
-      const lower = cleanContent.toLowerCase();
-      let pos = lower.indexOf(q);
-      let localIdx = 0;
-
-      while (pos !== -1 && list.length < 200) {
-        const start = Math.max(0, pos - 45);
-        const end = Math.min(cleanContent.length, pos + q.length + 45);
-        const surrounding = cleanContent.substring(start, end).trim();
-
-        list.push({
-          globalIndex: list.length,
-          sectionIndex: secIdx,
-          sectionTitle: sec.title,
-          charIndex: pos,
-          matchText: cleanContent.substring(pos, pos + q.length),
-          surroundingContext: surrounding,
-          localIndex: localIdx
-        });
-
-        localIdx++;
-        pos = lower.indexOf(q, pos + q.length);
-      }
+      const raw = sec.rawText || sec.content;
+      const matches = searchSectionText(raw, searchQuery, secIdx, sec.title, list.length, 200 - list.length);
+      list.push(...matches);
     });
 
     return list;

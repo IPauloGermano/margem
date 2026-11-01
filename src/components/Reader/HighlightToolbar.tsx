@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Check, Copy, MessageSquare, Quote, Trash2, X } from 'lucide-react';
+import { BookOpen, Check, Copy, MessageSquare, Quote, Trash2, X } from 'lucide-react';
 import { HighlightColor } from '../../core/types';
 import { copyTextToClipboard } from '../../core/clipboard/clipboard';
 
@@ -10,6 +10,7 @@ interface HighlightToolbarProps {
   activeColor?: HighlightColor;
   onApplyHighlight: (color: HighlightColor, note?: string) => void;
   onRemoveHighlight?: () => void;
+  onLookupDictionary?: (word: string) => void;
   onClose: () => void;
 }
 
@@ -20,6 +21,7 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
   activeColor = 'amber',
   onApplyHighlight,
   onRemoveHighlight,
+  onLookupDictionary,
   onClose
 }) => {
   const [isNoteInputOpen, setIsNoteInputOpen] = useState(Boolean(existingNote));
@@ -235,6 +237,18 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
+
+          {/* Dicionário / Definição */}
+          {onLookupDictionary && (
+            <button
+              type="button"
+              title="Definição no Dicionário"
+              onClick={() => onLookupDictionary(selectedText)}
+              className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors shrink-0"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Remover Grifo existente */}
           {onRemoveHighlight && (

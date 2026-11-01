@@ -2,16 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, List, Search, X } from 'lucide-react';
 import { prefersReducedMotion } from '../../core/motion/fluid';
 import { useDismissDrag } from '../../core/motion/useDismissDrag';
+import { getHighlightedSegments, SearchMatchItem } from '../../core/text/searchEngine';
 
-export interface SearchMatchItem {
-  globalIndex: number;
-  sectionIndex: number;
-  sectionTitle: string;
-  charIndex: number;
-  matchText: string;
-  surroundingContext: string;
-  localIndex: number;
-}
+export type { SearchMatchItem };
 
 export type SearchScope = 'section' | 'book';
 
@@ -34,33 +27,24 @@ export interface SearchModalProps {
  */
 export const HighlightedSnippet: React.FC<{ text: string; query: string }> = ({ text, query }) => {
   if (!query || !query.trim()) return <span>{text}</span>;
-  const q = query.trim().toLowerCase();
-  const lower = text.toLowerCase();
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let pos = lower.indexOf(q);
+  const segments = getHighlightedSegments(text, query);
 
-  while (pos !== -1) {
-    if (pos > lastIndex) {
-      parts.push(text.substring(lastIndex, pos));
-    }
-    parts.push(
-      <mark
-        key={pos}
-        className="bg-amber-400/35 text-[var(--accent-signal)] font-semibold rounded-xs px-0.5"
-      >
-        {text.substring(pos, pos + q.length)}
-      </mark>
-    );
-    lastIndex = pos + q.length;
-    pos = lower.indexOf(q, lastIndex);
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
-  }
-
-  return <span>{parts}</span>;
+  return (
+    <span>
+      {segments.map((seg, i) =>
+        seg.isMatch ? (
+          <mark
+            key={i}
+            className="bg-amber-400/35 text-[var(--accent-signal)] font-semibold rounded-xs px-0.5"
+          >
+            {seg.text}
+          </mark>
+        ) : (
+          <React.Fragment key={i}>{seg.text}</React.Fragment>
+        )
+      )}
+    </span>
+  );
 };
 
 /**
