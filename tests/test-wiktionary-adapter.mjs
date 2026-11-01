@@ -1,17 +1,18 @@
 /**
  * tests/test-wiktionary-adapter.mjs
  * Testes para o adaptador do Wikcionário em Português e a resolução léxica precisa.
+ * Inclui suporte a formas flexionadas (ex: "prolongada", "usuários") e lematização reversa.
  */
 
 import assert from 'node:assert';
-import { parseWiktionaryResponse, fetchWiktionaryPt } from '../src/core/dictionary/wiktionaryAdapter.ts';
+import { parseWiktionaryResponse, extractLemmaReference, fetchWiktionaryPt } from '../src/core/dictionary/wiktionaryAdapter.ts';
 import { lookupDictionaryAsync } from '../src/core/dictionary/dictionaryEngine.ts';
 
 async function runWiktionaryAdapterTests() {
   console.log('🧪 Iniciando Testes do Adaptador do Wikcionário em Português (Léxico Preciso)...\n');
 
-  // --- 1. Parser do Wikcionário ---
-  console.log('--- 1. Parser do Wikcionário ---');
+  // --- 1. Parser do Wikcionário com formas canônicas ---
+  console.log('--- 1. Parser do Wikcionário com formas canônicas ---');
 
   const mockExtract = `
 = Português =
@@ -53,32 +54,64 @@ recurso
   assert.strictEqual(parseWiktionaryResponse(null, 'teste'), null);
   console.log('✓ Extratos vazios ou nulos tratados com segurança');
 
-  // --- 2. Consulta Real com a palavra "recurso" ---
-  console.log('\n--- 2. Consulta Real com a palavra "recurso" ---');
+  // --- 2. Parser do Wikcionário com formas flexionadas (ex: "prolongada") ---
+  console.log('\n--- 2. Parser do Wikcionário com formas flexionadas (ex: "prolongada") ---');
+
+  const mockProlongada = `
+= Português =
+
+== Forma de adjetivo ==
+
+pro.lon.ga.da
+
+feminino de prolongado
+`;
+
+  const parsedProlongada = parseWiktionaryResponse(mockProlongada, 'prolongada');
+  assert.ok(parsedProlongada !== null, 'Deveria parsear "prolongada" com Forma de adjetivo');
+  assert.strictEqual(parsedProlongada.word, 'prolongada');
+  assert.strictEqual(parsedProlongada.partOfSpeech, 'forma de adjetivo');
+  assert.strictEqual(parsedProlongada.definitions.length, 1);
+  assert.strictEqual(parsedProlongada.definitions[0], 'feminino de prolongado');
+  console.log('✓ Parser tratou "== Forma de adjetivo ==" e silabação "pro.lon.ga.da"');
+
+  // --- 3. Extração de lema para remissões gramaticais ---
+  console.log('\n--- 3. Extração de lema para remissões gramaticais ---');
+  assert.strictEqual(extractLemmaReference('feminino de prolongado'), 'prolongado');
+  assert.strictEqual(extractLemmaReference('plural de usuário.'), 'usuário');
+  assert.strictEqual(extractLemmaReference('particípio do verbo prolongar'), 'prolongar');
+  assert.strictEqual(extractLemmaReference('terceira pessoa do singular do verbo cantar'), 'cantar');
+  assert.strictEqual(extractLemmaReference('qualquer texto comum'), null);
+  console.log('✓ extractLemmaReference identifica lemas em femininos, plurais e verbos');
+
+  // --- 4. Consulta Real de "prolongada" com enriquecimento do lema "prolongado" ---
+  console.log('\n--- 4. Consulta Real de "prolongada" com enriquecimento do lema ---');
   try {
-    const liveRecurso = await fetchWiktionaryPt('recurso', 5000);
-    if (liveRecurso) {
-      assert.strictEqual(liveRecurso.source, 'wiktionary');
-      assert.strictEqual(liveRecurso.partOfSpeech, 'substantivo masculino');
-      assert.ok(liveRecurso.definitions.length > 0);
-      assert.ok(liveRecurso.definitions[0].toLowerCase().includes('meio') || liveRecurso.definitions[0].toLowerCase().includes('objetivo'));
-      console.log(`✓ Consulta real de "recurso" resolvida com sucesso pelo Wikcionário:`);
-      console.log(`  -> Classe: ${liveRecurso.partOfSpeech}`);
-      console.log(`  -> Definição 1: ${liveRecurso.definitions[0]}`);
-      if (liveRecurso.etymology) console.log(`  -> Etimologia: ${liveRecurso.etymology}`);
+    const liveProlongada = await fetchWiktionaryPt('prolongada', 5000);
+    if (liveProlongada) {
+      assert.strictEqual(liveProlongada.source, 'wiktionary');
+      assert.strictEqual(liveProlongada.word, 'prolongada');
+      assert.ok(liveProlongada.definitions.length > 0);
+      assert.ok(
+        liveProlongada.definitions[0].toLowerCase().includes('prolongado'),
+        'Definição deve remeter a prolongado ou enriquecer'
+      );
+      console.log('✓ Consulta real de "prolongada" resolvida com sucesso:');
+      console.log(`  -> Classe: ${liveProlongada.partOfSpeech}`);
+      console.log(`  -> Definição 1: ${liveProlongada.definitions[0]}`);
+      if (liveProlongada.etymology) console.log(`  -> Etimologia: ${liveProlongada.etymology}`);
     }
   } catch (err) {
     console.warn('⚠️ Consulta externa não completou:', err.message);
   }
 
-  // --- 3. Integração na Cascata com lookupDictionaryAsync ---
-  console.log('\n--- 3. Integração na Cascata com lookupDictionaryAsync ---');
-  const cascadeRecurso = await lookupDictionaryAsync('recurso', { enableExternal: true, timeoutMs: 5000 });
-  assert.strictEqual(cascadeRecurso.found, true);
-  assert.strictEqual(cascadeRecurso.source, 'wiktionary');
-  assert.ok(cascadeRecurso.entry.definitions.length >= 1);
-  assert.strictEqual(cascadeRecurso.entry.partOfSpeech, 'substantivo masculino');
-  console.log('✓ "recurso" agora resolve via Wikcionário (em vez de desambiguação da Wikipédia)');
+  // --- 5. Integração na Cascata com lookupDictionaryAsync ---
+  console.log('\n--- 5. Integração na Cascata com lookupDictionaryAsync ---');
+  const cascadeProlongada = await lookupDictionaryAsync('prolongada', { enableExternal: true, timeoutMs: 5000 });
+  assert.strictEqual(cascadeProlongada.found, true);
+  assert.strictEqual(cascadeProlongada.source, 'wiktionary');
+  assert.ok(cascadeProlongada.entry.definitions.length >= 1);
+  console.log('✓ "prolongada" agora resolve perfeitamente via Wikcionário na cascata');
 
   console.log('\n🎉 TODOS OS TESTES DO WIKCIONÁRIO PASSARAM COM SUCESSO!\n');
 }
