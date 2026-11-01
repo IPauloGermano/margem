@@ -242,6 +242,43 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
             })}
           </div>
         </div>
+
+        {/* 6. Dicionário & Consulta Estendida */}
+        <div className="space-y-2 pt-2 border-t border-[var(--border-rule-subtle)]">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-code text-[var(--text-secondary)] uppercase tracking-wider">
+              Dicionário Online (Inglês)
+            </label>
+            <span className="text-[10px] text-[var(--text-muted)] font-mono">Free Dictionary API</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onUpdatePreferences({ externalDictionaryEnabled: !preferences.externalDictionaryEnabled })}
+            className={`w-full flex items-center justify-between p-3 rounded-md border text-xs font-sans transition-colors cursor-pointer ${
+              preferences.externalDictionaryEnabled
+                ? 'border-[var(--accent-signal)] bg-[var(--accent-signal-bg)] text-[var(--text-primary)] font-medium'
+                : 'border-[var(--border-rule)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]'
+            }`}
+          >
+            <div className="flex flex-col items-start text-left gap-0.5">
+              <span className="font-medium">Consultar vocabulário em inglês</span>
+              <span className="text-[11px] text-[var(--text-muted)]">
+                {preferences.externalDictionaryEnabled
+                  ? 'Ativado: termos em inglês são consultados na Free Dictionary API'
+                  : 'Desativado: modo 100% offline (utiliza apenas o léxico local)'}
+              </span>
+            </div>
+            <div
+              className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ml-3 transition-colors ${
+                preferences.externalDictionaryEnabled
+                  ? 'border-[var(--accent-signal)] bg-[var(--accent-signal)] text-white'
+                  : 'border-[var(--border-rule)] bg-[var(--bg-surface)]'
+              }`}
+            >
+              {preferences.externalDictionaryEnabled && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   );

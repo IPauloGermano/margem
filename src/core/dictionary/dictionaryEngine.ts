@@ -6,21 +6,10 @@
  * com suporte a lematização de plurais/gêneros e busca instantânea.
  */
 
-export interface DictionaryEntry {
-  word: string;
-  partOfSpeech: string;
-  etymology?: string;
-  definitions: string[];
-  synonyms?: string[];
-  example?: string;
-}
+import { fetchFreeDictionary } from './freeDictionaryAdapter.ts';
+import type { DictionaryEntry, DictionaryLookupResult } from './dictionaryTypes.ts';
 
-export interface DictionaryLookupResult {
-  found: boolean;
-  entry: DictionaryEntry;
-  searchedWord: string;
-  suggestions?: string[];
-}
+export type { DictionaryEntry, DictionaryLookupResult };
 
 /**
  * Léxico offline pré-compilado de termos literários, tipográficos, estéticos e filosóficos
@@ -442,6 +431,7 @@ export function lookupDictionary(rawWord: string): DictionaryLookupResult {
     found: false,
     searchedWord: cleanWord,
     suggestions,
+    source: 'local',
     entry: {
       word: cleanWord,
       partOfSpeech: 'vocábulo em prosa',
@@ -451,4 +441,37 @@ export function lookupDictionary(rawWord: string): DictionaryLookupResult {
       synonyms: []
     }
   };
+}
+
+/**
+ * Consulta assíncrona com orquestração em cascata:
+ * 1. Léxico Local Offline (0ms de latência)
+ * 2. Free Dictionary API (se options.enableExternal === true)
+ * 3. Fallback editorial gracioso
+ */
+export async function lookupDictionaryAsync(
+  rawWord: string,
+  options?: { enableExternal?: boolean; timeoutMs?: number }
+): Promise<DictionaryLookupResult> {
+  const localResult = lookupDictionary(rawWord);
+  if (localResult.found || !options?.enableExternal) {
+    return { ...localResult, source: 'local' };
+  }
+
+  try {
+    const cleanWord = localResult.searchedWord.trim();
+    const externalEntry = await fetchFreeDictionary(cleanWord, options?.timeoutMs);
+    if (externalEntry) {
+      return {
+        found: true,
+        searchedWord: localResult.searchedWord,
+        entry: externalEntry,
+        source: 'freedictionary'
+      };
+    }
+  } catch {
+    // Falha silenciosa com retorno do fallback local
+  }
+
+  return { ...localResult, source: 'local' };
 }

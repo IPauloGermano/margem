@@ -115,6 +115,7 @@ export interface ReaderPreferences {
   columnWidth: number; // in px: 550 to 950
   textAlign: ReaderTextAlign;
   paragraphSpacing: number; // in em
+  externalDictionaryEnabled?: boolean;
 }
 
 export interface Bookmark {

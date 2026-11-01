@@ -11,7 +11,7 @@ import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 import { DiagramFullscreenModal } from './DiagramFullscreenModal';
 import { DictionaryModal } from './DictionaryModal';
-import { lookupDictionary, DictionaryLookupResult } from '../../core/dictionary/dictionaryEngine';
+import { lookupDictionary, lookupDictionaryAsync, DictionaryLookupResult } from '../../core/dictionary/dictionaryEngine';
 
 interface ReaderContentProps {
   section: DocumentSection;
@@ -170,11 +170,36 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     code?: string;
   } | null>(null);
   const [dictionaryResult, setDictionaryResult] = useState<DictionaryLookupResult | null>(null);
+  const [dictionaryLoading, setDictionaryLoading] = useState(false);
 
-  const handleLookupDictionary = (rawText: string) => {
-    const res = lookupDictionary(rawText);
-    setDictionaryResult(res);
-    setToolbarState(null);
+  const handleLookupDictionary = async (rawText: string) => {
+    // 1. Tenta resposta imediata síncrona no léxico local (0ms de latência)
+    const instant = lookupDictionary(rawText);
+    if (instant.found) {
+      setDictionaryResult({ ...instant, source: 'local' });
+      setToolbarState(null);
+      return;
+    }
+
+    // 2. Se a API externa estiver habilitada nas preferências, consulta assincronamente com estado de loading
+    if (preferences.externalDictionaryEnabled) {
+      setDictionaryLoading(true);
+      setDictionaryResult({ ...instant, source: 'freedictionary' });
+      setToolbarState(null);
+
+      try {
+        const asyncRes = await lookupDictionaryAsync(rawText, {
+          enableExternal: true,
+          timeoutMs: 3500
+        });
+        setDictionaryResult(asyncRes);
+      } finally {
+        setDictionaryLoading(false);
+      }
+    } else {
+      setDictionaryResult({ ...instant, source: 'local' });
+      setToolbarState(null);
+    }
   };
 
   // Mapeamento de famílias de fonte
@@ -925,12 +950,16 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         />
       )}
 
-      {/* Modal de Dicionário & Consulta Rápida Offline */}
+      {/* Modal de Dicionário & Consulta Rápida Offline / Online */}
       {dictionaryResult && (
         <DictionaryModal
           isOpen={Boolean(dictionaryResult)}
           result={dictionaryResult}
-          onClose={() => setDictionaryResult(null)}
+          isLoading={dictionaryLoading}
+          onClose={() => {
+            setDictionaryResult(null);
+            setDictionaryLoading(false);
+          }}
         />
       )}
     </main>

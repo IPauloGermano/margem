@@ -16,7 +16,8 @@ export const DEFAULT_PREFERENCES: ReaderPreferences = {
   lineHeight: 1.75,
   columnWidth: 780, // Largura idêntica ao --reading do psourceblog
   textAlign: 'left',
-  paragraphSpacing: 1.2
+  paragraphSpacing: 1.2,
+  externalDictionaryEnabled: false
 };
 
 class ReaderDatabase {
