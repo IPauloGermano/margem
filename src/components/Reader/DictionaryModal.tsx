@@ -44,6 +44,8 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
       aria-modal="true"
       aria-label={`Dicionário: ${entry.word}`}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

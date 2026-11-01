@@ -188,6 +188,7 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
       }}
       className="shadow-2xl rounded-2xl border border-[var(--border-rule)] bg-[var(--bg-surface)] p-2 px-2.5 text-[var(--text-primary)] font-sans select-none backdrop-blur-md max-w-[calc(100vw-24px)] box-border"
       onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
     >
       {/* Barra Principal de Cores e Ações Rápidas */}
       <div className="flex items-center justify-between gap-2 px-0.5 py-0.5">

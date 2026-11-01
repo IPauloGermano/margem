@@ -173,11 +173,18 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   const [dictionaryLoading, setDictionaryLoading] = useState(false);
 
   const handleLookupDictionary = async (rawText: string) => {
+    // 0. Fecha a toolbar imediatamente e cancela a seleção do texto para não persistir nem reabrir
+    setToolbarState(null);
+    try {
+      window.getSelection()?.removeAllRanges();
+    } catch {
+      // noop
+    }
+
     // 1. Tenta resposta imediata síncrona no léxico local (0ms de latência)
     const instant = lookupDictionary(rawText);
     if (instant.found) {
       setDictionaryResult({ ...instant, source: 'local' });
-      setToolbarState(null);
       return;
     }
 
@@ -186,7 +193,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     if (isExternalEnabled) {
       setDictionaryLoading(true);
       setDictionaryResult({ ...instant, source: 'wikipedia' });
-      setToolbarState(null);
 
       try {
         const asyncRes = await lookupDictionaryAsync(rawText, {
@@ -199,7 +205,6 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       }
     } else {
       setDictionaryResult({ ...instant, source: 'local' });
-      setToolbarState(null);
     }
   };
 
@@ -628,7 +633,20 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   };
 
   // Captura seleção de texto do usuário
-  const handleMouseUp = () => {
+  const handleMouseUp = (e?: React.MouseEvent) => {
+    // Se o modal de dicionário, loading ou visualizador de diagrama estiver ativo, nunca abre a toolbar
+    if (dictionaryResult || dictionaryLoading || activeDiagram) {
+      return;
+    }
+
+    // Se o evento foi disparado de dentro de um modal/diálogo ou toolbar, ignora
+    if (e) {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('[role="dialog"]') || target?.closest('[role="toolbar"]')) {
+        return;
+      }
+    }
+
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
       return;
@@ -945,7 +963,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       )}
 
       {/* Floating Toolbar para Seleção de Texto e Edição */}
-      {toolbarState?.isOpen && (
+      {toolbarState?.isOpen && !dictionaryResult && !dictionaryLoading && !activeDiagram && (
         <HighlightToolbar
           position={toolbarState.position}
           selectedText={toolbarState.selectedText}
@@ -978,6 +996,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           onClose={() => {
             setDictionaryResult(null);
             setDictionaryLoading(false);
+            setToolbarState(null);
           }}
         />
       )}
