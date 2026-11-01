@@ -750,6 +750,47 @@ export async function lookupDualDictionary(
           source: 'wiktionary'
         };
       }
+
+      // Se for expressão ou locução ("ambiente de leitura") não catalogada como entrada única, decompõe os conceitos
+      if (cleanWord.includes(' ')) {
+        const stopWords = new Set(['de', 'do', 'da', 'dos', 'das', 'em', 'um', 'uma', 'uns', 'umas', 'com', 'para', 'por', 'e']);
+        const words = cleanWord
+          .toLowerCase()
+          .replace(/[^\p{L}\s]/gu, '')
+          .split(/\s+/)
+          .filter((w) => w.length >= 3 && !stopWords.has(w));
+
+        const subDefinitions: string[] = [];
+        for (const w of words.slice(0, 2)) {
+          const candidates = [w];
+          if (w.length >= 4 && !w.endsWith('a') && !w.endsWith('o') && !w.endsWith('e')) {
+            candidates.push(w + 'a', w + 'o', w + 'e');
+          }
+          for (const cand of candidates) {
+            const comp = await fetchWiktionaryPt(cand, Math.min(timeout, 2500)).catch(() => null);
+            if (comp && comp.definitions.length > 0) {
+              const def = comp.definitions[0];
+              const capWord = comp.word.charAt(0).toUpperCase() + comp.word.slice(1);
+              subDefinitions.push(`${capWord} (${comp.partOfSpeech}): ${def}`);
+              break;
+            }
+          }
+        }
+
+        if (subDefinitions.length > 0) {
+          return {
+            found: true,
+            searchedWord: cleanWord,
+            entry: {
+              word: cleanWord,
+              partOfSpeech: 'locução / conceitos articulados',
+              definitions: subDefinitions,
+              source: 'wiktionary'
+            },
+            source: 'wiktionary'
+          };
+        }
+      }
     } catch {
       // continua
     }

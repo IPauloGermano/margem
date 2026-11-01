@@ -130,7 +130,8 @@ export async function fetchWiktionaryPt(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   const headers: Record<string, string> = {
-    Accept: 'application/json'
+    Accept: 'application/json',
+    'Api-User-Agent': 'MargemReader/1.0 (https://github.com/IPauloGermano/margem; contact@margem.app)'
   };
   if (typeof window === 'undefined') {
     headers['User-Agent'] = 'MargemReader/1.0 (https://github.com/IPauloGermano/margem; contact@margem.app)';

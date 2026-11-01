@@ -261,6 +261,23 @@ export const DictionaryPopover: React.FC<DictionaryPopoverProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Atalho para Wikipédia se verbete disponível */}
+            {isWikiFound && wikiEntry && (
+              <div className="pt-2.5 border-t border-[var(--border-rule-subtle)] flex items-center justify-between text-xs">
+                <span className="text-[var(--text-muted)] font-sans">
+                  Artigo na Wikipédia: <strong className="text-[var(--text-primary)] font-normal">{wikiEntry.word}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('wikipedia')}
+                  className="text-[var(--accent-signal)] hover:underline font-medium inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Ver enciclopédia</span>
+                  <span>→</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           /* --- ABA 2: WIKIPÉDIA ENCICLOPÉDICA --- */
@@ -293,6 +310,23 @@ export const DictionaryPopover: React.FC<DictionaryPopoverProps> = ({
                     <p key={idx}>{par}</p>
                   ))}
                 </div>
+
+                {/* Atalho para Dicionário se acepção disponível */}
+                {isDictFound && dictEntry && (
+                  <div className="pt-2 border-t border-[var(--border-rule-subtle)] flex items-center justify-between text-xs">
+                    <span className="text-[var(--text-muted)] font-sans">
+                      Acepção no Dicionário: <strong className="text-[var(--text-primary)] font-normal">{dictEntry.word}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('dictionary')}
+                      className="text-[var(--accent-signal)] hover:underline font-medium inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Ver léxico</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Link para artigo completo na Wikipédia */}
                 {wikiEntry.url && (

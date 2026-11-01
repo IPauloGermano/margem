@@ -41,6 +41,21 @@ async function runTests() {
   assert.equal(offlineRes.wikipedia, null, 'Wikipédia não deve ser consultada se external estiver desativado');
   console.log('✓ Modo offline preservado com latência instantânea.\n');
 
+  // 5. Casos de reporte do usuário: "artigo" e "ambiente de leitur"
+  console.log('--- 5. Casos reportados: "artigo" e "ambiente de leitur" ---');
+  const artigoRes = await lookupDualDictionary('artigo', { enableExternal: true });
+  assert.equal(artigoRes.dictionary?.found, true, '"artigo" deve ser encontrado no dicionário');
+  assert.equal(artigoRes.wikipedia?.found, true, '"artigo" deve ser encontrado na Wikipédia');
+  assert.equal(artigoRes.wikipedia?.entry?.word, 'Artigo');
+  assert.equal(artigoRes.wikipedia?.entry?.partOfSpeech, 'Conceito com Múltiplas Aceções');
+  console.log('✓ "artigo" validado no dicionário e na Wikipédia (desambiguação elegante).');
+
+  const ambienteLeiturRes = await lookupDualDictionary('ambiente de leitur', { enableExternal: true });
+  assert.equal(ambienteLeiturRes.wikipedia?.found, true, '"ambiente de leitur" deve resolver na Wikipédia');
+  assert.equal(ambienteLeiturRes.wikipedia?.entry?.word, 'Leitura', '"ambiente de leitur" deve resolver para o conceito canônico Leitura');
+  assert.equal(ambienteLeiturRes.dictionary?.found, true, '"ambiente de leitur" deve decompor conceitos no dicionário');
+  console.log('✓ "ambiente de leitur" resolvido para "Leitura" na Wikipédia e conceitos articulados no Dicionário.\n');
+
   console.log('🎉 TODOS OS TESTES DE CONSULTA DUPLA PASSARAM COM SUCESSO!');
 }
 
