@@ -142,6 +142,44 @@ export async function fetchWikipediaPt(
           if (parsed) return parsed;
         }
       }
+
+      // 3. Fallback inteligente de busca de texto completo na Wikipédia (action=query&list=search)
+      // Essencial para termos compostos, locuções e conceitos sem página direta (ex: "tipografia digital" -> "Tipografia")
+      try {
+        const searchUrl = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(clean)}&utf8=&format=json&origin=*`;
+        const searchRes = await fetch(searchUrl, {
+          signal: controller.signal,
+          headers
+        });
+
+        if (searchRes.ok) {
+          const searchData = (await searchRes.json().catch(() => null)) as {
+            query?: { search?: Array<{ title: string }> };
+          };
+          const firstHit = searchData?.query?.search?.[0];
+          if (firstHit && firstHit.title) {
+            // Garante que o artigo encontrado tem relação léxica direta com a busca (evita falsos positivos em notas de rodapé)
+            const cleanWords = clean.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+            const hitWords = firstHit.title.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+            const hasRelevance = cleanWords.some((w) => hitWords.some((hw) => hw.includes(w) || w.includes(hw)));
+
+            if (hasRelevance) {
+              const summaryUrl = `https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(firstHit.title)}`;
+              const summaryRes = await fetch(summaryUrl, {
+                signal: controller.signal,
+                headers
+              });
+              if (summaryRes.ok) {
+                const json = (await summaryRes.json()) as RawWikipediaSummaryResponse;
+                const parsed = parseWikipediaResponse(json, clean);
+                if (parsed) return parsed;
+              }
+            }
+          }
+        }
+      } catch {
+        // Fallback silencioso sob timeout ou rede
+      }
     }
 
     return null;

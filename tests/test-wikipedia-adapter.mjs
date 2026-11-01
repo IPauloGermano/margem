@@ -89,7 +89,16 @@ async function runWikipediaAdapterTests() {
       console.log(`✓ Consulta real para conceito computacional validada: "${liveAlgoritmo.word}"`);
     }
 
-    // 3.1 Cascata para termo em inglês na Free Dictionary API quando não há página na Wikipédia PT
+    // 3.1 Busca semântica para termo composto sem artigo com nome exato (ex: "tipografia digital" -> "Tipografia")
+    const liveCompound = await fetchWikipediaPt('tipografia digital', 6000);
+    if (liveCompound) {
+      assert.strictEqual(liveCompound.source, 'wikipedia');
+      assert.strictEqual(liveCompound.word, 'Tipografia');
+      assert.ok(liveCompound.definitions[0].toLowerCase().includes('tipografia'));
+      console.log(`✓ Busca semântica para termo composto ("tipografia digital") resolveu para: "${liveCompound.word}"`);
+    }
+
+    // 3.2 Cascata para termo em inglês na Free Dictionary API quando não há página na Wikipédia PT
     console.log('\n--- 4. Cascata Contínua para Inglês (Free Dictionary) ---');
     const cascadeEnglish = await lookupDictionaryAsync('bewilderment', { enableExternal: true, timeoutMs: 6000 });
     if (cascadeEnglish.found) {

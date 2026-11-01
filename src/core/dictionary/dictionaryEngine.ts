@@ -10,9 +10,9 @@ import { fetchFreeDictionary } from './freeDictionaryAdapter.ts';
 import { fetchWikipediaPt } from './wikipediaAdapter.ts';
 import { fetchWiktionaryPt } from './wiktionaryAdapter.ts';
 import { getPortugueseLemmas, extractHeadwordCandidates, normalizeKey } from './lemmatizer.ts';
-import type { DictionaryEntry, DictionaryLookupResult } from './dictionaryTypes.ts';
+import type { DictionaryEntry, DictionaryLookupResult, DualDictionaryResult } from './dictionaryTypes.ts';
 
-export type { DictionaryEntry, DictionaryLookupResult };
+export type { DictionaryEntry, DictionaryLookupResult, DualDictionaryResult };
 export { getPortugueseLemmas, extractHeadwordCandidates, normalizeKey };
 
 /**
@@ -706,4 +706,105 @@ export async function lookupDictionaryAsync(
   }
 
   return { ...localResult, source: 'local' };
+}
+
+/**
+ * Consulta unificada em paralelo para o Popover do leitor:
+ * - Dicionário Léxico (offline primeiro, fallback para Wikcionário/Free Dictionary)
+ * - Enciclopédia Wikipédia (com fallback de busca semântica para termos compostos)
+ * - Determina a aba padrão mais relevante:
+ *   * Se for termo composto (espaço/hífen) ou conceito técnico e a Wikipédia tiver resultado -> 'wikipedia'
+ *   * Caso contrário, se o dicionário tiver resultado -> 'dictionary'
+ *   * Fallback inteligente para a aba com resultado disponível.
+ */
+export async function lookupDualDictionary(
+  rawWord: string,
+  options?: {
+    enableExternal?: boolean;
+    timeoutMs?: number;
+  }
+): Promise<DualDictionaryResult> {
+  const timeout = options?.timeoutMs ?? 4500;
+  const isExternal = options?.enableExternal ?? true;
+  const cleanWord = rawWord.trim().replace(/^[\s"“'‘(\[«—–•]+|[\s"”'’)\],.:;!?»—–…•]+$/g, '').trim();
+
+  // 1. Dicionário local síncrono (0ms)
+  const localRes = lookupDictionary(cleanWord);
+
+  // 2. Consultas assíncronas em paralelo (se externo habilitado)
+  const dictPromise = (async (): Promise<DictionaryLookupResult | null> => {
+    if (localRes.found) {
+      return { ...localRes, source: 'local' };
+    }
+    if (!isExternal) {
+      return localRes;
+    }
+    // Tenta Wikcionário PT
+    try {
+      const wiktionaryEntry = await fetchWiktionaryPt(cleanWord, timeout);
+      if (wiktionaryEntry) {
+        return {
+          found: true,
+          searchedWord: cleanWord,
+          entry: wiktionaryEntry,
+          source: 'wiktionary'
+        };
+      }
+    } catch {
+      // continua
+    }
+    // Tenta Free Dictionary (Inglês) se não achou no Wikcionário
+    try {
+      const freeDictEntry = await fetchFreeDictionary(cleanWord, timeout);
+      if (freeDictEntry) {
+        return {
+          found: true,
+          searchedWord: cleanWord,
+          entry: freeDictEntry,
+          source: 'freedictionary'
+        };
+      }
+    } catch {
+      // continua
+    }
+    return localRes;
+  })();
+
+  const wikiPromise = (async (): Promise<DictionaryLookupResult | null> => {
+    if (!isExternal) return null;
+    try {
+      const wikiEntry = await fetchWikipediaPt(cleanWord, timeout);
+      if (wikiEntry) {
+        return {
+          found: true,
+          searchedWord: cleanWord,
+          entry: wikiEntry,
+          source: 'wikipedia'
+        };
+      }
+    } catch {
+      // continua
+    }
+    return null;
+  })();
+
+  const [dictResult, wikiResult] = await Promise.all([dictPromise, wikiPromise]);
+
+  const hasSpace = cleanWord.includes(' ') || cleanWord.includes('-');
+  let defaultTab: 'dictionary' | 'wikipedia' = 'dictionary';
+
+  if (hasSpace && wikiResult?.found) {
+    defaultTab = 'wikipedia';
+  } else if (dictResult?.found) {
+    defaultTab = 'dictionary';
+  } else if (wikiResult?.found) {
+    defaultTab = 'wikipedia';
+  }
+
+  return {
+    searchedWord: cleanWord,
+    defaultTab,
+    dictionary: dictResult,
+    wikipedia: wikiResult
+  };
 }

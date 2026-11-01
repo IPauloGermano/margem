@@ -10,8 +10,8 @@ import { copyTextToClipboard } from '../../core/clipboard/clipboard';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 import { DiagramFullscreenModal } from './DiagramFullscreenModal';
-import { DictionaryModal } from './DictionaryModal';
-import { lookupDictionary, lookupDictionaryAsync, DictionaryLookupResult } from '../../core/dictionary/dictionaryEngine';
+import { DictionaryPopover } from './DictionaryPopover';
+import { lookupDualDictionary, DualDictionaryResult } from '../../core/dictionary/dictionaryEngine';
 
 interface ReaderContentProps {
   section: DocumentSection;
@@ -170,11 +170,21 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     svgHtml: string;
     code?: string;
   } | null>(null);
-  const [dictionaryResult, setDictionaryResult] = useState<DictionaryLookupResult | null>(null);
-  const [dictionaryLoading, setDictionaryLoading] = useState(false);
+  const [dualDictState, setDualDictState] = useState<{
+    position: { top: number; bottom?: number; left: number };
+    word: string;
+    dualResult: DualDictionaryResult | null;
+    isLoading: boolean;
+  } | null>(null);
 
   const handleLookupDictionary = async (rawText: string) => {
-    // 0. Fecha a toolbar imediatamente e cancela a seleção do texto para não persistir nem reabrir
+    // 0. Captura a posição da toolbar antes de fechá-la para ancorar o popover perfeitamente
+    const popoverPosition = toolbarState?.position || {
+      top: typeof window !== 'undefined' ? window.innerHeight / 2 - 140 : 200,
+      left: typeof window !== 'undefined' ? window.innerWidth / 2 : 300
+    };
+
+    // 1. Fecha a toolbar imediatamente e cancela a seleção do texto para não persistir nem reabrir
     setToolbarState(null);
     try {
       window.getSelection()?.removeAllRanges();
@@ -182,47 +192,24 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       // noop
     }
 
-    // 1. Tenta resposta imediata síncrona no léxico local (0ms de latência)
-    const instant = lookupDictionary(rawText);
-    if (instant.found) {
-      setDictionaryResult({ ...instant, source: 'local' });
-      return;
-    }
+    // 2. Abre o popover com estado de loading imediato ancorado na palavra selecionada
+    setDualDictState({
+      position: popoverPosition,
+      word: rawText,
+      dualResult: null,
+      isLoading: true
+    });
 
-    // 2. Se a API externa estiver habilitada (padrão ativado), consulta assincronamente com estado de loading
-    const isExternalEnabled = preferences.externalDictionaryEnabled ?? true;
-    if (isExternalEnabled) {
-      setDictionaryLoading(true);
-      setDictionaryResult({ ...instant, source: 'wikipedia' });
-
-      try {
-        const asyncRes = await lookupDictionaryAsync(rawText, {
-          enableExternal: true,
-          timeoutMs: 6000
-        });
-        setDictionaryResult(asyncRes);
-      } finally {
-        setDictionaryLoading(false);
-      }
-    } else {
-      setDictionaryResult({ ...instant, source: 'local' });
-    }
-  };
-
-  const handleManualLookupExternal = async (
-    word: string,
-    preferredSource?: 'wiktionary' | 'wikipedia' | 'freedictionary'
-  ) => {
-    setDictionaryLoading(true);
+    // 3. Executa a consulta unificada (Léxico local + Wikcionário/FreeDict + Wikipédia semântica em paralelo)
     try {
-      const asyncRes = await lookupDictionaryAsync(word, {
-        enableExternal: true,
-        timeoutMs: 6000,
-        preferredSource: preferredSource ?? 'all'
+      const isExternalEnabled = preferences.externalDictionaryEnabled ?? true;
+      const res = await lookupDualDictionary(rawText, {
+        enableExternal: isExternalEnabled,
+        timeoutMs: 6000
       });
-      setDictionaryResult(asyncRes);
-    } finally {
-      setDictionaryLoading(false);
+      setDualDictState((prev) => (prev ? { ...prev, dualResult: res, isLoading: false } : null));
+    } catch {
+      setDualDictState((prev) => (prev ? { ...prev, isLoading: false } : null));
     }
   };
 
@@ -581,6 +568,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     if (toolbarState) {
       setToolbarState(null);
     }
+    if (dualDictState) {
+      setDualDictState(null);
+    }
 
     const scrollHeight = el.scrollHeight - el.clientHeight;
     if (scrollHeight <= 0) {
@@ -637,8 +627,8 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   const handleMouseUp = (e?: React.MouseEvent) => {
     isMouseDownRef.current = false;
 
-    // Se o modal de dicionário, loading ou visualizador de diagrama estiver ativo, nunca abre a toolbar
-    if (dictionaryResult || dictionaryLoading || activeDiagram) {
+    // Se o popover de dicionário ou visualizador de diagrama estiver ativo, nunca abre a toolbar
+    if (dualDictState || activeDiagram) {
       return;
     }
 
@@ -982,7 +972,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       )}
 
       {/* Floating Toolbar para Seleção de Texto e Edição */}
-      {toolbarState?.isOpen && !dictionaryResult && !dictionaryLoading && !activeDiagram && (
+      {toolbarState?.isOpen && !dualDictState && !activeDiagram && (
         <HighlightToolbar
           position={toolbarState.position}
           selectedText={toolbarState.selectedText}
@@ -1005,16 +995,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         />
       )}
 
-      {/* Modal de Dicionário & Consulta Rápida Offline / Online */}
-      {dictionaryResult && (
-        <DictionaryModal
-          isOpen={Boolean(dictionaryResult)}
-          result={dictionaryResult}
-          isLoading={dictionaryLoading}
-          onLookupExternal={handleManualLookupExternal}
+      {/* Popover Ancorado de Dicionário com Abas Dicionário / Wikipédia */}
+      {dualDictState && (
+        <DictionaryPopover
+          position={dualDictState.position}
+          initialWord={dualDictState.word}
+          dualResult={dualDictState.dualResult}
+          isLoading={dualDictState.isLoading}
           onClose={() => {
-            setDictionaryResult(null);
-            setDictionaryLoading(false);
+            setDualDictState(null);
             setToolbarState(null);
           }}
         />

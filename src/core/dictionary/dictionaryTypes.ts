@@ -26,4 +26,12 @@ export interface DictionaryLookupResult {
   source?: DictionarySource;
 }
 
-export const DICTIONARY_VERSION = '1.3';
+export interface DualDictionaryResult {
+  searchedWord: string;
+  defaultTab: 'dictionary' | 'wikipedia';
+  dictionary: DictionaryLookupResult | null;
+  wikipedia: DictionaryLookupResult | null;
+  isLoading?: boolean;
+}
+
+export const DICTIONARY_VERSION = '1.4';
