@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Maximize2, Move, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { clampZoomToRange, computeFitZoom, maxZoomForFit, recenterPanIfOutside } from '../../core/media/diagramZoom';
+import { copyTextToClipboard } from '../../core/clipboard/clipboard';
 
 interface DiagramFullscreenModalProps {
   isOpen: boolean;
@@ -412,12 +413,10 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
 
   const handleCopyCode = async () => {
     if (!code) return;
-    try {
-      await navigator.clipboard.writeText(code);
+    const success = await copyTextToClipboard(code);
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback silencioso
     }
   };
 

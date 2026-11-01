@@ -330,8 +330,9 @@ export function renderHighlightedCodeBlock(codeText: string, lang?: string): str
   const highlighted = highlightCode(codeText, cleanLang);
   const displayLang = cleanLang ? getLanguageDisplayName(cleanLang) : '';
   const badgeText = (displayLang || 'CÓDIGO').toUpperCase();
+  const encodedRawCode = encodeURIComponent(codeText);
 
-  return `<div class="reader-code-block group relative my-6 rounded-lg border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] overflow-hidden shadow-xs">
+  return `<div class="reader-code-block group relative my-6 rounded-lg border border-[var(--border-rule-subtle)] bg-[var(--bg-surface)] overflow-hidden shadow-xs" data-raw-code="${encodedRawCode}">
   <div class="reader-code-header flex items-center justify-between px-3.5 py-1.5 border-b border-[var(--border-rule-subtle)]/60 bg-[var(--bg-canvas)]/35 text-[11px] font-mono text-[var(--text-muted)] select-none">
     <span class="reader-code-lang tracking-wider font-medium">${badgeText}</span>
     <button type="button" class="reader-code-copy-btn p-1 px-2 rounded text-[11px] font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] active:scale-95 transition-all cursor-pointer select-none" title="Copiar código" aria-label="Copiar código">Copiar</button>

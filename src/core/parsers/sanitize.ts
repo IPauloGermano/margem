@@ -51,6 +51,7 @@ const SANITIZE_CONFIG = {
     'data-action',
     'data-page',
     'data-mermaid',
+    'data-raw-code',
     'target',
     'rel',
     'aria-hidden',

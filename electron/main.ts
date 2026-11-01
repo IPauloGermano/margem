@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, Menu, powerSaveBlocker } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu, powerSaveBlocker, clipboard } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import { Dirent, watch, FSWatcher } from 'fs';
@@ -573,6 +573,17 @@ ipcMain.handle('shell:openExternal', async (_, url: string) => {
     return true;
   }
   return false;
+});
+
+ipcMain.handle('clipboard:writeText', (_, text: string) => {
+  if (typeof text !== 'string') return false;
+  try {
+    clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    console.error('Falha ao escrever no clipboard:', err);
+    return false;
+  }
 });
 
 // Handlers de controle da janela desktop customizada

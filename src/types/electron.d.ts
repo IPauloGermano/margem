@@ -20,6 +20,7 @@ declare global {
       readFileByPath?: (filePath: string) => Promise<FileData>;
       getRoots?: () => Promise<string[]>;
       openExternal: (url: string) => Promise<boolean>;
+      writeClipboard?: (text: string) => Promise<boolean>;
       minimize: () => Promise<void>;
       toggleMaximize: () => Promise<boolean>;
       close: () => Promise<void>;

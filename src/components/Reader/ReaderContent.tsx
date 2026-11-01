@@ -6,6 +6,7 @@ import { smoothScrollBehavior } from '../../core/motion/fluid';
 import { findActiveAnchorFromHeadings } from '../../core/text/tocResolver';
 import { applyHighlights, clearHighlightMarks, getSelectionOffsets } from '../../core/highlights/highlightEngine';
 import { useScrollSpy } from '../../core/hooks/useScrollSpy';
+import { copyTextToClipboard } from '../../core/clipboard/clipboard';
 import { HighlightToolbar } from './HighlightToolbar';
 import { NotePopover } from './NotePopover';
 import { DiagramFullscreenModal } from './DiagramFullscreenModal';
@@ -766,19 +767,38 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     const copyBtn = target.closest('.reader-code-copy-btn') as HTMLElement | null;
     if (copyBtn) {
       e.preventDefault();
-      const codeBlock = copyBtn.closest('.reader-code-block');
-      const codeEl = codeBlock?.querySelector('pre code');
-      if (codeEl) {
-        const textToCopy = codeEl.textContent || '';
-        navigator.clipboard.writeText(textToCopy).then(() => {
-          const originalText = copyBtn.textContent;
-          copyBtn.textContent = 'Copiado!';
-          copyBtn.classList.add('text-[var(--accent-signal)]');
-          setTimeout(() => {
-            copyBtn.textContent = originalText;
-            copyBtn.classList.remove('text-[var(--accent-signal)]');
-          }, 2000);
-        }).catch(() => {});
+      const codeBlock = copyBtn.closest('.reader-code-block') as HTMLElement | null;
+      let textToCopy = '';
+
+      const rawEncoded = codeBlock?.getAttribute('data-raw-code');
+      if (rawEncoded) {
+        try {
+          textToCopy = decodeURIComponent(rawEncoded);
+        } catch {
+          textToCopy = '';
+        }
+      }
+
+      if (!textToCopy) {
+        const codeEl =
+          codeBlock?.querySelector('pre code') ||
+          codeBlock?.querySelector('pre') ||
+          codeBlock?.querySelector('code');
+        textToCopy = codeEl?.textContent || '';
+      }
+
+      if (textToCopy) {
+        copyTextToClipboard(textToCopy).then((success) => {
+          if (success) {
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = 'Copiado!';
+            copyBtn.classList.add('text-[var(--accent-signal)]');
+            setTimeout(() => {
+              copyBtn.textContent = originalText;
+              copyBtn.classList.remove('text-[var(--accent-signal)]');
+            }, 2000);
+          }
+        });
       }
       return;
     }

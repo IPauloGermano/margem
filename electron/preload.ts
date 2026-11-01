@@ -57,6 +57,7 @@ export interface CadernoAPI {
   scanDirectoryPath: (path: string) => Promise<FolderScanResult>;
   readFileByPath: (filePath: string) => Promise<FileData>;
   openExternal: (url: string) => Promise<boolean>;
+  writeClipboard: (text: string) => Promise<boolean>;
   minimize: () => Promise<void>;
   toggleMaximize: () => Promise<boolean>;
   close: () => Promise<void>;
@@ -77,6 +78,7 @@ const api: CadernoAPI = {
   scanDirectoryPath: (path: string) => ipcRenderer.invoke('directory:scanPath', path),
   readFileByPath: (filePath: string) => ipcRenderer.invoke('file:readByPath', filePath),
   openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  writeClipboard: (text: string) => ipcRenderer.invoke('clipboard:writeText', text),
   minimize: () => ipcRenderer.invoke('window:minimize'),
   toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),
   close: () => ipcRenderer.invoke('window:close'),

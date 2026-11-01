@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, Copy, MessageSquare, Quote, Trash2, X } from 'lucide-react';
 import { HighlightColor } from '../../core/types';
+import { copyTextToClipboard } from '../../core/clipboard/clipboard';
 
 interface HighlightToolbarProps {
   position: { top: number; bottom?: number; left: number };
@@ -152,12 +153,10 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
   };
 
   const handleCopyQuote = async () => {
-    try {
-      await navigator.clipboard.writeText(`"${selectedText}"`);
+    const success = await copyTextToClipboard(`"${selectedText}"`);
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
     }
   };
 

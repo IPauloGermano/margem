@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, Copy, Edit3, Quote, Trash2, X } from 'lucide-react';
 import { Highlight, HighlightColor } from '../../core/types';
+import { copyTextToClipboard } from '../../core/clipboard/clipboard';
 
 interface NotePopoverProps {
   position: { top: number; bottom?: number; left: number };
@@ -119,12 +120,10 @@ export const NotePopover: React.FC<NotePopoverProps> = ({
 
   const handleCopy = async () => {
     const textToCopy = `> "${highlight.text}"\n\n**Nota de Margem:** ${highlight.note || ''}`;
-    try {
-      await navigator.clipboard.writeText(textToCopy);
+    const success = await copyTextToClipboard(textToCopy);
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
     }
   };
 

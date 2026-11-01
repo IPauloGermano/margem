@@ -138,18 +138,11 @@ export function downloadMarkdownFile(filename: string, content: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+import { copyTextToClipboard } from '../clipboard/clipboard.ts';
+
 /**
  * Copia o Markdown estruturado para a área de transferência
  */
 export async function copyMarkdownToClipboard(content: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(content);
-      return true;
-    }
-    return false;
-  } catch (err) {
-    console.warn('Erro ao copiar para a área de transferência:', err);
-    return false;
-  }
+  return copyTextToClipboard(content);
 }
