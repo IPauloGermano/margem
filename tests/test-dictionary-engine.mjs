@@ -74,11 +74,28 @@ assert.deepStrictEqual(getPortugueseLemmas('proporções'), ['proporções', 'pr
 assert.deepStrictEqual(getPortugueseLemmas('digitais'), ['digitais', 'digital']);
 assert.deepStrictEqual(getPortugueseLemmas('leitores'), ['leitores', 'leitor']);
 assert.deepStrictEqual(getPortugueseLemmas('margens'), ['margens', 'margem']);
+assert.ok(getPortugueseLemmas('definiram').includes('definir'), 'Lematizador deve reduzir definiram a definir');
+assert.ok(getPortugueseLemmas('alongavam-se').includes('alongar'), 'Lematizador deve tratar clítico e reduzir a alongar');
+assert.ok(getPortugueseLemmas('estabeleceram').includes('estabelecer'), 'Lematizador deve reduzir estabeleceram a estabelecer');
+assert.ok(getPortugueseLemmas('projetamos').includes('projetar'), 'Lematizador deve reduzir projetamos a projetar');
+assert.ok(getPortugueseLemmas('afirmou').includes('afirmar'), 'Lematizador deve reduzir afirmou a afirmar');
 assert.ok(extractHeadwordCandidates('as proporções de margem').includes('proporções'));
-console.log('✓ Utilitários morfológicos do português validados com sucesso.');
+assert.ok(extractHeadwordCandidates('alongavam-se').includes('alongavam'));
+console.log('✓ Utilitários morfológicos nominais e verbais do português validados com sucesso.');
 
-// 6. Termos estéticos e filosóficos
-console.log('\n6. Testando termos clássicos e filosóficos (Zettelkasten, Aforismo, Estética)...');
+// 6. Testando verbos conjugados e entrada definir
+console.log('\n6. Testando verbos conjugados (definiram, definiu, definem)...');
+const resDefiniram = lookupDictionary('definiram');
+assert.strictEqual(resDefiniram.found, true, 'Deve resolver forma verbal definiram para definir');
+assert.strictEqual(resDefiniram.entry.word, 'definir');
+
+const resDefiniu = lookupDictionary('definiu');
+assert.strictEqual(resDefiniu.found, true, 'Deve resolver definiu para definir');
+assert.strictEqual(resDefiniu.entry.word, 'definir');
+console.log('✓ Formas verbais conjugadas resolvidas com precisão léxica.');
+
+// 7. Termos estéticos e filosóficos
+console.log('\n7. Testando termos clássicos e filosóficos (Zettelkasten, Aforismo, Estética)...');
 const resZettel = lookupDictionary('Zettelkasten');
 assert.strictEqual(resZettel.found, true);
 assert.ok(resZettel.entry.definitions[0].includes('Luhmann'));
@@ -88,8 +105,8 @@ assert.strictEqual(resAforismo.found, true);
 assert.strictEqual(resAforismo.entry.word, 'aforismo');
 console.log('✓ Vocabulário filosófico e metodológico validado com sucesso.');
 
-// 7. Fallback gracioso para termos não indexados
-console.log('\n7. Testando fallback para termos ausentes no léxico...');
+// 8. Fallback gracioso para termos não indexados
+console.log('\n8. Testando fallback para termos ausentes no léxico...');
 const resInexistente = lookupDictionary('palavrainexistentexyz');
 assert.strictEqual(resInexistente.found, false, 'found deve ser false para palavra ausente');
 assert.strictEqual(resInexistente.searchedWord, 'palavrainexistentexyz');

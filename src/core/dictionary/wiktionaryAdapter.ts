@@ -160,7 +160,7 @@ export async function fetchWiktionaryPt(
       if (followCrossReference) {
         const candidateLemmas = getPortugueseLemmas(clean).filter((c) => c !== clean.toLowerCase());
         for (const candidate of candidateLemmas) {
-          const candidateEntry = await fetchWiktionaryPt(candidate, Math.min(timeoutMs, 2500), false);
+          const candidateEntry = await fetchWiktionaryPt(candidate, Math.min(timeoutMs, 2500), true);
           if (candidateEntry && candidateEntry.definitions.length > 0) {
             return {
               word: clean,

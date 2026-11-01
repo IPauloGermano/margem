@@ -88,6 +88,18 @@ export const LOCAL_LEXICON: Record<string, DictionaryEntry> = {
     synonyms: ['harmonia', 'equilíbrio', 'dimensão', 'simetria', 'relação', 'cânone'],
     example: 'As proporções de margem dos escribas medievais garantiam repouso visual e ritmo contínuo de leitura.'
   },
+  definir: {
+    word: 'definir',
+    partOfSpeech: 'verbo transitivo direto',
+    etymology: 'Do latim definire, de de- (completo) + finire (limitar, fixar fronteiras)',
+    definitions: [
+      'Determinar com exatidão a extensão, os limites, o significado ou as propriedades essenciais de algo.',
+      'Explicar ou enunciar com precisão os atributos conceituais de um vocábulo ou ideia.',
+      'Estabelecer, fixar ou consagrar os padrões fundamentais de uma época, estilo ou movimento estético.'
+    ],
+    synonyms: ['determinar', 'demarcar', 'estabelecer', 'precisar', 'conceituar', 'fixar'],
+    example: 'As fundições tipográficas venezianas definiram as convenções do livro moderno.'
+  },
   efemero: {
     word: 'efêmero',
     partOfSpeech: 'adjetivo',
