@@ -76,7 +76,7 @@ export function getHighlightedSegments(
   }
 
   const normText = normalizeSearchString(text);
-  const normQuery = normalizeSearchString(trimmed);
+  const normQuery = normalizeSearchString(trimmed).replace(/\s+/g, ' ');
 
   const segments: Array<{ text: string; isMatch: boolean }> = [];
   let lastIndex = 0;
@@ -114,14 +114,14 @@ export function searchSectionText(
   const trimmedQuery = query.trim();
   if (trimmedQuery.length < 2) return [];
 
-  // Limpa tags HTML e formatação markdown básica para ter texto legível com posições aproximadas
+  // Limpa tags HTML, formatação markdown básica e normaliza quebras de linha em espaços
   const cleanContent = rawContent
     .replace(/<[^>]+>/g, ' ')
     .replace(/[*#_`>]/g, ' ')
-    .replace(/[ \t]+/g, ' ');
+    .replace(/\s+/g, ' ');
 
   const normContent = normalizeSearchString(cleanContent);
-  const normQuery = normalizeSearchString(trimmedQuery);
+  const normQuery = normalizeSearchString(trimmedQuery).replace(/\s+/g, ' ');
 
   const matches: SearchMatchItem[] = [];
   const foundCharIndices = new Set<number>();

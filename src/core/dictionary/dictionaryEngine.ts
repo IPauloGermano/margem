@@ -245,6 +245,83 @@ export const LOCAL_LEXICON: Record<string, DictionaryEntry> = {
     ],
     synonyms: ['caixa de notas', 'arquivo de fichas', 'segundo cérebro'],
     example: 'Anotações de margem organizadas por conceitos alimentam o Zettelkasten pessoal.'
+  },
+  prologo: {
+    word: 'prólogo',
+    partOfSpeech: 'substantivo masculino',
+    etymology: 'Do grego prólogos, de pró (antes) + lógos (discurso)',
+    definitions: [
+      'Texto preliminar ou introdução que antecede o corpo de uma obra literária ou dramática.',
+      'Acontecimento inicial que serve de prenúncio para fatos posteriores.'
+    ],
+    synonyms: ['introdução', 'prefácio', 'preâmbulo', 'exórdio'],
+    example: 'O prólogo estabelece a atmosfera moral em que os personagens atuarão.'
+  },
+  epilogo: {
+    word: 'epílogo',
+    partOfSpeech: 'substantivo masculino',
+    etymology: 'Do grego epílogos (conclusão, recapitulação)',
+    definitions: [
+      'Parte final ou conclusão de uma obra literária, que encerra e elucida o destino das narrativas.',
+      'Recapitulação breve das ideias centrais expostas em um discurso.'
+    ],
+    synonyms: ['conclusão', 'desfecho', 'posfácio', 'arremate'],
+    example: 'No epílogo, o narrador reflete sobre as marcas deixadas pelo tempo.'
+  },
+  sinopse: {
+    word: 'sinopse',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do grego sýnopsis (visão geral, conjunto panorâmico)',
+    definitions: [
+      'Resumo conciso que proporciona uma visão global e panorâmica de uma obra ou assunto.',
+      'Quadro esquemático das partes componentes de um estudo.'
+    ],
+    synonyms: ['resumo', 'síntese', 'sumário', 'visão geral', 'compêndio'],
+    example: 'A sinopse do livro oferece ao leitor uma bússola antes do mergulho nos capítulos.'
+  },
+  exegese: {
+    word: 'exegese',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do grego exēgēsis (explicação, interpretação profunda)',
+    definitions: [
+      'Interpretação minuciosa e crítica de um texto, especialmente de natureza filosófica ou religiosa.',
+      'Comentário crítico que visa esclarecer o sentido original de uma passagem obscura.'
+    ],
+    synonyms: ['interpretação', 'hermenêutica', 'elucidação', 'análise'],
+    example: 'A exegese do manuscrito revelou camadas conceituais ignoradas por leituras apressadas.'
+  },
+  palimpsesto: {
+    word: 'palimpsesto',
+    partOfSpeech: 'substantivo masculino',
+    etymology: 'Do grego palímpsēstos (raspado de novo para reescrita)',
+    definitions: [
+      'Pergaminho ou manuscrito antigo cujo texto original foi raspado para dar lugar a uma nova escrita, deixando vestígios da anterior.',
+      'Metáfora para algo que preserva camadas históricas de memória sob uma superfície recente.'
+    ],
+    synonyms: ['manuscrito reescrito', 'sobreposição de memórias'],
+    example: 'A cidade antiga é um palimpsesto onde séculos de arquitetura coexistem.'
+  },
+  narrativa: {
+    word: 'narrativa',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do latim narrativus (próprio de narrar)',
+    definitions: [
+      'Exposição encadeada e coerente de fatos reais ou ficcionais que se desenrolam no tempo.',
+      'Estrutura discursiva pela qual uma história ou argumento ganha sentido perante o leitor.'
+    ],
+    synonyms: ['relato', 'história', 'enredo', 'crônica'],
+    example: 'A força da narrativa reside na precisão com que os detalhes evocam o mundo sensível.'
+  },
+  sintese: {
+    word: 'síntese',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do grego sýnthesis (composição, reunião ordenada)',
+    definitions: [
+      'Operação intelectual que reúne elementos dispersos em um todo orgânico e compreensível.',
+      'Na dialética: etapa final que supera e concilia a contradição entre tese e antítese.'
+    ],
+    synonyms: ['resumo', 'reunião', 'conciliação', 'integração'],
+    example: 'O aforismo é a mais alta expressão de síntese na prosa filosófica.'
   }
 };
 
@@ -264,6 +341,7 @@ function normalizeKey(str: string): string {
  */
 function getLemmaCandidates(word: string): string[] {
   const norm = normalizeKey(word);
+  if (!norm) return [];
   const candidates: string[] = [norm];
 
   // Plurais em -es (ex: leitores -> leitor, capitulos -> capitulo)
@@ -280,7 +358,7 @@ function getLemmaCandidates(word: string): string[] {
     }
   }
 
-  // Feminino em -a -> -o (ex: tipografica -> tipografico)
+  // Feminino em -a -> -o (ex: tipografica -> tipografico, esteticas -> estetica)
   if (norm.endsWith('a') && norm.length > 4) {
     candidates.push(norm.slice(0, -1) + 'o');
   }
@@ -292,8 +370,14 @@ function getLemmaCandidates(word: string): string[] {
  * Consulta uma palavra no dicionário local
  */
 export function lookupDictionary(rawWord: string): DictionaryLookupResult {
-  const cleanWord = rawWord.trim().replace(/^[\s"“'‘(\[]+|[\s"”'’)\],.:;!?]+$/g, '');
-  if (!cleanWord) {
+  // Remove pontuações comuns, aspas tipográficas, travessões, parênteses e reticências
+  const cleanWord = rawWord
+    .trim()
+    .replace(/^[\s"“'‘(\[«—–•]+|[\s"”'’)\],.:;!?»—–…•]+$/g, '')
+    .trim();
+
+  const baseNorm = normalizeKey(cleanWord);
+  if (!cleanWord || !baseNorm) {
     return {
       found: false,
       searchedWord: rawWord,
@@ -305,9 +389,28 @@ export function lookupDictionary(rawWord: string): DictionaryLookupResult {
     };
   }
 
-  const lemmaCandidates = getLemmaCandidates(cleanWord);
+  // Suporte a seleções de leitura acompanhadas de artigos/preposições (ex: "a tipografia", "o aforismo", "da estética")
+  const STOPWORDS_PREFIXES = [
+    /^(?:o|a|os|as|um|uma|uns|umas)\s+/i,
+    /^(?:de|do|da|dos|das|no|na|nos|nas|em|pelo|pela|pelos|pelas)\s+/i
+  ];
 
-  // 1. Busca direta nas chaves do léxico
+  let effectiveWord = cleanWord;
+  for (const regex of STOPWORDS_PREFIXES) {
+    if (regex.test(effectiveWord)) {
+      effectiveWord = effectiveWord.replace(regex, '').trim();
+      break;
+    }
+  }
+
+  const lemmaCandidates = Array.from(
+    new Set([
+      ...getLemmaCandidates(cleanWord),
+      ...(effectiveWord !== cleanWord ? getLemmaCandidates(effectiveWord) : [])
+    ])
+  );
+
+  // 1. Busca direta nas chaves do léxico pelos lemas gerados
   for (const candidate of lemmaCandidates) {
     if (LOCAL_LEXICON[candidate]) {
       return {
@@ -318,15 +421,17 @@ export function lookupDictionary(rawWord: string): DictionaryLookupResult {
     }
   }
 
-  // 2. Busca parcial por prefixo nas chaves
-  const normKey = normalizeKey(cleanWord);
-  for (const [key, entry] of Object.entries(LOCAL_LEXICON)) {
-    if (key.startsWith(normKey) || normKey.startsWith(key)) {
-      return {
-        found: true,
-        searchedWord: cleanWord,
-        entry
-      };
+  // 2. Busca parcial por prefixo nas chaves (apenas para termos com pelo menos 3 caracteres normalizados)
+  const normKey = normalizeKey(effectiveWord || cleanWord);
+  if (normKey.length >= 3) {
+    for (const [key, entry] of Object.entries(LOCAL_LEXICON)) {
+      if (key.startsWith(normKey) || (normKey.length >= 4 && normKey.startsWith(key))) {
+        return {
+          found: true,
+          searchedWord: cleanWord,
+          entry
+        };
+      }
     }
   }
 
