@@ -185,7 +185,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     const isExternalEnabled = preferences.externalDictionaryEnabled ?? true;
     if (isExternalEnabled) {
       setDictionaryLoading(true);
-      setDictionaryResult({ ...instant, source: 'freedictionary' });
+      setDictionaryResult({ ...instant, source: 'wikipedia' });
       setToolbarState(null);
 
       try {
@@ -203,12 +203,16 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
   };
 
-  const handleManualLookupExternal = async (word: string) => {
+  const handleManualLookupExternal = async (
+    word: string,
+    preferredSource?: 'wikipedia' | 'freedictionary'
+  ) => {
     setDictionaryLoading(true);
     try {
       const asyncRes = await lookupDictionaryAsync(word, {
         enableExternal: true,
-        timeoutMs: 6000
+        timeoutMs: 6000,
+        preferredSource: preferredSource ?? 'all'
       });
       setDictionaryResult(asyncRes);
     } finally {

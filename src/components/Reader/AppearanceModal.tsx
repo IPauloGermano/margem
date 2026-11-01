@@ -247,9 +247,9 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
         <div className="space-y-2 pt-2 border-t border-[var(--border-rule-subtle)]">
           <div className="flex items-center justify-between">
             <label className="text-xs font-code text-[var(--text-secondary)] uppercase tracking-wider">
-              Dicionário Online (Inglês)
+              Enciclopédia & Dicionário Online
             </label>
-            <span className="text-[10px] text-[var(--text-muted)] font-mono">Free Dictionary API</span>
+            <span className="text-[10px] text-[var(--text-muted)] font-mono">Wikipédia (PT) + Free Dictionary (EN)</span>
           </div>
           <button
             type="button"
@@ -261,11 +261,11 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({
             }`}
           >
             <div className="flex flex-col items-start text-left gap-0.5">
-              <span className="font-medium">Consultar vocabulário em inglês</span>
+              <span className="font-medium">Consultar termos técnicos e vocabulário online</span>
               <span className="text-[11px] text-[var(--text-muted)]">
                 {preferences.externalDictionaryEnabled
-                  ? 'Ativado: termos em inglês são consultados na Free Dictionary API'
-                  : 'Desativado: modo 100% offline (utiliza apenas o léxico local)'}
+                  ? 'Ativado: termos de TI/conceitos na Wikipédia (PT) e vocabulário na Free Dictionary API'
+                  : 'Desativado: modo 100% offline (utiliza apenas o léxico editorial local)'}
               </span>
             </div>
             <div

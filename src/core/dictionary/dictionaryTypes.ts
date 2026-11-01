@@ -3,6 +3,8 @@
  * Interfaces e tipos para o motor de dicionário do Margem.
  */
 
+export type DictionarySource = 'local' | 'wikipedia' | 'freedictionary';
+
 export interface DictionaryEntry {
   word: string;
   partOfSpeech: string;
@@ -11,7 +13,8 @@ export interface DictionaryEntry {
   synonyms?: string[];
   example?: string;
   phonetic?: string;
-  source?: 'local' | 'freedictionary';
+  url?: string;
+  source?: DictionarySource;
 }
 
 export interface DictionaryLookupResult {
@@ -19,7 +22,7 @@ export interface DictionaryLookupResult {
   entry: DictionaryEntry;
   searchedWord: string;
   suggestions?: string[];
-  source?: 'local' | 'freedictionary';
+  source?: DictionarySource;
 }
 
-export const DICTIONARY_VERSION = '1.0';
+export const DICTIONARY_VERSION = '1.1';

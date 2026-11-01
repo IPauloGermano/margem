@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { BookOpen, Globe, Loader2, Sparkles, X } from 'lucide-react';
+import { BookOpen, ExternalLink, Globe, Library, Loader2, Sparkles, X } from 'lucide-react';
 import { DictionaryLookupResult } from '../../core/dictionary/dictionaryEngine';
 
 interface DictionaryModalProps {
@@ -7,7 +7,7 @@ interface DictionaryModalProps {
   onClose: () => void;
   result: DictionaryLookupResult | null;
   isLoading?: boolean;
-  onLookupExternal?: (word: string) => void;
+  onLookupExternal?: (word: string, preferredSource?: 'wikipedia' | 'freedictionary') => void;
 }
 
 export const DictionaryModal: React.FC<DictionaryModalProps> = ({
@@ -58,6 +58,8 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
             <div className="p-1.5 rounded-lg bg-[var(--accent-signal-bg)] text-[var(--accent-signal)]">
               {source === 'freedictionary' ? (
                 <Globe className="w-4 h-4" />
+              ) : source === 'wikipedia' ? (
+                <Library className="w-4 h-4" />
               ) : (
                 <BookOpen className="w-4 h-4" />
               )}
@@ -65,6 +67,8 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
             <span className="font-mono text-xs uppercase tracking-wider text-[var(--text-muted)]">
               {source === 'freedictionary'
                 ? 'Free Dictionary API (Inglês)'
+                : source === 'wikipedia'
+                ? 'Wikipédia / Enciclopédia Técnica (PT)'
                 : 'Léxico Editorial Offline'}
             </span>
           </div>
@@ -84,7 +88,7 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
           <div className="p-10 flex flex-col items-center justify-center gap-3 text-[var(--text-secondary)]">
             <Loader2 className="w-6 h-6 animate-spin text-[var(--accent-signal)]" />
             <p className="text-xs font-mono text-[var(--text-muted)]">
-              Consultando Free Dictionary API na nuvem...
+              Consultando enciclopédia e fontes externas...
             </p>
           </div>
         ) : (
@@ -142,6 +146,21 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
               </div>
             )}
 
+            {/* Link para artigo completo (quando disponível, ex: Wikipédia) */}
+            {entry.url && (
+              <div className="pt-1">
+                <a
+                  href={entry.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-mono text-[var(--accent-signal)] hover:underline"
+                >
+                  <span>Ver artigo completo na Wikipédia</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
+
             {/* Sinônimos */}
             {entry.synonyms && entry.synonyms.length > 0 && (
               <div className="space-y-2 pt-1 border-t border-[var(--border-rule-subtle)]">
@@ -181,16 +200,24 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
               </div>
             )}
 
-            {/* Ação para consultar na Free Dictionary API na nuvem se termo não catalogado localmente */}
+            {/* Ações de consulta manual em fontes externas se termo não catalogado localmente */}
             {!found && onLookupExternal && (
-              <div className="pt-1">
+              <div className="pt-1 space-y-2">
                 <button
                   type="button"
-                  onClick={() => onLookupExternal(searchedWord)}
+                  onClick={() => onLookupExternal(searchedWord, 'wikipedia')}
                   className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[var(--accent-signal-bg)] hover:bg-[var(--accent-signal)]/20 border border-[var(--accent-signal)]/40 text-[var(--accent-signal)] font-sans text-xs font-medium transition-colors cursor-pointer"
                 >
+                  <Library className="w-4 h-4" />
+                  <span>Buscar &ldquo;{searchedWord}&rdquo; na Wikipédia (PT)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLookupExternal(searchedWord, 'freedictionary')}
+                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-rule)] text-[var(--text-secondary)] font-sans text-xs font-medium transition-colors cursor-pointer"
+                >
                   <Globe className="w-4 h-4" />
-                  <span>Buscar &ldquo;{searchedWord}&rdquo; na Free Dictionary API</span>
+                  <span>Buscar &ldquo;{searchedWord}&rdquo; no Free Dictionary (EN)</span>
                 </button>
               </div>
             )}

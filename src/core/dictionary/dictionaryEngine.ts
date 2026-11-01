@@ -7,6 +7,7 @@
  */
 
 import { fetchFreeDictionary } from './freeDictionaryAdapter.ts';
+import { fetchWikipediaPt } from './wikipediaAdapter.ts';
 import type { DictionaryEntry, DictionaryLookupResult } from './dictionaryTypes.ts';
 
 export type { DictionaryEntry, DictionaryLookupResult };
@@ -578,31 +579,77 @@ export function lookupDictionary(rawWord: string): DictionaryLookupResult {
 /**
  * Consulta assíncrona com orquestração em cascata:
  * 1. Léxico Local Offline (0ms de latência)
- * 2. Free Dictionary API (se options.enableExternal === true)
- * 3. Fallback editorial gracioso
+ * 2. Wikipédia / Enciclopédia Técnica em Português (Termos de TI, conceitos e cultura)
+ * 3. Free Dictionary API (Inglês com fonética IPA e sinônimos)
+ * 4. Fallback editorial gracioso
  */
 export async function lookupDictionaryAsync(
   rawWord: string,
-  options?: { enableExternal?: boolean; timeoutMs?: number }
+  options?: {
+    enableExternal?: boolean;
+    timeoutMs?: number;
+    preferredSource?: 'all' | 'wikipedia' | 'freedictionary';
+  }
 ): Promise<DictionaryLookupResult> {
   const localResult = lookupDictionary(rawWord);
   if (localResult.found || !options?.enableExternal) {
     return { ...localResult, source: 'local' };
   }
 
+  const cleanWord = localResult.searchedWord.trim();
+  const timeout = options?.timeoutMs ?? 5000;
+  const preferred = options?.preferredSource ?? 'all';
+
+  // 1. Se fonte explícita solicitada for apenas Free Dictionary (Inglês)
+  if (preferred === 'freedictionary') {
+    try {
+      const freeDictEntry = await fetchFreeDictionary(cleanWord, timeout);
+      if (freeDictEntry) {
+        return {
+          found: true,
+          searchedWord: localResult.searchedWord,
+          entry: freeDictEntry,
+          source: 'freedictionary'
+        };
+      }
+    } catch {
+      // continua para fallback
+    }
+    return { ...localResult, source: 'local' };
+  }
+
+  // 2. Consulta à Wikipédia / Enciclopédia Técnica em Português
   try {
-    const cleanWord = localResult.searchedWord.trim();
-    const externalEntry = await fetchFreeDictionary(cleanWord, options?.timeoutMs);
-    if (externalEntry) {
+    const wikiEntry = await fetchWikipediaPt(cleanWord, timeout);
+    if (wikiEntry) {
       return {
         found: true,
         searchedWord: localResult.searchedWord,
-        entry: externalEntry,
+        entry: wikiEntry,
+        source: 'wikipedia'
+      };
+    }
+  } catch {
+    // Falha silenciosa na Wikipédia, continua para Free Dictionary
+  }
+
+  if (preferred === 'wikipedia') {
+    return { ...localResult, source: 'local' };
+  }
+
+  // 3. Consulta à Free Dictionary API (Inglês com fonética e sinônimos)
+  try {
+    const freeDictEntry = await fetchFreeDictionary(cleanWord, timeout);
+    if (freeDictEntry) {
+      return {
+        found: true,
+        searchedWord: localResult.searchedWord,
+        entry: freeDictEntry,
         source: 'freedictionary'
       };
     }
   } catch {
-    // Falha silenciosa com retorno do fallback local
+    // Falha silenciosa
   }
 
   return { ...localResult, source: 'local' };
