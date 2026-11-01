@@ -14,6 +14,7 @@ export interface DictionaryEntry {
   example?: string;
   phonetic?: string;
   url?: string;
+  thumbnailUrl?: string;
   source?: DictionarySource;
 }
 
@@ -25,4 +26,4 @@ export interface DictionaryLookupResult {
   source?: DictionarySource;
 }
 
-export const DICTIONARY_VERSION = '1.1';
+export const DICTIONARY_VERSION = '1.2';

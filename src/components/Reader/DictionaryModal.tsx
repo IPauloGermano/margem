@@ -68,7 +68,7 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
               {source === 'freedictionary'
                 ? 'Free Dictionary API (Inglês)'
                 : source === 'wikipedia'
-                ? 'Wikipédia / Enciclopédia Técnica (PT)'
+                ? 'Enciclopédia Wikipédia (PT)'
                 : 'Léxico Editorial Offline'}
             </span>
           </div>
@@ -93,91 +93,151 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
           </div>
         ) : (
           <div className="p-6 overflow-y-auto max-h-[75vh] space-y-5">
-            {/* Palavra & Classe Gramatical */}
-            <div>
-              <div className="flex items-baseline gap-3 flex-wrap">
-                <h2 className="font-editorial text-3xl font-normal capitalize">
-                  {entry.word}
-                </h2>
-                {searchedWord.toLowerCase() !== entry.word.toLowerCase() && (
-                  <span className="text-xs text-[var(--text-muted)] font-mono">
-                    (termo original: &ldquo;{searchedWord}&rdquo;)
-                  </span>
-                )}
-                {entry.phonetic && (
-                  <span className="px-2 py-0.5 rounded text-xs font-mono bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] text-[var(--accent-signal)]">
-                    {entry.phonetic}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="font-mono text-xs text-[var(--accent-signal)] font-medium">
-                  {entry.partOfSpeech}
-                </span>
-                {entry.etymology && (
-                  <>
-                    <span className="text-[var(--text-muted)] text-xs">·</span>
-                    <span className="font-editorial italic text-xs text-[var(--text-muted)]">
-                      {entry.etymology}
+            {source === 'wikipedia' ? (
+              /* --- Layout Especializado para a Wikipédia / Enciclopédia --- */
+              <div className="space-y-4">
+                {/* Título & Subtítulo Conceitual */}
+                <div>
+                  <h2 className="font-editorial text-2xl sm:text-3xl font-medium tracking-tight text-[var(--text-primary)]">
+                    {entry.word}
+                  </h2>
+                  {searchedWord.toLowerCase() !== entry.word.toLowerCase() && (
+                    <span className="text-xs text-[var(--text-muted)] font-mono block mt-0.5">
+                      (busca: &ldquo;{searchedWord}&rdquo;)
                     </span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Lista de Definições */}
-            <div className="space-y-2.5">
-              <h3 className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
-                Definições
-              </h3>
-              <ol className="space-y-2 list-decimal list-inside text-sm leading-relaxed text-[var(--text-primary)]/90">
-                {entry.definitions.map((def, idx) => (
-                  <li key={idx} className="pl-1">
-                    <span className="font-serif">{def}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {/* Exemplo de Uso */}
-            {entry.example && (
-              <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] text-sm font-editorial italic text-[var(--text-secondary)]">
-                &ldquo;{entry.example}&rdquo;
-              </div>
-            )}
-
-            {/* Link para artigo completo (quando disponível, ex: Wikipédia) */}
-            {entry.url && (
-              <div className="pt-1">
-                <a
-                  href={entry.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-mono text-[var(--accent-signal)] hover:underline"
-                >
-                  <span>Ver artigo completo na Wikipédia</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            )}
-
-            {/* Sinônimos */}
-            {entry.synonyms && entry.synonyms.length > 0 && (
-              <div className="space-y-2 pt-1 border-t border-[var(--border-rule-subtle)]">
-                <h3 className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
-                  Sinônimos & Termos Relacionados
-                </h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {entry.synonyms.map((syn, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 rounded-md text-xs font-serif bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] text-[var(--text-secondary)]"
-                    >
-                      {syn}
-                    </span>
-                  ))}
+                  )}
+                  {entry.partOfSpeech && (
+                    <p className="font-sans text-xs sm:text-sm font-medium text-[var(--accent-signal)] mt-1.5 leading-snug">
+                      {entry.partOfSpeech}
+                    </p>
+                  )}
                 </div>
+
+                {/* Síntese Enciclopédica em Prosa Fluida (com Miniatura quando disponível) */}
+                <div className="flex flex-col sm:flex-row gap-4 items-start pt-2 border-t border-[var(--border-rule-subtle)]">
+                  <div className="flex-1 space-y-3">
+                    {entry.definitions.map((paragraph, idx) => (
+                      <p
+                        key={idx}
+                        className="font-serif text-[14.5px] leading-relaxed text-[var(--text-primary)]/90"
+                      >
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                  {entry.thumbnailUrl && (
+                    <div className="sm:self-start shrink-0 rounded-xl overflow-hidden border border-[var(--border-rule-subtle)] shadow-xs bg-[var(--bg-surface)]">
+                      <img
+                        src={entry.thumbnailUrl}
+                        alt={entry.word}
+                        className="w-full sm:w-28 sm:h-28 object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Card Editorial de Acesso ao Artigo Completo */}
+                {entry.url && (
+                  <div className="pt-2">
+                    <a
+                      href={entry.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-rule-subtle)] hover:border-[var(--accent-signal)]/40 transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-rule-subtle)] text-[var(--accent-signal)] group-hover:scale-105 transition-transform">
+                          <Library className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                          <div className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-signal)] transition-colors">
+                            Ler artigo completo na Wikipédia
+                          </div>
+                          <div className="text-[11px] text-[var(--text-muted)] font-mono truncate max-w-[240px] sm:max-w-xs">
+                            {entry.url}
+                          </div>
+                        </div>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--accent-signal)] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                    </a>
+                  </div>
+                )}
               </div>
+            ) : (
+              /* --- Layout Lexical Clássico (Dicionário Local e Free Dictionary) --- */
+              <>
+                {/* Palavra & Classe Gramatical */}
+                <div>
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <h2 className="font-editorial text-3xl font-normal">
+                      {entry.word}
+                    </h2>
+                    {searchedWord.toLowerCase() !== entry.word.toLowerCase() && (
+                      <span className="text-xs text-[var(--text-muted)] font-mono">
+                        (termo original: &ldquo;{searchedWord}&rdquo;)
+                      </span>
+                    )}
+                    {entry.phonetic && (
+                      <span className="px-2 py-0.5 rounded text-xs font-mono bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] text-[var(--accent-signal)]">
+                        {entry.phonetic}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="font-mono text-xs text-[var(--accent-signal)] font-medium">
+                      {entry.partOfSpeech}
+                    </span>
+                    {entry.etymology && (
+                      <>
+                        <span className="text-[var(--text-muted)] text-xs">·</span>
+                        <span className="font-editorial italic text-xs text-[var(--text-muted)]">
+                          {entry.etymology}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lista de Definições */}
+                <div className="space-y-2.5">
+                  <h3 className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+                    Definições
+                  </h3>
+                  <ol className="space-y-2 list-decimal list-inside text-sm leading-relaxed text-[var(--text-primary)]/90">
+                    {entry.definitions.map((def, idx) => (
+                      <li key={idx} className="pl-1">
+                        <span className="font-serif">{def}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                {/* Exemplo de Uso */}
+                {entry.example && (
+                  <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] text-sm font-editorial italic text-[var(--text-secondary)]">
+                    &ldquo;{entry.example}&rdquo;
+                  </div>
+                )}
+
+                {/* Sinônimos */}
+                {entry.synonyms && entry.synonyms.length > 0 && (
+                  <div className="space-y-2 pt-1 border-t border-[var(--border-rule-subtle)]">
+                    <h3 className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+                      Sinônimos & Termos Relacionados
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {entry.synonyms.map((syn, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 rounded-md text-xs font-serif bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] text-[var(--text-secondary)]"
+                        >
+                          {syn}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Sugestões caso não encontrado */}

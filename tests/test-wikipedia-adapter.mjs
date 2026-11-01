@@ -20,6 +20,11 @@ async function runWikipediaAdapterTests() {
     displaytitle: 'Kubernetes',
     description: 'software para gerenciar contêineres em um cluster de servidor',
     extract: 'Kubernetes é um sistema de orquestração de contêineres open-source que automatiza a implantação e gestão de aplicações em contêineres.',
+    thumbnail: {
+      source: 'https://upload.wikimedia.org/wikipedia/commons/kubernetes.png',
+      width: 100,
+      height: 100
+    },
     content_urls: {
       desktop: {
         page: 'https://pt.wikipedia.org/wiki/Kubernetes'
@@ -30,11 +35,12 @@ async function runWikipediaAdapterTests() {
   const parsed = parseWikipediaResponse(mockPayload, 'kubernetes');
   assert.ok(parsed !== null, 'Deveria parsear payload válido com sucesso');
   assert.strictEqual(parsed.word, 'Kubernetes');
-  assert.strictEqual(parsed.partOfSpeech, 'software para gerenciar contêineres em um cluster de servidor');
+  assert.strictEqual(parsed.partOfSpeech, 'Software para gerenciar contêineres em um cluster de servidor');
   assert.strictEqual(parsed.source, 'wikipedia');
   assert.strictEqual(parsed.url, 'https://pt.wikipedia.org/wiki/Kubernetes');
+  assert.strictEqual(parsed.thumbnailUrl, 'https://upload.wikimedia.org/wikipedia/commons/kubernetes.png');
   assert.ok(parsed.definitions[0].includes('orquestração de contêineres'));
-  console.log('✓ Parser converteu JSON da Wikipédia com título, descrição técnica, URL e resumo');
+  console.log('✓ Parser converteu JSON da Wikipédia com título fiel, descrição capitalizada, miniatura e síntese');
 
   assert.strictEqual(parseWikipediaResponse(null, 'teste'), null);
   assert.strictEqual(parseWikipediaResponse({ title: 'Vazio', extract: '' }, 'teste'), null);

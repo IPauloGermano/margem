@@ -41,22 +41,34 @@ export function parseWikipediaResponse(
   }
 
   const word = raw.title || fallbackWord;
-  const description = raw.description?.trim();
+  let description = raw.description?.trim();
+  if (description) {
+    // Normaliza primeira letra em maiúscula para apresentação elegante de subtítulo
+    description = description.charAt(0).toUpperCase() + description.slice(1);
+  }
+
   const partOfSpeech = description
     ? description
     : raw.type === 'disambiguation'
-    ? 'desambiguação enciclopédica'
-    : 'conceito / tecnologia';
+    ? 'Desambiguação Enciclopédica'
+    : 'Conceito / Tecnologia';
 
-  const extract = raw.extract.trim();
+  // Divide o extrato em parágrafos preservando a fluidez de leitura
+  const rawExtract = raw.extract.trim();
+  const paragraphs = rawExtract
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+
   const url = raw.content_urls?.desktop?.page;
+  const thumbnailUrl = raw.thumbnail?.source;
 
   return {
     word,
     partOfSpeech,
-    etymology: 'Wikipédia em Português',
-    definitions: [extract],
+    definitions: paragraphs.length > 0 ? paragraphs : [rawExtract],
     url,
+    thumbnailUrl,
     source: 'wikipedia'
   };
 }
