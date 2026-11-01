@@ -31,7 +31,12 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const toolbarWidth = isNoteInputOpen ? 360 : onRemoveHighlight ? 280 : 240;
+  const compactWidth =
+    230 +
+    (onLookupDictionary ? 36 : 0) +
+    (onRemoveHighlight ? 36 : 0) +
+    16;
+  const toolbarWidth = isNoteInputOpen ? 360 : compactWidth;
 
   const calculateToolbarCoords = (
     pos: { top: number; bottom?: number; left: number },
@@ -71,13 +76,13 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
     calculateToolbarCoords(position, toolbarWidth, isNoteInputOpen ? 240 : 54)
   );
 
-  // Posicionamento inteligente baseado na altura real renderizada da toolbar
+  // Posicionamento inteligente baseado na largura e altura reais renderizadas da toolbar
   useLayoutEffect(() => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const refined = calculateToolbarCoords(position, toolbarWidth, rect.height);
+    const refined = calculateToolbarCoords(position, rect.width, rect.height);
     setCoords(refined);
-  }, [position.top, position.bottom, position.left, isNoteInputOpen, onRemoveHighlight, toolbarWidth]);
+  }, [position.top, position.bottom, position.left, isNoteInputOpen, onRemoveHighlight, onLookupDictionary, toolbarWidth]);
 
   useEffect(() => {
     if (isNoteInputOpen) {
@@ -172,15 +177,20 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
         position: 'fixed',
         top: `${coords.top}px`,
         left: `${coords.left}px`,
-        width: typeof window !== 'undefined' ? `${Math.min(toolbarWidth, window.innerWidth - 24)}px` : `${toolbarWidth}px`,
+        width: isNoteInputOpen
+          ? typeof window !== 'undefined'
+            ? `${Math.min(toolbarWidth, window.innerWidth - 24)}px`
+            : `${toolbarWidth}px`
+          : 'max-content',
+        maxWidth: typeof window !== 'undefined' ? `${window.innerWidth - 24}px` : 'calc(100vw - 24px)',
         transformOrigin: isAbove ? 'bottom center' : 'top center',
         zIndex: 60
       }}
-      className="shadow-2xl rounded-2xl border border-[var(--border-rule)] bg-[var(--bg-surface)] p-2 text-[var(--text-primary)] font-sans select-none backdrop-blur-md max-w-[calc(100vw-24px)] box-border"
+      className="shadow-2xl rounded-2xl border border-[var(--border-rule)] bg-[var(--bg-surface)] p-2 px-2.5 text-[var(--text-primary)] font-sans select-none backdrop-blur-md max-w-[calc(100vw-24px)] box-border"
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Barra Principal de Cores e Ações Rápidas */}
-      <div className="flex items-center justify-between gap-1.5 px-0.5 py-0.5">
+      <div className="flex items-center justify-between gap-2 px-0.5 py-0.5">
         {/* Bloco 1: Paleta de Cores (em cápsula discreta) */}
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-[var(--bg-canvas)]/70 border border-[var(--border-rule-subtle)] shrink-0">
           {colors.map((c) => (
@@ -204,7 +214,7 @@ export const HighlightToolbar: React.FC<HighlightToolbarProps> = ({
         <div className="h-5 w-px bg-[var(--border-rule)] mx-1 shrink-0" />
 
         {/* Bloco 2: Ações de Leitura/Nota + Fechar */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0 pr-0.5">
           {/* Botão de Toggle de Nota */}
           <button
             type="button"
