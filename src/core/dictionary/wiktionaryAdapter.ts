@@ -106,10 +106,10 @@ export function parseWiktionaryResponse(
  */
 export function extractLemmaReference(definition: string): string | null {
   if (!definition) return null;
-  const clean = definition.replace(/[\.\s]+$/, '');
+  const clean = definition.replace(/[\.\s]+$/, '').trim();
   const match =
-    clean.match(/(?:feminino|masculino|plural|particípio|flexão)\s+(?:singular|plural)?\s*de\s+([A-Za-zÀ-Úa-zà-ú\-]+)/i) ||
-    clean.match(/(?:do verbo|do adjetivo|do substantivo)\s+([A-Za-zÀ-Úa-zà-ú\-]+)/i);
+    clean.match(/(?:feminino|masculino|plural|particípio|flexão)\s+(?:singular|plural)?\s*de\s+([A-Za-zÀ-Úa-zà-ú\-\s]+?)(?:[\.,;]|$)/i) ||
+    clean.match(/(?:do verbo|do adjetivo|do substantivo)\s+([A-Za-zÀ-Úa-zà-ú\-\s]+?)(?:[\.,;]|$)/i);
   return match ? match[1].toLowerCase().trim() : null;
 }
 

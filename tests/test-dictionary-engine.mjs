@@ -79,8 +79,10 @@ assert.ok(getPortugueseLemmas('alongavam-se').includes('alongar'), 'Lematizador 
 assert.ok(getPortugueseLemmas('estabeleceram').includes('estabelecer'), 'Lematizador deve reduzir estabeleceram a estabelecer');
 assert.ok(getPortugueseLemmas('projetamos').includes('projetar'), 'Lematizador deve reduzir projetamos a projetar');
 assert.ok(getPortugueseLemmas('afirmou').includes('afirmar'), 'Lematizador deve reduzir afirmou a afirmar');
+assert.ok(getPortugueseLemmas('redes sociais').includes('rede social'), 'Lematizador deve singularizar locução composta para rede social');
 assert.ok(extractHeadwordCandidates('as proporções de margem').includes('proporções'));
 assert.ok(extractHeadwordCandidates('alongavam-se').includes('alongavam'));
+assert.strictEqual(lookupDictionary(' redes sociais').searchedWord, 'redes sociais', 'Termo primário de fallback deve manter a locução inteira selecionada');
 console.log('✓ Utilitários morfológicos nominais e verbais do português validados com sucesso.');
 
 // 6. Testando verbos conjugados e entrada definir

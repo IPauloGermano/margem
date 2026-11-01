@@ -159,6 +159,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   // Travessia de navegação por âncora em voo: observer pausado (não rouba o clique).
   const isAnchorNavigating = useRef(false);
   const anchorNavTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMouseDownRef = useRef(false);
 
   const [toolbarState, setToolbarState] = useState<ToolbarState | null>(null);
   const [activeNotePopover, setActiveNotePopover] = useState<{
@@ -634,6 +635,8 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
   // Captura seleção de texto do usuário
   const handleMouseUp = (e?: React.MouseEvent) => {
+    isMouseDownRef.current = false;
+
     // Se o modal de dicionário, loading ou visualizador de diagrama estiver ativo, nunca abre a toolbar
     if (dictionaryResult || dictionaryLoading || activeDiagram) {
       return;
@@ -683,12 +686,21 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }
   };
 
-  // Suporte a seleção de texto via toque em telas mobile / tablets
+  // Suporte a seleção de texto via toque em telas mobile / tablets ou término de seleção
   useEffect(() => {
     let timeoutId: any;
+    const handleGlobalMouseDown = () => {
+      isMouseDownRef.current = true;
+    };
+    const handleGlobalMouseUp = () => {
+      isMouseDownRef.current = false;
+    };
     const handleDocSelectionChange = () => {
+      // Se o usuário estiver ativamente arrastando com o botão do mouse pressionado, não abre a toolbar no meio do caminho
+      if (isMouseDownRef.current) return;
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
+        if (isMouseDownRef.current) return;
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed) return;
         const text = selection.toString().trim();
@@ -698,9 +710,13 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       }, 250);
     };
 
+    window.addEventListener('mousedown', handleGlobalMouseDown, { capture: true });
+    window.addEventListener('mouseup', handleGlobalMouseUp, { capture: true });
     document.addEventListener('selectionchange', handleDocSelectionChange);
     return () => {
       clearTimeout(timeoutId);
+      window.removeEventListener('mousedown', handleGlobalMouseDown, { capture: true });
+      window.removeEventListener('mouseup', handleGlobalMouseUp, { capture: true });
       document.removeEventListener('selectionchange', handleDocSelectionChange);
     };
   }, []);
@@ -878,6 +894,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     <main
       ref={containerRef}
       onScroll={handleScroll}
+      onMouseDown={() => {
+        isMouseDownRef.current = true;
+      }}
       onMouseUp={handleMouseUp}
       onTouchEnd={() => {
         setTimeout(handleMouseUp, 60);

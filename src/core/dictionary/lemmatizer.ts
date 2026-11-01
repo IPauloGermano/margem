@@ -96,7 +96,20 @@ export function getPortugueseLemmas(word: string): string[] {
     candidates.add(IRREGULAR_VERBS[clean]);
   }
 
-  // 2. Plurais nominais específicos em -ões / -oes -> singular em -ão / -ao (ex: proporções -> proporção, ações -> ação)
+  // 2. Locuções nominais compostas (ex: "redes sociais" -> "rede social", "livros digitais" -> "livro digital")
+  if (clean.includes(' ')) {
+    const parts = clean.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2 && parts.length <= 4) {
+      const partsLemmas = parts.map((p) => getPortugueseLemmas(p));
+      const singularized = partsLemmas.map((lemmas) => lemmas[1] || lemmas[0]).join(' ');
+      if (singularized !== clean) {
+        candidates.add(singularized);
+      }
+    }
+    return Array.from(candidates);
+  }
+
+  // 3. Plurais nominais específicos em -ões / -oes -> singular em -ão / -ao (ex: proporções -> proporção, ações -> ação)
   if (clean.endsWith('ões')) {
     candidates.add(clean.slice(0, -3) + 'ão');
     return Array.from(candidates);

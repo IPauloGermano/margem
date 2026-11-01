@@ -540,7 +540,7 @@ export function lookupDictionary(rawWord: string): DictionaryLookupResult {
   }
 
   // 3. Fallback inteligente quando a palavra não está no léxico estático
-  const primaryWord = headwords[headwords.length - 1] || headwords[0];
+  const primaryWord = headwords[0] || rawWord.trim();
   const suggestions = Object.keys(LOCAL_LEXICON).slice(0, 5);
 
   return {
