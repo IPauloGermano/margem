@@ -203,6 +203,32 @@ export async function fetchWiktionaryPt(
           }
         }
       }
+
+      // Se a definição resultante ainda for tautológica ou resumida a "que se [verbo]u"
+      // (ex: "Feminino de prolongado: que se prolongou"), busca o verbo-raiz para sentidos operacionais completos
+      const isMinimalOrTautological =
+        parsed.definitions.length <= 1 ||
+        parsed.definitions.some((d) => d.toLowerCase().includes('que se ') || d.length < 45);
+
+      if (isMinimalOrTautological) {
+        const candidateVerbs = getPortugueseLemmas(clean).filter(
+          (l) => l !== clean && (l.endsWith('ar') || l.endsWith('er') || l.endsWith('ir'))
+        );
+        for (const verb of candidateVerbs) {
+          const verbEntry = await fetchWiktionaryPt(verb, Math.min(timeoutMs, 2500), false);
+          if (verbEntry && verbEntry.definitions.length > 0) {
+            const verbDefs = verbEntry.definitions.slice(0, 3).map((vd, idx) => {
+              if (idx === 0) return `[Sentido de ${verb}]: ${vd}`;
+              return vd;
+            });
+            parsed.definitions = [...parsed.definitions, ...verbDefs];
+            if (!parsed.etymology && verbEntry.etymology) {
+              parsed.etymology = verbEntry.etymology;
+            }
+            break;
+          }
+        }
+      }
     }
 
     return parsed;

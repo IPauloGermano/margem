@@ -55,8 +55,25 @@ const IRREGULAR_VERBS: Record<string, string> = {
   veio: 'vir', viemos: 'vir', vieram: 'vir', vem: 'vir', vêm: 'vir', vinha: 'vir', vinham: 'vir',
   // ver
   viu: 'ver', vimos: 'ver', viram: 'ver', vê: 'ver', ve: 'ver', veem: 'ver', via: 'ver', viam: 'ver', visto: 'ver', vista: 'ver',
-  // pôr
+  // pôr e derivados (impor, compor, propor, dispor, supor, expor, repor, sobrepor)
   pôs: 'pôr', pos: 'pôr', puseram: 'pôr', põe: 'pôr', poe: 'pôr', põem: 'pôr', punha: 'pôr', posto: 'pôr', posta: 'pôr',
+  impõe: 'impor', impoe: 'impor', impõem: 'impor', impôs: 'impor', impos: 'impor', impunha: 'impor', impuseram: 'impor', imposto: 'impor', imposta: 'impor',
+  compõe: 'compor', compoe: 'compor', compõem: 'compor', compôs: 'compor', compos: 'compor', compunha: 'compor', compuseram: 'compor', composto: 'compor', composta: 'compor',
+  propõe: 'propor', prompõe: 'propor', propõem: 'propor', propôs: 'propor', propos: 'propor', propunha: 'propor', propuseram: 'propor', proposto: 'propor', proposta: 'propor',
+  dispõe: 'dispor', dispoe: 'dispor', dispõem: 'dispor', dispôs: 'dispor', dispos: 'dispor', dispunha: 'dispor', dispuseram: 'dispor', disposto: 'dispor', disposta: 'dispor',
+  supõe: 'supor', supoe: 'supor', supõem: 'supor', supôs: 'supor', supos: 'supor', supunha: 'supor', supuseram: 'supor', suposto: 'supor', suposta: 'supor',
+  expõe: 'expor', expoe: 'expor', expõem: 'expor', expôs: 'expor', expos: 'expor', expunha: 'expor', expuseram: 'expor', exposto: 'expor', exposta: 'expor',
+  repõe: 'repor', repoe: 'repor', repõem: 'repor', repôs: 'repor', repos: 'repor', repunha: 'repor', repuseram: 'repor', reposto: 'repor', reposta: 'repor',
+  sobrepõe: 'sobrepor', sobrepoe: 'sobrepor', sobrepõem: 'sobrepor', sobrepôs: 'sobrepor', sobrepos: 'sobrepor', sobreposto: 'sobrepor', sobreposta: 'sobrepor',
+  // ter e derivados (conter, manter, obter, reter, suster)
+  contém: 'conter', contem: 'conter', contêm: 'conter', conteve: 'conter', continha: 'conter', contiveram: 'conter', contido: 'conter', contida: 'conter',
+  mantém: 'manter', mantem: 'manter', mantêm: 'manter', manteve: 'manter', mantinha: 'manter', mantiveram: 'manter', mantido: 'manter', mantida: 'manter',
+  obtém: 'obter', obtem: 'obter', obtêm: 'obter', obteve: 'obter', obtinha: 'obter', obtiveram: 'obter', obtido: 'obter', obtida: 'obter',
+  retém: 'reter', retem: 'reter', retêm: 'reter', reteve: 'reter', retinha: 'reter', retiveram: 'reter', retido: 'reter', retida: 'reter',
+  // vir e derivados (convir, provir, intervir)
+  convém: 'convir', convem: 'convir', conveio: 'convir', convinha: 'convir',
+  provém: 'provir', provem: 'provir', proveio: 'provir', provinha: 'provir',
+  intervém: 'intervir', intervem: 'intervir', interveio: 'intervir', intervinha: 'intervir',
   // trazer
   trouxe: 'trazer', trouxeram: 'trazer', traz: 'trazer', trazem: 'trazer', trazia: 'trazer', traziam: 'trazer'
 };

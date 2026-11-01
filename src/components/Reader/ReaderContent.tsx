@@ -178,6 +178,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   } | null>(null);
 
   const handleLookupDictionary = async (rawText: string) => {
+    const cleanWord = rawText.trim().replace(/^[\s"“'‘(\[«—–•]+|[\s"”'’)\],.:;!?»—–…•]+$/g, '').trim();
+    if (!cleanWord) return;
+
     // 0. Captura a posição da toolbar antes de fechá-la para ancorar o popover perfeitamente
     const popoverPosition = toolbarState?.position || {
       top: typeof window !== 'undefined' ? window.innerHeight / 2 - 140 : 200,
@@ -195,7 +198,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     // 2. Abre o popover com estado de loading imediato ancorado na palavra selecionada
     setDualDictState({
       position: popoverPosition,
-      word: rawText,
+      word: cleanWord,
       dualResult: null,
       isLoading: true
     });
@@ -203,7 +206,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     // 3. Executa a consulta unificada (Léxico local + Wikcionário/FreeDict + Wikipédia semântica em paralelo)
     try {
       const isExternalEnabled = preferences.externalDictionaryEnabled ?? true;
-      const res = await lookupDualDictionary(rawText, {
+      const res = await lookupDualDictionary(cleanWord, {
         enableExternal: isExternalEnabled,
         timeoutMs: 6000
       });

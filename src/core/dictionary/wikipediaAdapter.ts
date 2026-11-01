@@ -275,12 +275,15 @@ export async function fetchWikipediaPt(
       }
 
       // 2B. Palavra única com possível truncamento (ex: "leitur" -> opensearch -> "Leitura")
+      // Só aceita correspondências estritas de prefixo e que sejam vocábulo único (sem espaços ou parênteses)
       if (clean.length >= 4) {
         if (controller.signal.aborted) return null;
         const openHits = await fetchOpenSearchTitles(clean, controller.signal, headers);
         for (const title of openHits) {
           if (controller.signal.aborted) return null;
-          if (title.includes('(')) continue;
+          if (title.includes('(') || title.includes(' ')) continue;
+          if (!title.toLowerCase().startsWith(clean.toLowerCase())) continue;
+
           const hitJson = await fetchSummary(title, controller.signal, headers);
           if (hitJson) {
             const parsed = parseWikipediaResponse(hitJson, clean);
@@ -310,12 +313,14 @@ export async function fetchWikipediaPt(
           }
         }
 
-        // Se o conceito puder ser forma truncada (ex: "leitur"), consulta opensearch
+        // Se o conceito puder ser forma truncada (ex: "leitur"), consulta opensearch com validação estrita
         if (concept.length >= 4) {
           const openHits = await fetchOpenSearchTitles(concept, controller.signal, headers);
           for (const title of openHits) {
             if (controller.signal.aborted) return null;
-            if (title.includes('(')) continue;
+            if (title.includes('(') || title.includes(' ')) continue;
+            if (!title.toLowerCase().startsWith(concept.toLowerCase())) continue;
+
             const hitJson = await fetchSummary(title, controller.signal, headers);
             if (hitJson) {
               const parsed = parseWikipediaResponse(hitJson, clean);
@@ -336,33 +341,34 @@ export async function fetchWikipediaPt(
       }
     }
 
-    // 4. Busca textual inteligente como fallback final com scoring de relevância
-    if (controller.signal.aborted) return null;
-    try {
-      const searchUrl = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(clean)}&utf8=&format=json&origin=*`;
-      const searchRes = await fetch(searchUrl, { signal: controller.signal, headers });
+    // 4. Busca textual inteligente como fallback final com scoring de relevância EXCLUSIVO para termos compostos
+    if (isMultiWord && !controller.signal.aborted) {
+      try {
+        const searchUrl = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(clean)}&utf8=&format=json&origin=*`;
+        const searchRes = await fetch(searchUrl, { signal: controller.signal, headers });
 
-      if (searchRes.ok) {
-        const searchData = (await searchRes.json().catch(() => null)) as {
-          query?: { search?: Array<{ title: string }> };
-        };
-        const hits = searchData?.query?.search || [];
-        if (hits.length > 0) {
-          const scoredHits = hits.map((h) => ({ hit: h, score: scoreSearchHit(h.title, clean) }));
-          scoredHits.sort((a, b) => b.score - a.score);
+        if (searchRes.ok) {
+          const searchData = (await searchRes.json().catch(() => null)) as {
+            query?: { search?: Array<{ title: string }> };
+          };
+          const hits = searchData?.query?.search || [];
+          if (hits.length > 0) {
+            const scoredHits = hits.map((h) => ({ hit: h, score: scoreSearchHit(h.title, clean) }));
+            scoredHits.sort((a, b) => b.score - a.score);
 
-          for (const candidate of scoredHits.slice(0, 3)) {
-            if (candidate.score <= 0 || controller.signal.aborted) continue;
-            const hitJson = await fetchSummary(candidate.hit.title, controller.signal, headers);
-            if (hitJson) {
-              const parsed = parseWikipediaResponse(hitJson, clean);
-              if (parsed) return parsed;
+            for (const candidate of scoredHits.slice(0, 3)) {
+              if (candidate.score <= 0 || controller.signal.aborted) continue;
+              const hitJson = await fetchSummary(candidate.hit.title, controller.signal, headers);
+              if (hitJson) {
+                const parsed = parseWikipediaResponse(hitJson, clean);
+                if (parsed) return parsed;
+              }
             }
           }
         }
+      } catch {
+        // continua
       }
-    } catch {
-      // continua
     }
 
     return null;

@@ -42,7 +42,7 @@ async function runTests() {
   console.log('✓ Modo offline preservado com latência instantânea.\n');
 
   // 5. Casos de reporte do usuário: "artigo" e "ambiente de leitur"
-  console.log('--- 5. Casos reportados: "artigo" e "ambiente de leitur" ---');
+  console.log('--- 5. Casos reportados: "artigo", "ambiente de leitur", "prolongada " e "impõe" ---');
   const artigoRes = await lookupDualDictionary('artigo', { enableExternal: true });
   assert.equal(artigoRes.dictionary?.found, true, '"artigo" deve ser encontrado no dicionário');
   assert.equal(artigoRes.wikipedia?.found, true, '"artigo" deve ser encontrado na Wikipédia');
@@ -54,7 +54,19 @@ async function runTests() {
   assert.equal(ambienteLeiturRes.wikipedia?.found, true, '"ambiente de leitur" deve resolver na Wikipédia');
   assert.equal(ambienteLeiturRes.wikipedia?.entry?.word, 'Leitura', '"ambiente de leitur" deve resolver para o conceito canônico Leitura');
   assert.equal(ambienteLeiturRes.dictionary?.found, true, '"ambiente de leitur" deve decompor conceitos no dicionário');
-  console.log('✓ "ambiente de leitur" resolvido para "Leitura" na Wikipédia e conceitos articulados no Dicionário.\n');
+  console.log('✓ "ambiente de leitur" resolvido para "Leitura" na Wikipédia e conceitos articulados no Dicionário.');
+
+  const prolongadaRes = await lookupDualDictionary('prolongada ', { enableExternal: true });
+  assert.equal(prolongadaRes.dictionary?.found, true, '"prolongada " deve ser encontrada no dicionário');
+  assert.equal(prolongadaRes.defaultTab, 'dictionary', '"prolongada " deve priorizar aba Dicionário');
+  assert.ok(prolongadaRes.dictionary?.entry.definitions.length >= 2, '"prolongada " deve conter sentidos do verbo prolongar');
+  assert.equal(prolongadaRes.wikipedia, null, '"prolongada " não deve alucinar artigos não relacionados na Wikipédia');
+  console.log('✓ "prolongada " resolvida com múltiplos sentidos lexicais e sem alucinação enciclopédica.');
+
+  const impoeRes = await lookupDualDictionary('impõe', { enableExternal: true });
+  assert.equal(impoeRes.dictionary?.found, true, '"impõe" deve lematizar para o verbo impor');
+  assert.equal(impoeRes.wikipedia, null, '"impõe" não deve alucinar artigos não relacionados na Wikipédia');
+  console.log('✓ "impõe" lematizado com sucesso para "impor".\n');
 
   console.log('🎉 TODOS OS TESTES DE CONSULTA DUPLA PASSARAM COM SUCESSO!');
 }
