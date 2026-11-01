@@ -8,6 +8,7 @@
 
 import { fetchFreeDictionary } from './freeDictionaryAdapter.ts';
 import { fetchWikipediaPt } from './wikipediaAdapter.ts';
+import { fetchWiktionaryPt } from './wiktionaryAdapter.ts';
 import type { DictionaryEntry, DictionaryLookupResult } from './dictionaryTypes.ts';
 
 export type { DictionaryEntry, DictionaryLookupResult };
@@ -577,18 +578,19 @@ export function lookupDictionary(rawWord: string): DictionaryLookupResult {
 }
 
 /**
- * Consulta assíncrona com orquestração em cascata:
+ * Consulta assíncrona com orquestração em cascata de alta precisão:
  * 1. Léxico Local Offline (0ms de latência)
- * 2. Wikipédia / Enciclopédia Técnica em Português (Termos de TI, conceitos e cultura)
- * 3. Free Dictionary API (Inglês com fonética IPA e sinônimos)
- * 4. Fallback editorial gracioso
+ * 2. Wikcionário em Português (definições léxicas exatas, etimologia e pronúncia AFI de palavras da língua)
+ * 3. Wikipédia em Português (enciclopédia técnica para conceitos de TI, softwares e ferramentas)
+ * 4. Free Dictionary API (Inglês com fonética IPA e sinônimos)
+ * 5. Fallback editorial gracioso
  */
 export async function lookupDictionaryAsync(
   rawWord: string,
   options?: {
     enableExternal?: boolean;
     timeoutMs?: number;
-    preferredSource?: 'all' | 'wikipedia' | 'freedictionary';
+    preferredSource?: 'all' | 'wiktionary' | 'wikipedia' | 'freedictionary';
   }
 ): Promise<DictionaryLookupResult> {
   const localResult = lookupDictionary(rawWord);
@@ -618,7 +620,46 @@ export async function lookupDictionaryAsync(
     return { ...localResult, source: 'local' };
   }
 
-  // 2. Consulta à Wikipédia / Enciclopédia Técnica em Português
+  // 2. Se fonte explícita for apenas Wikipédia (PT)
+  if (preferred === 'wikipedia') {
+    try {
+      const wikiEntry = await fetchWikipediaPt(cleanWord, timeout);
+      if (wikiEntry) {
+        return {
+          found: true,
+          searchedWord: localResult.searchedWord,
+          entry: wikiEntry,
+          source: 'wikipedia'
+        };
+      }
+    } catch {
+      // continua para fallback
+    }
+    return { ...localResult, source: 'local' };
+  }
+
+  // 3. Wikcionário em Português: Dicionário léxico da língua portuguesa
+  // Resolve vocábulos comuns como "recurso", "desafio", "paradigma", "calmaria", "interface" com acepções concisas
+  try {
+    const wiktionaryEntry = await fetchWiktionaryPt(cleanWord, timeout);
+    if (wiktionaryEntry) {
+      return {
+        found: true,
+        searchedWord: localResult.searchedWord,
+        entry: wiktionaryEntry,
+        source: 'wiktionary'
+      };
+    }
+  } catch {
+    // Falha silenciosa no Wikcionário, continua para Wikipédia
+  }
+
+  if (preferred === 'wiktionary') {
+    return { ...localResult, source: 'local' };
+  }
+
+  // 4. Wikipédia em Português: Enciclopédia técnica e conceitos
+  // Resolve termos de TI, entidades e ferramentas ("Kubernetes", "Docker", "TypeScript", "Polimorfismo")
   try {
     const wikiEntry = await fetchWikipediaPt(cleanWord, timeout);
     if (wikiEntry) {
@@ -633,11 +674,7 @@ export async function lookupDictionaryAsync(
     // Falha silenciosa na Wikipédia, continua para Free Dictionary
   }
 
-  if (preferred === 'wikipedia') {
-    return { ...localResult, source: 'local' };
-  }
-
-  // 3. Consulta à Free Dictionary API (Inglês com fonética e sinônimos)
+  // 5. Free Dictionary API (Inglês com fonética e sinônimos)
   try {
     const freeDictEntry = await fetchFreeDictionary(cleanWord, timeout);
     if (freeDictEntry) {

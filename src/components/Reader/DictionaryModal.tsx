@@ -69,6 +69,8 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
                 ? 'Free Dictionary API (Inglês)'
                 : source === 'wikipedia'
                 ? 'Enciclopédia Wikipédia (PT)'
+                : source === 'wiktionary'
+                ? 'Wikcionário da Língua Portuguesa'
                 : 'Léxico Editorial Offline'}
             </span>
           </div>

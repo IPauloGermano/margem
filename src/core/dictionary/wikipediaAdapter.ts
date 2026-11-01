@@ -41,6 +41,8 @@ export function parseWikipediaResponse(
   }
 
   const word = raw.title || fallbackWord;
+  const isDisambiguation = raw.type === 'disambiguation';
+
   let description = raw.description?.trim();
   if (description) {
     // Normaliza primeira letra em maiúscula para apresentação elegante de subtítulo
@@ -49,16 +51,33 @@ export function parseWikipediaResponse(
 
   const partOfSpeech = description
     ? description
-    : raw.type === 'disambiguation'
+    : isDisambiguation
     ? 'Desambiguação Enciclopédica'
     : 'Conceito / Tecnologia';
 
-  // Divide o extrato em parágrafos preservando a fluidez de leitura
-  const rawExtract = raw.extract.trim();
-  const paragraphs = rawExtract
-    .split(/\n\n+/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
+  // Trata desambiguações para evitar textos gigantescos e confusos
+  let paragraphs: string[] = [];
+  if (isDisambiguation) {
+    const rawClean = raw.extract
+      .replace(/^[^\n:]+pode referir-se a:\s*/i, '')
+      .trim();
+
+    const lines = rawClean
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 5 && !l.toLowerCase().includes('livro de') && !l.toLowerCase().includes('filme de'));
+
+    paragraphs = lines.slice(0, 4);
+    if (paragraphs.length === 0) {
+      paragraphs = [raw.extract.trim().slice(0, 300) + '...'];
+    }
+  } else {
+    paragraphs = raw.extract
+      .trim()
+      .split(/\n\n+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+  }
 
   const url = raw.content_urls?.desktop?.page;
   const thumbnailUrl = raw.thumbnail?.source;
@@ -66,7 +85,7 @@ export function parseWikipediaResponse(
   return {
     word,
     partOfSpeech,
-    definitions: paragraphs.length > 0 ? paragraphs : [rawExtract],
+    definitions: paragraphs.length > 0 ? paragraphs : [raw.extract.trim()],
     url,
     thumbnailUrl,
     source: 'wikipedia'

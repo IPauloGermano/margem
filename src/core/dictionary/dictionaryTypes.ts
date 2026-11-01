@@ -3,7 +3,7 @@
  * Interfaces e tipos para o motor de dicionário do Margem.
  */
 
-export type DictionarySource = 'local' | 'wikipedia' | 'freedictionary';
+export type DictionarySource = 'local' | 'wiktionary' | 'wikipedia' | 'freedictionary';
 
 export interface DictionaryEntry {
   word: string;
@@ -26,4 +26,4 @@ export interface DictionaryLookupResult {
   source?: DictionarySource;
 }
 
-export const DICTIONARY_VERSION = '1.2';
+export const DICTIONARY_VERSION = '1.3';
