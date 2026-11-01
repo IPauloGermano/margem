@@ -51,9 +51,23 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
       textArea.setAttribute('aria-hidden', 'true');
 
       document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      textArea.setSelectionRange(0, text.length);
+
+      // Suporte especial para seleção no iOS Safari (onde readonly impede select)
+      const isIos = typeof navigator !== 'undefined' && /ipad|iphone|ipod/i.test(navigator.userAgent);
+      if (isIos) {
+        textArea.removeAttribute('readonly');
+        textArea.focus();
+        const range = document.createRange();
+        range.selectNodeContents(textArea);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        textArea.setSelectionRange(0, 999999);
+      } else {
+        textArea.focus();
+        textArea.select();
+        textArea.setSelectionRange(0, text.length);
+      }
 
       const successful = document.execCommand('copy');
       document.body.removeChild(textArea);
