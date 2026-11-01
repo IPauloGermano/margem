@@ -311,6 +311,138 @@ export const LOCAL_LEXICON: Record<string, DictionaryEntry> = {
     ],
     synonyms: ['resumo', 'reunião', 'conciliação', 'integração'],
     example: 'O aforismo é a mais alta expressão de síntese na prosa filosófica.'
+  },
+  desafio: {
+    word: 'desafio',
+    partOfSpeech: 'substantivo masculino',
+    etymology: 'Do latim disfidare (desafiar, romper a fé)',
+    definitions: [
+      'Provocação que incita à superação de limites, ao combate ou à solução de problema complexo.',
+      'Situação ou tarefa difícil que estimula a criatividade e o engenho.'
+    ],
+    synonyms: ['provocação', 'obstáculo', 'dificuldade', 'estímulo'],
+    example: 'A leitura prolongada impõe um desafio de engenharia e ergonomia visual.'
+  },
+  calmaria: {
+    word: 'calmaria',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do grego kaûma (calor do meio-dia, repouso do mar)',
+    definitions: [
+      'Ausência de vento ou agitação na superfície das águas; mar bonança.',
+      'Estado de sossego, serenidade e silêncio propício à concentração e à leitura profunda.'
+    ],
+    synonyms: ['serenidade', 'tranquilidade', 'bonança', 'quietude', 'repouso'],
+    example: 'Um ambiente de leitura de livros ou ensaios densos exige calmaria e ritmo contínuo.'
+  },
+  engenharia: {
+    word: 'engenharia',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do latim ingenium (talento natural, capacidade inventiva)',
+    definitions: [
+      'Aplicação metódica do conhecimento científico e técnico para conceber, construir e otimizar estruturas e sistemas.',
+      'Arte de arquitetar soluções elegantes para problemas de restrição e desempenho.'
+    ],
+    synonyms: ['técnica', 'construção', 'arquitetura', 'engenho'],
+    example: 'A tipografia digital une arte gráfica e engenharia de software.'
+  },
+  ergonomia: {
+    word: 'ergonomia',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do grego érgon (trabalho) + nómos (lei, norma natural)',
+    definitions: [
+      'Estudo científico das relações de adaptação mútua entre o homem e seus instrumentos ou interfaces de trabalho e repouso.',
+      'Qualidade do que é cômodo, anatômico e fácil de operar sem fadiga muscular ou ocular.'
+    ],
+    synonyms: ['usabilidade', 'conforto postural', 'adaptação'],
+    example: 'A ergonomia visual de um leitor digital depende do controle fino de entrelinha e contraste.'
+  },
+  fidelidade: {
+    word: 'fidelidade',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do latim fidelitas, -atis (lealdade, exatidão)',
+    definitions: [
+      'Qualidade de quem é leal ou digno de confiança.',
+      'Exatidão, pontualidade e rigor na reprodução de formas, proporções e detalhes originais.'
+    ],
+    synonyms: ['exatidão', 'lealdade', 'precisão', 'rigor'],
+    example: 'A fidelidade tipográfica preserva as proporções pensadas pelo desenhista da fonte.'
+  },
+  imprensa: {
+    word: 'imprensa',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do latim impressa (pressionada, gravada sob pressão)',
+    definitions: [
+      'Conjunto de máquinas e prensas mecânicas destinadas à impressão de textos e gravuras por matriz.',
+      'Conjunto de periódicos, jornais e publicações de notícias.'
+    ],
+    synonyms: ['prensa', 'gráfica', 'jornalismo', 'publicações'],
+    example: 'Gutenberg inaugurou a era da imprensa moderna com tipos móveis de chumbo fundido.'
+  },
+  contraste: {
+    word: 'contraste',
+    partOfSpeech: 'substantivo masculino',
+    etymology: 'Do latim contra (oposto) + stare (estar de pé)',
+    definitions: [
+      'Oposição ou diferença notável entre duas ou mais coisas quando comparadas.',
+      'Em artes visuais e tipografia: diferença de luminosidade ou cor entre o texto e o fundo da página.'
+    ],
+    synonyms: ['oposição', 'diferença', 'antítese', 'distinção'],
+    example: 'O contraste suave do papel e-ink evita o cansaço dos receptores retinianos.'
+  },
+  hierarquia: {
+    word: 'hierarquia',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do grego hierarkhía (governo do sagrado, ordem de graus)',
+    definitions: [
+      'Ordenação de elementos segundo uma escala de valor, autoridade ou subordinação.',
+      'Em design editorial: organização visual que guia a atenção do leitor do mais importante para o secundário.'
+    ],
+    synonyms: ['ordem', 'gradação', 'escala', 'subordinação'],
+    example: 'A hierarquia tipográfica diferencia títulos, seções e notas por peso e entrelinhamento.'
+  },
+  ritmo: {
+    word: 'ritmo',
+    partOfSpeech: 'substantivo masculino',
+    etymology: 'Do grego rhythmós (movimento regular, cadência)',
+    definitions: [
+      'Sucessão periódica e harmoniosa de elementos sonoros, visuais ou temporais.',
+      'Em leitura: a cadência natural imposta pelo entrelinhamento e medida da linha ao olhar.'
+    ],
+    synonyms: ['cadência', 'compasso', 'andamento', 'pulso'],
+    example: 'Espaçamentos verticais calculados imprimem ritmo e respiração à prosa.'
+  },
+  escriba: {
+    word: 'escriba',
+    partOfSpeech: 'substantivo masculino / feminino',
+    etymology: 'Do latim scriba (copista, oficial que escreve)',
+    definitions: [
+      'Pessoa encarregada de copiar manualmente manuscritos, leis ou documentos antes da imprensa.',
+      'Doutor da lei e intérprete sagrado na Antiguidade judaica.'
+    ],
+    synonyms: ['copista', 'amanuense', 'calígrafo'],
+    example: 'As proporções canônicas de margem foram refinadas ao longo de séculos pelos escribas.'
+  },
+  digital: {
+    word: 'digital',
+    partOfSpeech: 'adjetivo',
+    etymology: 'Do latim digitalis, de digitus (dedo, contagem pelos dedos)',
+    definitions: [
+      'Relativo a dados representados sob forma numérica binária (bits), processados por computadores.',
+      'Referente a telas eletrônicas e interfaces computacionais.'
+    ],
+    synonyms: ['eletrônico', 'numérico', 'computacional'],
+    example: 'O leitor digital moderno combina a alma do códice clássico com a flexibilidade da computação.'
+  },
+  atencao: {
+    word: 'atenção',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do latim attentio, -onis (ação de estender-se na direção de algo)',
+    definitions: [
+      'Concentração mental sustentada e consciente sobre determinado estímulo, texto ou ideia.',
+      'Cuidado, zelo ou deferência demonstrada a outrem.'
+    ],
+    synonyms: ['concentração', 'vigilância', 'cuidado', 'foco', 'zelo'],
+    example: 'A leitura imersiva protege a atenção do leitor contra as fragmentações digitais.'
   }
 };
 

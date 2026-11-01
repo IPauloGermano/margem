@@ -17,7 +17,7 @@ export const DEFAULT_PREFERENCES: ReaderPreferences = {
   columnWidth: 780, // Largura idêntica ao --reading do psourceblog
   textAlign: 'left',
   paragraphSpacing: 1.2,
-  externalDictionaryEnabled: false
+  externalDictionaryEnabled: true
 };
 
 class ReaderDatabase {
@@ -287,7 +287,12 @@ class ReaderDatabase {
     try {
       const saved = localStorage.getItem(PREFS_KEY);
       if (saved) {
-        return { ...DEFAULT_PREFERENCES, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_PREFERENCES,
+          ...parsed,
+          externalDictionaryEnabled: parsed.externalDictionaryEnabled ?? true
+        };
       }
     } catch (e) {
       console.warn('Erro ao carregar preferências:', e);

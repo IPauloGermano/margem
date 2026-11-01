@@ -31,7 +31,17 @@ async function runServerSecurityTests() {
   await fs.writeFile(secretFile, 'SECRET_KEY=123456');
 
   const outsideSymlink = path.join(allowedDir, 'leak_link.md');
-  await fs.symlink(secretFile, outsideSymlink);
+  let symlinkCreated = false;
+  try {
+    await fs.symlink(secretFile, outsideSymlink);
+    symlinkCreated = true;
+  } catch (symErr) {
+    if (process.platform === 'win32' && (symErr.code === 'EPERM' || symErr.code === 'EACCES')) {
+      console.log('⚠️ symlink ignorado no Windows sem privilégios de administrador');
+    } else {
+      throw symErr;
+    }
+  }
 
   const allowedRoots = [allowedDir];
 

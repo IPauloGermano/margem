@@ -7,13 +7,15 @@ interface DictionaryModalProps {
   onClose: () => void;
   result: DictionaryLookupResult | null;
   isLoading?: boolean;
+  onLookupExternal?: (word: string) => void;
 }
 
 export const DictionaryModal: React.FC<DictionaryModalProps> = ({
   isOpen,
   onClose,
   result,
-  isLoading = false
+  isLoading = false,
+  onLookupExternal
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -176,6 +178,20 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Ação para consultar na Free Dictionary API na nuvem se termo não catalogado localmente */}
+            {!found && onLookupExternal && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => onLookupExternal(searchedWord)}
+                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[var(--accent-signal-bg)] hover:bg-[var(--accent-signal)]/20 border border-[var(--accent-signal)]/40 text-[var(--accent-signal)] font-sans text-xs font-medium transition-colors cursor-pointer"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>Buscar &ldquo;{searchedWord}&rdquo; na Free Dictionary API</span>
+                </button>
               </div>
             )}
           </div>

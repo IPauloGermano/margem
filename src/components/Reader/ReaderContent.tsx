@@ -181,8 +181,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       return;
     }
 
-    // 2. Se a API externa estiver habilitada nas preferências, consulta assincronamente com estado de loading
-    if (preferences.externalDictionaryEnabled) {
+    // 2. Se a API externa estiver habilitada (padrão ativado), consulta assincronamente com estado de loading
+    const isExternalEnabled = preferences.externalDictionaryEnabled ?? true;
+    if (isExternalEnabled) {
       setDictionaryLoading(true);
       setDictionaryResult({ ...instant, source: 'freedictionary' });
       setToolbarState(null);
@@ -190,7 +191,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       try {
         const asyncRes = await lookupDictionaryAsync(rawText, {
           enableExternal: true,
-          timeoutMs: 3500
+          timeoutMs: 6000
         });
         setDictionaryResult(asyncRes);
       } finally {
@@ -199,6 +200,19 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     } else {
       setDictionaryResult({ ...instant, source: 'local' });
       setToolbarState(null);
+    }
+  };
+
+  const handleManualLookupExternal = async (word: string) => {
+    setDictionaryLoading(true);
+    try {
+      const asyncRes = await lookupDictionaryAsync(word, {
+        enableExternal: true,
+        timeoutMs: 6000
+      });
+      setDictionaryResult(asyncRes);
+    } finally {
+      setDictionaryLoading(false);
     }
   };
 
@@ -956,6 +970,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           isOpen={Boolean(dictionaryResult)}
           result={dictionaryResult}
           isLoading={dictionaryLoading}
+          onLookupExternal={handleManualLookupExternal}
           onClose={() => {
             setDictionaryResult(null);
             setDictionaryLoading(false);
