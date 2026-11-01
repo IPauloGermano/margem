@@ -11,6 +11,7 @@
  */
 
 import type { DictionaryEntry } from './dictionaryTypes.ts';
+import { getPortugueseLemmas } from './lemmatizer.ts';
 
 /**
  * Converte o extrato textual do Wikcionário em um DictionaryEntry tipado e limpo.
@@ -112,27 +113,6 @@ export function extractLemmaReference(definition: string): string | null {
   return match ? match[1].toLowerCase().trim() : null;
 }
 
-/**
- * Heurística de lema candidato para palavras flexionadas ausentes no índice direto.
- */
-function getCandidateLemma(word: string): string | null {
-  if (word.endsWith('as') && word.length > 4) {
-    return word.slice(0, -2) + 'o'; // prolongadas -> prolongado
-  }
-  if (word.endsWith('os') && word.length > 4) {
-    return word.slice(0, -1); // recursos -> recurso
-  }
-  if (word.endsWith('es') && word.length > 4) {
-    return word.slice(0, -2); // flores -> flor
-  }
-  if (word.endsWith('s') && word.length > 3) {
-    return word.slice(0, -1);
-  }
-  if (word.endsWith('a') && word.length > 4) {
-    return word.slice(0, -1) + 'o'; // prolongada -> prolongado
-  }
-  return null;
-}
 
 /**
  * Consulta um vocábulo no Wikcionário em Português.
@@ -175,11 +155,11 @@ export async function fetchWiktionaryPt(
 
     const page = Object.values(pages)[0] as { missing?: string; extract?: string };
 
-    // Se a palavra exata não tiver verbete, tenta lemas candidatos simples (ex: plurais em -s, femininos em -a)
+    // Se a palavra exata não tiver verbete, tenta lemas candidatos da morfologia portuguesa
     if (!page || page.missing !== undefined || !page.extract) {
       if (followCrossReference) {
-        const candidate = getCandidateLemma(clean);
-        if (candidate && candidate !== clean) {
+        const candidateLemmas = getPortugueseLemmas(clean).filter((c) => c !== clean.toLowerCase());
+        for (const candidate of candidateLemmas) {
           const candidateEntry = await fetchWiktionaryPt(candidate, Math.min(timeoutMs, 2500), false);
           if (candidateEntry && candidateEntry.definitions.length > 0) {
             return {

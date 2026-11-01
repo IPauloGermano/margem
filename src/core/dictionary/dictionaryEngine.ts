@@ -9,9 +9,11 @@
 import { fetchFreeDictionary } from './freeDictionaryAdapter.ts';
 import { fetchWikipediaPt } from './wikipediaAdapter.ts';
 import { fetchWiktionaryPt } from './wiktionaryAdapter.ts';
+import { getPortugueseLemmas, extractHeadwordCandidates, normalizeKey } from './lemmatizer.ts';
 import type { DictionaryEntry, DictionaryLookupResult } from './dictionaryTypes.ts';
 
 export type { DictionaryEntry, DictionaryLookupResult };
+export { getPortugueseLemmas, extractHeadwordCandidates, normalizeKey };
 
 /**
  * Léxico offline pré-compilado de termos literários, tipográficos, estéticos e filosóficos
@@ -73,6 +75,18 @@ export const LOCAL_LEXICON: Record<string, DictionaryEntry> = {
     ],
     synonyms: ['borda', 'orla', 'contorno', 'limite', 'fronteira'],
     example: 'As notas de margem transformam a leitura passiva em um diálogo com o autor.'
+  },
+  proporcao: {
+    word: 'proporção',
+    partOfSpeech: 'substantivo feminino',
+    etymology: 'Do latim proportio, -onis (relação harmônica entre as partes)',
+    definitions: [
+      'Relação equilibrada e dimensional entre as partes de um todo, essencial para a harmonia visual.',
+      'Em design editorial e tipografia: relação geométrica e modular (como o cânone áureo ou a escala de Van de Graaf) que governa a harmonia entre a mancha de texto, o entrelinhamento e as margens da página.',
+      'Em matemática: igualdade expressa entre duas ou mais razões.'
+    ],
+    synonyms: ['harmonia', 'equilíbrio', 'dimensão', 'simetria', 'relação', 'cânone'],
+    example: 'As proporções de margem dos escribas medievais garantiam repouso visual e ritmo contínuo de leitura.'
   },
   efemero: {
     word: 'efêmero',
@@ -449,58 +463,26 @@ export const LOCAL_LEXICON: Record<string, DictionaryEntry> = {
 };
 
 /**
- * Remove acentos e normaliza para busca no índice do dicionário
+ * Cache L1 em memória para consultas de dicionário (evita rate limiting e acelera reconsultas a 0ms).
  */
-function normalizeKey(str: string): string {
-  return str
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
+const lookupCache = new Map<string, DictionaryLookupResult>();
+const MAX_CACHE_SIZE = 300;
+
+function setCache(key: string, result: DictionaryLookupResult) {
+  if (lookupCache.size >= MAX_CACHE_SIZE) {
+    const oldest = lookupCache.keys().next().value;
+    if (oldest) lookupCache.delete(oldest);
+  }
+  lookupCache.set(key, result);
 }
 
 /**
- * Aplica regras heurísticas de lematização para o português (plurais, femininos, terminações comuns)
- */
-function getLemmaCandidates(word: string): string[] {
-  const norm = normalizeKey(word);
-  if (!norm) return [];
-  const candidates: string[] = [norm];
-
-  // Plurais em -es (ex: leitores -> leitor, capitulos -> capitulo)
-  if (norm.endsWith('es')) {
-    candidates.push(norm.slice(0, -2));
-    candidates.push(norm.slice(0, -1)); // ex: estantes -> estante
-  } else if (norm.endsWith('s') && norm.length > 3) {
-    candidates.push(norm.slice(0, -1)); // ex: margens -> margem (via -ns)
-    if (norm.endsWith('ns')) {
-      candidates.push(norm.slice(0, -2) + 'm');
-    }
-    if (norm.endsWith('oes')) {
-      candidates.push(norm.slice(0, -3) + 'ao');
-    }
-  }
-
-  // Feminino em -a -> -o (ex: tipografica -> tipografico, esteticas -> estetica)
-  if (norm.endsWith('a') && norm.length > 4) {
-    candidates.push(norm.slice(0, -1) + 'o');
-  }
-
-  return Array.from(new Set(candidates));
-}
-
-/**
- * Consulta uma palavra no dicionário local
+ * Consulta uma palavra ou locução no dicionário local offline (0ms de latência).
+ * Aplica lematização morfológica do português e extração inteligente de headword.
  */
 export function lookupDictionary(rawWord: string): DictionaryLookupResult {
-  // Remove pontuações comuns, aspas tipográficas, travessões, parênteses e reticências
-  const cleanWord = rawWord
-    .trim()
-    .replace(/^[\s"“'‘(\[«—–•]+|[\s"”'’)\],.:;!?»—–…•]+$/g, '')
-    .trim();
-
-  const baseNorm = normalizeKey(cleanWord);
-  if (!cleanWord || !baseNorm) {
+  const headwords = extractHeadwordCandidates(rawWord);
+  if (headwords.length === 0) {
     return {
       found: false,
       searchedWord: rawWord,
@@ -512,65 +494,53 @@ export function lookupDictionary(rawWord: string): DictionaryLookupResult {
     };
   }
 
-  // Suporte a seleções de leitura acompanhadas de artigos/preposições (ex: "a tipografia", "o aforismo", "da estética")
-  const STOPWORDS_PREFIXES = [
-    /^(?:o|a|os|as|um|uma|uns|umas)\s+/i,
-    /^(?:de|do|da|dos|das|no|na|nos|nas|em|pelo|pela|pelos|pelas)\s+/i
-  ];
-
-  let effectiveWord = cleanWord;
-  for (const regex of STOPWORDS_PREFIXES) {
-    if (regex.test(effectiveWord)) {
-      effectiveWord = effectiveWord.replace(regex, '').trim();
-      break;
-    }
-  }
-
-  const lemmaCandidates = Array.from(
-    new Set([
-      ...getLemmaCandidates(cleanWord),
-      ...(effectiveWord !== cleanWord ? getLemmaCandidates(effectiveWord) : [])
-    ])
-  );
-
-  // 1. Busca direta nas chaves do léxico pelos lemas gerados
-  for (const candidate of lemmaCandidates) {
-    if (LOCAL_LEXICON[candidate]) {
-      return {
-        found: true,
-        searchedWord: cleanWord,
-        entry: LOCAL_LEXICON[candidate]
-      };
-    }
-  }
-
-  // 2. Busca parcial por prefixo nas chaves (apenas para termos com pelo menos 3 caracteres normalizados)
-  const normKey = normalizeKey(effectiveWord || cleanWord);
-  if (normKey.length >= 3) {
-    for (const [key, entry] of Object.entries(LOCAL_LEXICON)) {
-      if (key.startsWith(normKey) || (normKey.length >= 4 && normKey.startsWith(key))) {
+  // 1. Itera pelos candidatos a núcleo léxico (headwords) e suas flexões morfológicas
+  for (const head of headwords) {
+    const lemmas = getPortugueseLemmas(head);
+    for (const lem of lemmas) {
+      const norm = normalizeKey(lem);
+      if (LOCAL_LEXICON[norm]) {
         return {
           found: true,
-          searchedWord: cleanWord,
-          entry
+          searchedWord: head,
+          entry: LOCAL_LEXICON[norm],
+          source: 'local'
         };
       }
     }
   }
 
+  // 2. Busca parcial por prefixo nas chaves (apenas para termos com pelo menos 3 caracteres normalizados)
+  for (const head of headwords) {
+    const normKey = normalizeKey(head);
+    if (normKey.length >= 3) {
+      for (const [key, entry] of Object.entries(LOCAL_LEXICON)) {
+        if (key.startsWith(normKey) || (normKey.length >= 4 && normKey.startsWith(key))) {
+          return {
+            found: true,
+            searchedWord: head,
+            entry,
+            source: 'local'
+          };
+        }
+      }
+    }
+  }
+
   // 3. Fallback inteligente quando a palavra não está no léxico estático
+  const primaryWord = headwords[headwords.length - 1] || headwords[0];
   const suggestions = Object.keys(LOCAL_LEXICON).slice(0, 5);
 
   return {
     found: false,
-    searchedWord: cleanWord,
+    searchedWord: primaryWord,
     suggestions,
     source: 'local',
     entry: {
-      word: cleanWord,
+      word: primaryWord,
       partOfSpeech: 'vocábulo em prosa',
       definitions: [
-        `Definição detalhada não indexada no léxico offline local. O termo "${cleanWord}" faz parte do vocabulário da obra em leitura.`
+        `Definição detalhada não indexada no léxico offline local. O termo "${primaryWord}" faz parte do vocabulário da obra em leitura.`
       ],
       synonyms: []
     }
@@ -578,12 +548,13 @@ export function lookupDictionary(rawWord: string): DictionaryLookupResult {
 }
 
 /**
- * Consulta assíncrona com orquestração em cascata de alta precisão:
+ * Consulta assíncrona com orquestração em cascata de alta precisão e resiliência:
  * 1. Léxico Local Offline (0ms de latência)
- * 2. Wikcionário em Português (definições léxicas exatas, etimologia e pronúncia AFI de palavras da língua)
- * 3. Wikipédia em Português (enciclopédia técnica para conceitos de TI, softwares e ferramentas)
- * 4. Free Dictionary API (Inglês com fonética IPA e sinônimos)
- * 5. Fallback editorial gracioso
+ * 2. Cache L1 em memória (0ms de latência para consultas já realizadas)
+ * 3. Wikcionário em Português (definições léxicas precisas, etimologia e lematização reversa)
+ * 4. Wikipédia em Português (enciclopédia técnica para conceitos de TI, softwares e ferramentas)
+ * 5. Free Dictionary API (Inglês com fonética IPA e sinônimos)
+ * 6. Fallback editorial gracioso
  */
 export async function lookupDictionaryAsync(
   rawWord: string,
@@ -598,60 +569,84 @@ export async function lookupDictionaryAsync(
     return { ...localResult, source: 'local' };
   }
 
-  const cleanWord = localResult.searchedWord.trim();
   const timeout = options?.timeoutMs ?? 5000;
   const preferred = options?.preferredSource ?? 'all';
+  const headwords = extractHeadwordCandidates(rawWord);
+
+  // Checa cache em memória L1 para todas as variações de headwords
+  for (const head of headwords) {
+    const cached = lookupCache.get(normalizeKey(head));
+    if (cached && cached.found) {
+      return cached;
+    }
+  }
 
   // 1. Se fonte explícita solicitada for apenas Free Dictionary (Inglês)
   if (preferred === 'freedictionary') {
-    try {
-      const freeDictEntry = await fetchFreeDictionary(cleanWord, timeout);
-      if (freeDictEntry) {
-        return {
-          found: true,
-          searchedWord: localResult.searchedWord,
-          entry: freeDictEntry,
-          source: 'freedictionary'
-        };
+    for (const head of headwords) {
+      try {
+        const freeDictEntry = await fetchFreeDictionary(head, timeout);
+        if (freeDictEntry) {
+          const res: DictionaryLookupResult = {
+            found: true,
+            searchedWord: head,
+            entry: freeDictEntry,
+            source: 'freedictionary'
+          };
+          setCache(normalizeKey(rawWord), res);
+          setCache(normalizeKey(head), res);
+          return res;
+        }
+      } catch {
+        // continua
       }
-    } catch {
-      // continua para fallback
     }
     return { ...localResult, source: 'local' };
   }
 
   // 2. Se fonte explícita for apenas Wikipédia (PT)
   if (preferred === 'wikipedia') {
-    try {
-      const wikiEntry = await fetchWikipediaPt(cleanWord, timeout);
-      if (wikiEntry) {
-        return {
-          found: true,
-          searchedWord: localResult.searchedWord,
-          entry: wikiEntry,
-          source: 'wikipedia'
-        };
+    for (const head of headwords) {
+      try {
+        const wikiEntry = await fetchWikipediaPt(head, timeout);
+        if (wikiEntry) {
+          const res: DictionaryLookupResult = {
+            found: true,
+            searchedWord: head,
+            entry: wikiEntry,
+            source: 'wikipedia'
+          };
+          setCache(normalizeKey(rawWord), res);
+          setCache(normalizeKey(head), res);
+          return res;
+        }
+      } catch {
+        // continua
       }
-    } catch {
-      // continua para fallback
     }
     return { ...localResult, source: 'local' };
   }
 
   // 3. Wikcionário em Português: Dicionário léxico da língua portuguesa
-  // Resolve vocábulos comuns como "recurso", "desafio", "paradigma", "calmaria", "interface" com acepções concisas
-  try {
-    const wiktionaryEntry = await fetchWiktionaryPt(cleanWord, timeout);
-    if (wiktionaryEntry) {
-      return {
-        found: true,
-        searchedWord: localResult.searchedWord,
-        entry: wiktionaryEntry,
-        source: 'wiktionary'
-      };
+  if (preferred === 'all' || preferred === 'wiktionary') {
+    for (const head of headwords) {
+      try {
+        const wiktionaryEntry = await fetchWiktionaryPt(head, timeout);
+        if (wiktionaryEntry) {
+          const res: DictionaryLookupResult = {
+            found: true,
+            searchedWord: head,
+            entry: wiktionaryEntry,
+            source: 'wiktionary'
+          };
+          setCache(normalizeKey(rawWord), res);
+          setCache(normalizeKey(head), res);
+          return res;
+        }
+      } catch {
+        // Falha silenciosa no Wikcionário, continua para Wikipédia
+      }
     }
-  } catch {
-    // Falha silenciosa no Wikcionário, continua para Wikipédia
   }
 
   if (preferred === 'wiktionary') {
@@ -659,34 +654,43 @@ export async function lookupDictionaryAsync(
   }
 
   // 4. Wikipédia em Português: Enciclopédia técnica e conceitos
-  // Resolve termos de TI, entidades e ferramentas ("Kubernetes", "Docker", "TypeScript", "Polimorfismo")
-  try {
-    const wikiEntry = await fetchWikipediaPt(cleanWord, timeout);
-    if (wikiEntry) {
-      return {
-        found: true,
-        searchedWord: localResult.searchedWord,
-        entry: wikiEntry,
-        source: 'wikipedia'
-      };
+  for (const head of headwords) {
+    try {
+      const wikiEntry = await fetchWikipediaPt(head, timeout);
+      if (wikiEntry) {
+        const res: DictionaryLookupResult = {
+          found: true,
+          searchedWord: head,
+          entry: wikiEntry,
+          source: 'wikipedia'
+        };
+        setCache(normalizeKey(rawWord), res);
+        setCache(normalizeKey(head), res);
+        return res;
+      }
+    } catch {
+      // Falha silenciosa na Wikipédia, continua para Free Dictionary
     }
-  } catch {
-    // Falha silenciosa na Wikipédia, continua para Free Dictionary
   }
 
   // 5. Free Dictionary API (Inglês com fonética e sinônimos)
-  try {
-    const freeDictEntry = await fetchFreeDictionary(cleanWord, timeout);
-    if (freeDictEntry) {
-      return {
-        found: true,
-        searchedWord: localResult.searchedWord,
-        entry: freeDictEntry,
-        source: 'freedictionary'
-      };
+  for (const head of headwords) {
+    try {
+      const freeDictEntry = await fetchFreeDictionary(head, timeout);
+      if (freeDictEntry) {
+        const res: DictionaryLookupResult = {
+          found: true,
+          searchedWord: head,
+          entry: freeDictEntry,
+          source: 'freedictionary'
+        };
+        setCache(normalizeKey(rawWord), res);
+        setCache(normalizeKey(head), res);
+        return res;
+      }
+    } catch {
+      // Falha silenciosa
     }
-  } catch {
-    // Falha silenciosa
   }
 
   return { ...localResult, source: 'local' };

@@ -9,6 +9,7 @@
  */
 
 import type { DictionaryEntry } from './dictionaryTypes.ts';
+import { getPortugueseLemmas } from './lemmatizer.ts';
 
 export interface RawWikipediaSummaryResponse {
   type?: string;
@@ -126,17 +127,20 @@ export async function fetchWikipediaPt(
       if (parsed) return parsed;
     }
 
-    // Se 404 e a palavra termina com plural comum em 's', tenta a forma singular como alternativa
-    if (res.status === 404 && clean.endsWith('s') && clean.length > 4) {
-      const singular = clean.slice(0, -1);
-      const fallbackUrl = `https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(singular)}`;
-      const fallbackRes = await fetch(fallbackUrl, {
-        signal: controller.signal,
-        headers
-      });
-      if (fallbackRes.ok) {
-        const json = (await fallbackRes.json()) as RawWikipediaSummaryResponse;
-        return parseWikipediaResponse(json, clean);
+    // Se 404, tenta formas lematizadas (ex: "proporções" -> "proporção", "digitais" -> "digital")
+    if (res.status === 404) {
+      const candidateLemmas = getPortugueseLemmas(clean).filter((c) => c !== clean.toLowerCase());
+      for (const singular of candidateLemmas) {
+        const fallbackUrl = `https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(singular)}`;
+        const fallbackRes = await fetch(fallbackUrl, {
+          signal: controller.signal,
+          headers
+        });
+        if (fallbackRes.ok) {
+          const json = (await fallbackRes.json()) as RawWikipediaSummaryResponse;
+          const parsed = parseWikipediaResponse(json, clean);
+          if (parsed) return parsed;
+        }
       }
     }
 

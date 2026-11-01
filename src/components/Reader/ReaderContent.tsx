@@ -210,7 +210,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
   const handleManualLookupExternal = async (
     word: string,
-    preferredSource?: 'wikipedia' | 'freedictionary'
+    preferredSource?: 'wiktionary' | 'wikipedia' | 'freedictionary'
   ) => {
     setDictionaryLoading(true);
     try {

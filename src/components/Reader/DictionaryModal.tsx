@@ -7,7 +7,7 @@ interface DictionaryModalProps {
   onClose: () => void;
   result: DictionaryLookupResult | null;
   isLoading?: boolean;
-  onLookupExternal?: (word: string, preferredSource?: 'wikipedia' | 'freedictionary') => void;
+  onLookupExternal?: (word: string, preferredSource?: 'wiktionary' | 'wikipedia' | 'freedictionary') => void;
 }
 
 export const DictionaryModal: React.FC<DictionaryModalProps> = ({
@@ -269,8 +269,16 @@ export const DictionaryModal: React.FC<DictionaryModalProps> = ({
               <div className="pt-1 space-y-2">
                 <button
                   type="button"
-                  onClick={() => onLookupExternal(searchedWord, 'wikipedia')}
+                  onClick={() => onLookupExternal(searchedWord, 'wiktionary')}
                   className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[var(--accent-signal-bg)] hover:bg-[var(--accent-signal)]/20 border border-[var(--accent-signal)]/40 text-[var(--accent-signal)] font-sans text-xs font-medium transition-colors cursor-pointer"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Buscar &ldquo;{searchedWord}&rdquo; no Wikcionário (PT)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLookupExternal(searchedWord, 'wikipedia')}
+                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-rule)] text-[var(--text-secondary)] font-sans text-xs font-medium transition-colors cursor-pointer"
                 >
                   <Library className="w-4 h-4" />
                   <span>Buscar &ldquo;{searchedWord}&rdquo; na Wikipédia (PT)</span>
