@@ -89,10 +89,18 @@ test('dist/index.html não faz modulepreload de vendor-mermaid nem vendor-katex'
   assert.ok(indexHtml.includes('vendor-parser-utils'), 'vendor-parser-utils deve estar presente');
 });
 
-test('vite.config.ts isola preload-helper no vendor-react e define chunkSizeWarningLimit', () => {
+test('vite.config.ts isola preload-helper no vendor-react, evita barrel de lucide-react e usa bundle pré-compilado do mermaid', () => {
   const viteConfig = fs.readFileSync(path.resolve('vite.config.ts'), 'utf-8');
   assert.ok(viteConfig.includes('preload-helper'), 'vite.config.ts deve capturar preload-helper');
   assert.ok(viteConfig.includes('chunkSizeWarningLimit'), 'chunkSizeWarningLimit deve estar configurado');
+  assert.ok(
+    viteConfig.includes('lucide-direct-imports'),
+    'vite.config.ts deve reescrever imports de lucide-react direto para os módulos de ícone'
+  );
+  assert.ok(
+    viteConfig.includes('mermaid-prebuilt-bundle'),
+    'vite.config.ts deve usar o bundle pré-compilado do mermaid evitando re-parse AST de centenas de módulos'
+  );
 });
 
 await testAsync('MarkdownParser importa KaTeX sob demanda apenas quando há $ no texto', async () => {
