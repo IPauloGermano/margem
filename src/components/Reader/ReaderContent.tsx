@@ -437,12 +437,41 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
           const isDarkTheme = preferences.theme === 'dark' || preferences.theme === 'oled';
           const mermaidTheme = isDarkTheme ? 'dark' : (preferences.theme === 'sepia' ? 'neutral' : 'default');
 
+          // Família de fonte padrão do Mermaid alinhada com as métricas do layout do leitor
+          const targetFontFamily =
+            preferences.fontFamily === 'mono'
+              ? '"JetBrains Mono", Consolas, monospace'
+              : '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
           mermaid.initialize({
             startOnLoad: false,
             securityLevel: 'strict',
             suppressErrorRendering: true,
             theme: mermaidTheme,
-            fontFamily: preferences.fontFamily === 'mono' ? 'monospace' : 'inherit'
+            fontFamily: targetFontFamily,
+            themeVariables: {
+              fontFamily: targetFontFamily,
+              fontSize: '14px'
+            },
+            themeCSS: `
+              .label foreignObject, .label foreignobject, .edgeLabel foreignObject, .edgeLabel foreignobject, foreignObject, foreignobject {
+                overflow: visible !important;
+              }
+              .label foreignObject div, .label foreignobject div {
+                overflow: visible !important;
+                word-break: normal;
+              }
+            `,
+            flowchart: {
+              htmlLabels: true,
+              useMaxWidth: true,
+              padding: 16
+            },
+            sequence: {
+              useMaxWidth: true,
+              boxMargin: 12,
+              messageMargin: 35
+            }
           });
 
           // Nós órfãos que o Mermaid injeta no body em falha (id="d<uniqueId>").

@@ -663,6 +663,22 @@ textarea,
   max-width: 100%;
   height: auto;
   pointer-events: none;
+  overflow: visible;
+}
+
+/* Evita corte de texto dentro dos nós e rótulos dos diagramas Mermaid */
+.reader-mermaid-container foreignObject,
+.reader-mermaid-container foreignobject,
+.reader-mermaid-container .label,
+.reader-mermaid-container .edgeLabel,
+.reader-mermaid-container .nodeLabel {
+  overflow: visible !important;
+}
+
+.reader-mermaid-container foreignObject div,
+.reader-mermaid-container foreignobject div {
+  overflow: visible !important;
+  word-break: normal;
 }
 
 /* Marcadores editoriais de página do PDF */

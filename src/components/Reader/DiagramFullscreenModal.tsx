@@ -542,7 +542,7 @@ export const DiagramFullscreenModal: React.FC<DiagramFullscreenModalProps> = ({
             transformOrigin: 'center center',
             transition: isDragging ? 'none' : 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
           }}
-          className="bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] rounded-xl shadow-lg p-3 sm:p-6 [&_svg]:!w-full [&_svg]:!h-full [&_svg]:!max-w-none [&_svg]:block select-none pointer-events-none"
+          className="bg-[var(--bg-surface)] border border-[var(--border-rule-subtle)] rounded-xl shadow-lg p-3 sm:p-6 [&_svg]:!w-full [&_svg]:!h-full [&_svg]:!max-w-none [&_svg]:block [&_svg]:!overflow-visible [&_foreignObject]:!overflow-visible [&_foreignobject]:!overflow-visible [&_.label]:!overflow-visible [&_.edgeLabel]:!overflow-visible select-none pointer-events-none"
           dangerouslySetInnerHTML={{ __html: cleanedSvgHtml }}
         />
         {/* Fit flutuante: visível só com zoom ou pan ativo; reseta ambos. */}
