@@ -127,14 +127,14 @@ async function runServerSecurityTests() {
       assert.ok(Array.isArray(rootsJson.roots));
       console.log('✓ /api/roots retorna lista segura de raízes');
 
-      // /api/file com arquivo legítimo
+      // /api/file com arquivo legítimo em stream binário
       const fileOkRes = await fetch(`${baseUrl}/api/file?path=${encodeURIComponent(safeFile)}`);
       assert.strictEqual(fileOkRes.status, 200);
-      const fileOkJson = await fileOkRes.json();
-      assert.strictEqual(fileOkJson.filename, 'post.md');
-      assert.strictEqual(fileOkJson.ext, 'md');
-      assert.ok(fileOkJson.buffer.length > 0);
-      console.log('✓ /api/file entrega arquivo permitido');
+      assert.strictEqual(decodeURIComponent(fileOkRes.headers.get('X-Filename')), 'post.md');
+      assert.strictEqual(fileOkRes.headers.get('X-Extension'), 'md');
+      const fileBuf = await fileOkRes.arrayBuffer();
+      assert.ok(fileBuf.byteLength > 0);
+      console.log('✓ /api/file entrega arquivo permitido em stream binário');
 
       // /api/file com arquivo de extensão não autorizada (.env)
       const fileBadExtRes = await fetch(`${baseUrl}/api/file?path=${encodeURIComponent(secretFile)}`);

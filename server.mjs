@@ -263,15 +263,16 @@ export function createApp(options = {}) {
         });
       }
 
-      const buffer = await readFile(safePath);
+      // Headers com metadados do arquivo em UTF-8 seguro
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Length', stats.size);
+      res.setHeader('X-File-Path', encodeURIComponent(safePath));
+      res.setHeader('X-Filename', encodeURIComponent(filename));
+      res.setHeader('X-Extension', ext);
 
-      res.json({
-        filePath: safePath,
-        filename,
-        ext,
-        size: buffer.byteLength,
-        buffer: buffer.toString('base64')
-      });
+      // Stream direto do arquivo sem passar por base64
+      const fileStream = (await import('node:fs')).createReadStream(safePath);
+      fileStream.pipe(res);
     } catch (err) {
       console.error('[API] Erro no /api/file:', err.message);
       res.status(500).json({ error: 'Erro ao carregar arquivo' });

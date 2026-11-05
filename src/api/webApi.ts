@@ -21,14 +21,6 @@ function getApiBaseUrl(): string {
   return window.location.origin;
 }
 
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
 
 async function apiGet<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`${API_BASE}${endpoint}`);
@@ -66,22 +58,32 @@ export const webApi = {
     };
   },
 
-  // Lê arquivo via HTTP API
+  // Lê arquivo binário diretamente sem sobrecarga de base64
   readFileByPath: async (filePath: string): Promise<FileData> => {
-    const data = await apiGet<{
-      filePath: string;
-      filename: string;
-      ext: string;
-      size: number;
-      buffer: string; // base64
-    }>('/api/file', { path: filePath });
-    
+    const url = new URL(`${API_BASE}/api/file`);
+    url.searchParams.set('path', filePath);
+
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const rawPath = res.headers.get('X-File-Path');
+    const rawFilename = res.headers.get('X-Filename');
+    const ext = res.headers.get('X-Extension') || '';
+
+    const resolvedPath = rawPath ? decodeURIComponent(rawPath) : filePath;
+    const resolvedFilename = rawFilename ? decodeURIComponent(rawFilename) : (filePath.split(/[/\\]/).pop() || '');
+
+    const buffer = await res.arrayBuffer();
+
     return {
-      filePath: data.filePath,
-      filename: data.filename,
-      ext: data.ext,
-      size: data.size,
-      buffer: base64ToArrayBuffer(data.buffer),
+      filePath: resolvedPath,
+      filename: resolvedFilename,
+      ext,
+      size: buffer.byteLength,
+      buffer,
     };
   },
 
