@@ -12,6 +12,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { JSDOM } from 'jsdom';
 import { generateMarkdownExport } from '../src/core/export/markdownExport.ts';
 import {
@@ -71,6 +72,10 @@ console.log('--- 1. Validação de Code-Splitting e Otimização de Inicializaç
 
 test('dist/index.html não faz modulepreload de vendor-mermaid nem vendor-katex', () => {
   const indexPath = path.resolve('dist/index.html');
+  if (!fs.existsSync(indexPath)) {
+    // shortcut: gera build sob demanda caso dist ainda não exista, economiza hook global
+    execSync('npm run build:web', { stdio: 'ignore' });
+  }
   assert.ok(fs.existsSync(indexPath), 'dist/index.html deve existir após build');
   const indexHtml = fs.readFileSync(indexPath, 'utf-8');
 
